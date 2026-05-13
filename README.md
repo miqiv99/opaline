@@ -1,42 +1,93 @@
 # Opaline
 
-Opaline is a local-first note management app built around HTML as the native note format.
+Opaline is a local-first knowledge workspace built around clean HTML as the native note format.
 
-Obsidian treats Markdown files as the source of truth. Opaline explores a different idea: notes should be rich HTML documents that remain portable, inspectable, editable, and publishable outside the app.
+It starts as a personal desktop note app, but the larger idea is broader: notes should be durable local documents that can be edited comfortably, searched deeply, linked together, published as webpages, and eventually queried by AI with clear citations.
 
-The project is planned around:
+Obsidian proved that local Markdown files can become a serious personal knowledge base. Opaline explores a related but different bet:
 
-- Tauri 2
-- React
-- Tiptap
-- SQLite
-- Local folders as workspaces
-- HTML notes as durable files
-- AI-assisted writing, organization, search, and refactoring
+> Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.
 
-## Vision
+## Core Thesis
 
-Opaline should feel like a serious personal knowledge base, not just a rich text editor.
+Opaline should not begin as a social platform, forum, website builder, or full Obsidian clone.
 
-The goal is to combine:
+The first product should be a reliable local tool for one person:
 
-- The file ownership and portability of Obsidian
-- The rich editing comfort of modern document apps
-- The local-first reliability of desktop software
-- The programmable structure of HTML
-- The leverage of AI coding and AI-native workflows
+```text
+write -> save -> search -> link -> organize -> publish later
+```
 
-HTML is the core bet. A note can contain headings, links, images, tables, callouts, embedded media, semantic blocks, custom attributes, and eventually interactive components. This gives Opaline room to grow beyond plain Markdown while still keeping notes readable and exportable.
+The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.
+
+## Positioning
+
+Opaline is for people who accumulate knowledge over time:
+
+- independent researchers
+- writers
+- developers
+- students
+- product thinkers
+- technical creators
+- anyone who wants local ownership without giving up rich documents
+
+The first user is the author, not the public reader.
+
+The early promise is:
+
+> Your notes stay on your machine as clean HTML files, while Opaline gives you rich editing, fast search, links, metadata, and eventually AI-assisted retrieval and refactoring.
+
+## Why HTML
+
+HTML is not the goal by itself. The goal is durable rich knowledge.
+
+HTML is attractive because it is:
+
+- **Readable**: every note can open in a browser without Opaline.
+- **Publishable**: the web already speaks HTML, so publishing needs less conversion.
+- **Structured**: sections, figures, tables, callouts, annotations, embeds, and custom attributes can be represented directly.
+- **AI-friendly**: headings, blocks, links, citations, and concept spans can give AI clearer context than plain text alone.
+- **Interaction-friendly**: published pages can support text selection, popovers, hover previews, anchors, and concept search.
+- **Portable**: clean HTML is an open format, not a private app database.
+
+Markdown is excellent for plain-text notes. Opaline's bet is that long-term knowledge work often wants richer structure than Markdown can express without many incompatible extensions.
+
+## HTML Risks
+
+HTML can also fail badly if it becomes arbitrary editor output.
+
+Opaline must avoid saving messy browser HTML like:
+
+```html
+<span style="font-size: 13.5pt;">
+<div class="Apple-converted-space">
+<p style="margin: 0;">
+```
+
+The project therefore needs an **Opaline HTML Profile**:
+
+- a strict, predictable HTML subset
+- stable serialization
+- normalized pasted content
+- deterministic attribute order where possible
+- no editor-only classes in saved notes
+- readable structure for Git diffs
+- app-specific meaning stored with `data-opaline-*` attributes
+
+The product advantage is not merely "using HTML". The advantage is maintaining clean HTML that remains useful for years.
 
 ## Product Principles
 
 - Local-first by default.
+- HTML files are the source of truth.
+- SQLite indexes are rebuildable.
 - Notes should remain useful without Opaline installed.
-- HTML output should be clean, predictable, and version-control friendly.
-- The editor should feel fast and calm.
-- Search and links should make the workspace navigable at scale.
-- AI should help organize knowledge, not trap user data in a black box.
-- Desktop comes first, but the architecture should not block mobile or web later.
+- The editor should feel fast, calm, and serious.
+- Search should help users recover old context, not only match keywords.
+- AI should propose, explain, and cite. It should not silently rewrite knowledge.
+- Publishing should be a natural consequence of the file format, not the first product.
+- Public/community features should come after the personal tool is solid.
 
 ## Proposed Stack
 
@@ -44,9 +95,9 @@ HTML is the core bet. A note can contain headings, links, images, tables, callou
 
 - Tauri 2 for the native shell
 - React for UI
-- Tiptap for rich text editing
-- SQLite for metadata, search indexes, backlinks, and app state
-- File system storage for note documents and attachments
+- Tiptap on ProseMirror for rich editing
+- SQLite for metadata, search indexes, links, backlinks, tags, app state, and optional embeddings
+- File system storage for HTML notes and assets
 
 ### Future Targets
 
@@ -55,29 +106,11 @@ HTML is the core bet. A note can contain headings, links, images, tables, callou
 - Linux
 - iOS
 - Android
-- Web, with a different storage adapter
+- Web with a different storage adapter
 
-The desktop app should be the first-class target. Mobile can come later after the note format, storage model, and editor experience are stable.
+Desktop comes first. Mobile and web should be enabled by architecture, not forced into the first release.
 
-## Repository Direction
-
-The future app may use a structure like this:
-
-```text
-opaline/
-  src/
-    app/
-    components/
-    editor/
-    features/
-    lib/
-    storage/
-    styles/
-  src-tauri/
-  docs/
-  examples/
-  tests/
-```
+## Workspace Model
 
 A user workspace may look like this:
 
@@ -96,9 +129,17 @@ MyNotes/
     cache/
 ```
 
-## HTML Note Format
+Rules:
 
-Opaline should define a clean HTML subset instead of saving arbitrary editor output.
+- `notes/` stores durable user-authored HTML.
+- `assets/` stores images and attachments.
+- `.opaline/` stores rebuildable app metadata and cache.
+- Deleting `.opaline/index.sqlite` should not destroy user content.
+- The workspace should remain inspectable in normal file browsers.
+
+## Note Format
+
+Each note should be a complete HTML document, not only a fragment.
 
 Early notes can use a structure like:
 
@@ -121,214 +162,67 @@ Early notes can use a structure like:
 </html>
 ```
 
-Internal note links can later compile to:
+Internal links can compile to normal browser-readable links with Opaline metadata:
 
 ```html
 <a href="../projects/opaline.html" data-opaline-link="note-id">Opaline</a>
 ```
 
-Tags can use:
+Tags can remain readable while preserving meaning:
 
 ```html
 <span data-opaline-tag="research">#research</span>
 ```
 
-This keeps the document readable in browsers while preserving app-specific meaning.
+Blocks can later receive stable identifiers:
 
-## Development Phases
+```html
+<section id="b-introduction" data-opaline-block>
+  <h2>Introduction</h2>
+  <p>...</p>
+</section>
+```
 
-### Phase 0: Foundation
+## Identity Model
 
-Set up the project and define the shape of the system.
+Opaline should distinguish identity from location.
 
-- Initialize Tauri + React
-- Choose package manager and formatter
-- Add Tiptap editor baseline
-- Add SQLite integration
-- Define the first HTML note schema
-- Decide workspace directory conventions
-- Add basic test and build commands
+- Note IDs should be stable UUID-style identifiers.
+- Paths should be user-facing locations that may change.
+- Links should store both an `href` and a stable Opaline target ID when possible.
+- SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.
 
-### Phase 1: Usable Local Notes
-
-Build the first version that is genuinely useful.
-
-- Open a local workspace folder
-- Create, rename, move, and delete notes
-- Edit notes with Tiptap
-- Save notes as HTML files
-- Auto-save changes
-- Show a file tree
-- Show recent notes
-- Add title and body search
-- Support images and attachments
-- Add light and dark themes
-
-Success criteria: Opaline can replace a simple local notes folder for daily writing.
-
-### Phase 2: Knowledge Base Features
-
-Make notes connect to each other.
-
-- Support `[[note links]]`
-- Resolve and update internal links
-- Add backlinks
-- Add tags
-- Add daily notes
-- Add favorites
-- Add command palette
-- Add full-text search index
-- Track created and updated timestamps
-- Add broken-link detection
-- Add import from Markdown and HTML
-
-Success criteria: Opaline becomes useful for projects, research, and long-running personal knowledge.
-
-### Phase 3: Rich HTML Blocks
-
-Lean into HTML as the native format.
-
-- Tables
-- Task lists
-- Callouts
-- Code blocks with syntax highlighting
-- Embeds
-- Math
-- Diagrams
-- Bookmark cards
-- Resizable images
-- Custom block attributes
-- Block IDs
-- Block references
-
-Success criteria: Opaline can handle rich documents without becoming messy or opaque.
-
-### Phase 4: AI-Native Workflows
-
-Be ambitious here. AI coding and AI-assisted knowledge work are strong enough that Opaline should treat AI as a core design pillar, not a plugin afterthought.
-
-Possible capabilities:
-
-- Summarize a note
-- Generate note titles
-- Extract tags automatically
-- Suggest links to related notes
-- Detect duplicate or overlapping notes
-- Turn rough writing into structured outlines
-- Refactor a long note into smaller connected notes
-- Generate backlinks and missing index pages
-- Create study questions from notes
-- Chat with the current workspace
-- Ask questions with citations to local notes
-- Convert Markdown notes into clean Opaline HTML
-- Clean imported web pages into readable notes
-- Build AI-assisted search over SQLite and local embeddings
-
-The key rule: AI should propose changes clearly and keep the user in control.
-
-### Phase 5: Graph, Timeline, and Structure
-
-Add higher-level views over the workspace.
-
-- Graph view
-- Tag browser
-- Timeline view
-- Calendar view
-- Outline view
-- Project dashboards
-- Saved searches
-- Smart collections
-- Workspace health checks
-
-Success criteria: users can understand a large knowledge base without manually organizing every file.
-
-### Phase 6: Sync, Publish, and Interop
-
-Make Opaline fit real workflows.
-
-- Git-friendly note storage
-- WebDAV or cloud-folder sync compatibility
-- Static site export
-- PDF export
-- Markdown export
-- HTML import and export
-- Obsidian vault import
-- Browser clipper
-- Shareable read-only bundles
-
-Success criteria: users trust that their notes are portable and not locked into the app.
-
-### Phase 7: Mobile and Web
-
-Move beyond desktop after the core is stable.
-
-- Tauri mobile exploration for iOS and Android
-- Mobile editor interaction design
-- Mobile file permission model
-- Web storage adapter using IndexedDB or OPFS
-- Optional remote sync service
-- Shared React component layer
-- Shared domain and note-format logic
-
-Success criteria: most product logic is reused, while storage and native capabilities are swapped per platform.
-
-### Phase 8: Plugin and Theme System
-
-Open the app to user customization.
-
-- Theme API
-- Custom CSS
-- Plugin manifest
-- Plugin permissions
-- Custom commands
-- Custom note transforms
-- Custom block types
-- Workspace automation hooks
-
-Success criteria: Opaline becomes a platform without sacrificing local trust.
-
-## Editor Choice
-
-Opaline should start with Tiptap.
-
-Tiptap gives a practical middle path:
-
-- It is built on ProseMirror.
-- It works well with React.
-- It can output HTML.
-- It has a mature extension model.
-- It is easier to ship with than raw ProseMirror.
-- It leaves room for advanced editor behavior later.
-
-ProseMirror remains important because Tiptap is built on it. The project should expect to learn some ProseMirror concepts over time.
-
-Lexical is also strong, but Tiptap is likely better for the first version because the note-taking and rich-document ecosystem around ProseMirror/Tiptap is deeper.
+This allows notes to be renamed or moved without losing graph meaning.
 
 ## Storage Model
 
 Use both files and SQLite.
 
-Files should store durable user content:
+Files store durable content:
 
 - HTML notes
-- Images
-- Attachments
-- Exported assets
+- images
+- attachments
+- exported assets
 
-SQLite should store derived or app-specific data:
+SQLite stores derived and app-specific data:
 
-- Search index
-- Backlinks
-- Tags
-- Recent notes
-- Favorites
-- Workspace settings
-- AI embeddings, if enabled
-- Cached metadata
+- search index
+- backlinks
+- outgoing links
+- tags
+- titles and aliases
+- recent notes
+- favorites
+- workspace settings
+- AI embeddings if enabled
+- cached metadata
 
-This keeps user data portable while giving the app fast navigation and search.
+The rule is:
 
-## Architecture Notes
+> HTML files are canonical. SQLite is useful, fast, and rebuildable.
+
+## Architecture
 
 Keep platform-specific work behind adapters.
 
@@ -342,30 +236,368 @@ React UI
       -> Web IndexedDB or OPFS
 ```
 
-This separation matters if Opaline later targets iOS, Android, or the web.
+### Layers
+
+**Note Format Layer**
+
+- parse HTML
+- serialize HTML
+- normalize saved documents
+- validate the Opaline HTML Profile
+- migrate old note versions
+
+**Domain Layer**
+
+- note identity
+- note metadata
+- links and backlinks
+- tags
+- assets
+- search indexing
+- publish metadata
+
+**Editor Layer**
+
+- Tiptap extensions
+- editing commands
+- paste sanitization
+- selection behavior
+- rich block editing
+- undo and redo behavior
+
+Tiptap is an implementation detail. The Opaline HTML format should be more durable than the editor library.
+
+## Search Model
+
+Search should have levels.
+
+### Exact Search
+
+Fast local keyword search across titles, headings, body text, tags, and paths.
+
+This is the enhanced Ctrl+F layer.
+
+### Structured Search
+
+Filters over metadata:
+
+- path
+- tag
+- note type
+- created time
+- updated time
+- linked notes
+- broken links
+
+### Semantic Search
+
+Optional AI/embedding-powered retrieval over local notes.
+
+This should answer questions like:
+
+> Did I ever write about why HTML notes might be better than Markdown for this project?
+
+The result should show matching notes and snippets before generating any answer.
+
+### AI Answers
+
+AI should answer only with visible sources:
+
+- cite notes
+- link back to original text
+- show retrieved snippets
+- say when no relevant note was found
+- separate source facts from AI inference
+
+Private notes should not be sent to cloud models without explicit user permission.
+
+## Public Notes and Publishing
+
+Publishing is important, but it should not be the first product surface.
+
+There are several possible stages:
+
+### Static Export
+
+Generate a static website from selected notes.
+
+This can work without accounts or hosting:
+
+- GitHub Pages
+- Cloudflare Pages
+- Vercel
+- personal server
+
+### Hosted Publish
+
+Opaline or another service may host public notes:
+
+```text
+opaline.site/username
+```
+
+This adds accounts, billing, domains, privacy, and content operations.
+
+### Public Knowledge Network
+
+Later, public notes from many users could become discoverable:
+
+- author pages
+- public note search
+- collections
+- citations
+- follows
+- bookmarks
+- cross-user references
+- topic discovery
+
+This is closer to a knowledge forum or research network. It is promising, but too large for the first version.
+
+## Reader-Facing Concept Search
+
+A future published Opaline site should let readers select text and search the author's public notes.
+
+Example:
+
+```text
+Reader selects "HTML-native notes"
+  -> Search this note
+  -> Search this author
+  -> Find related public notes
+  -> Ask with cited sources
+```
+
+This is different from ordinary site search. It lets readers treat an author's public knowledge base as a context they can query while reading.
+
+The careful version should:
+
+- be triggered by selection, not intrusive by default
+- search only public content unless the reader is authenticated
+- show source snippets
+- link to original notes
+- clearly label AI summaries
+- avoid presenting AI inference as the author's direct claim
+
+This feature is a long-term differentiator, not an MVP requirement.
+
+## Relationship to Diandanr
+
+Opaline and Diandanr can eventually complement each other, but should remain separate for now.
+
+```text
+Opaline  = local knowledge creation and management
+Diandanr = publishing, site generation, distribution, and platform features
+```
+
+Opaline can later export a package that Diandanr understands:
+
+```text
+export/
+  manifest.json
+  notes/
+  assets/
+  search-index.json
+  graph.json
+  publish.json
+```
+
+This keeps Opaline focused while preserving a path toward generated websites and public distribution.
+
+## Development Phases
+
+### Phase 0: Foundation
+
+Goal: define the system shape.
+
+- Initialize Tauri + React
+- Choose package manager and formatter
+- Add Tiptap editor baseline
+- Add SQLite integration
+- Define the first Opaline HTML Profile
+- Decide workspace directory conventions
+- Add basic test and build commands
+
+### Phase 1: Trustworthy Local Notes
+
+Goal: make the storage loop reliable.
+
+- Open a local workspace folder
+- Create a note
+- Edit with Tiptap
+- Save as clean HTML
+- Load existing HTML notes
+- Auto-save changes
+- Rebuild SQLite metadata from files
+- Show file tree and recent notes
+
+Success criteria:
+
+> Opaline can safely hold simple real notes, and those notes remain useful without Opaline.
+
+### Phase 2: Search and Navigation
+
+Goal: make the workspace findable.
+
+- Title search
+- Body search
+- Heading extraction
+- Tag extraction
+- Recent notes
+- Favorites
+- Basic command palette
+- Broken file detection
+
+Success criteria:
+
+> Users can find notes by memory, title, keyword, and structure.
+
+### Phase 3: Knowledge Links
+
+Goal: make notes connect.
+
+- `[[note links]]`
+- Resolve links to stable IDs
+- Update links when notes move
+- Backlinks
+- Outgoing links
+- Broken-link detection
+- Daily notes
+- Basic graph data
+
+Success criteria:
+
+> Opaline becomes useful for projects, research, and long-running personal knowledge.
+
+### Phase 4: Rich HTML Blocks
+
+Goal: lean into HTML without losing cleanliness.
+
+- Tables
+- Task lists
+- Callouts
+- Code blocks
+- Images and attachments
+- Embeds
+- Math
+- Diagrams
+- Block IDs
+- Block references
+- Concept spans
+
+Success criteria:
+
+> Opaline can handle rich documents while preserving a clean note format.
+
+### Phase 5: AI-Assisted Knowledge Work
+
+Goal: help users recover and reorganize their own context.
+
+- Summarize a note
+- Generate titles
+- Extract tags
+- Suggest related notes
+- Detect duplicate or overlapping notes
+- Turn rough writing into outlines
+- Refactor long notes into smaller linked notes
+- Ask questions over the workspace with citations
+- Convert imported Markdown or web pages into clean Opaline HTML
+
+Success criteria:
+
+> AI helps users find, understand, and reshape their own knowledge without taking control away from them.
+
+### Phase 6: Publish
+
+Goal: make selected notes public.
+
+- Select notes for publishing
+- Generate static HTML site
+- Include assets
+- Include search index
+- Include backlinks and table of contents
+- Support custom theme basics
+- Preserve public/private boundaries
+
+Success criteria:
+
+> Users can publish selected notes as a useful website without exposing private content.
+
+### Phase 7: Reader Search and Public Knowledge
+
+Goal: make public notes queryable by readers.
+
+- Select-to-search on published pages
+- Search within the current author
+- Show related public notes
+- AI explanations with citations
+- Public glossary or concept pages
+- Optional Diandanr integration
+
+Success criteria:
+
+> Published knowledge becomes something readers can explore and question, not only browse.
+
+### Phase 8: Sync, Mobile, Plugins
+
+Goal: expand after the core is stable.
+
+- Cloud-folder compatibility
+- Git-friendly workflows
+- Optional hosted sync
+- Mobile exploration
+- Web storage adapter
+- Theme API
+- Plugin API
+- Workspace automation hooks
+
+Success criteria:
+
+> Opaline grows without compromising local trust.
 
 ## Early Technical Questions
 
-- Should each note be a full HTML document or an HTML fragment?
-- Should note IDs be path-based, UUID-based, or both?
-- How strict should the allowed HTML schema be?
-- Should SQLite be per workspace or global?
+- How strict should the first Opaline HTML Profile be?
+- Should saved HTML be pretty-printed for human diffs or compact for stability?
+- How should note IDs be generated and stored?
+- Should aliases live in `<meta>` tags, JSON metadata, or visible note properties?
+- How should assets move when a note moves?
+- How should private links behave when exporting public notes?
 - Should backlinks be computed eagerly or lazily?
-- How should assets move when a note is moved?
-- Should AI features be local-only, cloud-backed, or adapter-based?
+- Which SQLite search strategy should be used first?
+- Should embeddings be stored locally per workspace?
+- How should AI adapters handle privacy and provider choice?
+
+## Not Doing First
+
+The early project should not try to build everything.
+
+Not first:
+
+- real-time multiplayer collaboration
+- a full public forum
+- a social recommendation feed
+- a plugin marketplace
+- Notion-style databases
+- complex project management
+- mobile-first editing
+- hosted sync
+- all-in-one website generation
+- cross-user AI search
+
+These may become possible later. They should not define the first working version.
 
 ## Short-Term Roadmap
 
 1. Scaffold Tauri + React.
 2. Add Tiptap with basic rich text editing.
-3. Save and load one HTML note.
+3. Save and load one clean HTML note.
 4. Add workspace folder support.
-5. Add file tree and note list.
-6. Add SQLite metadata.
-7. Add search.
+5. Add SQLite metadata scanning.
+6. Add file tree and recent notes.
+7. Add title and body search.
 8. Add `[[note links]]`.
 9. Add backlinks.
-10. Add AI-assisted note cleanup and title/tag suggestions.
+10. Add AI-assisted note search with citations.
 
 ## License
 
