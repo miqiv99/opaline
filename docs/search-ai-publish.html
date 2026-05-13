@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Search AI Publish</title>
+    <meta name="opaline:doc" content="search-ai-publish">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../README.html">Back to README</a></p>
+        <h1>Search, AI, and Publishing</h1>
+
+        <section lang="zh-Hans" aria-label="中文简介">
+          <h2>中文简介</h2>
+          <p>这一页说明搜索、AI 和发布的关系。普通搜索解决关键词和结构检索，AI 搜索解决用户不记得旧文档怎么写、但想恢复上下文的问题。</p>
+          <p>发布功能应该分阶段：先静态导出，再托管发布，最后才是公开知识网络。读者选中文本后搜索作者公开笔记，是长期差异点，不是第一版功能。</p>
+        </section>
+
+        <h2>Search Model</h2>
+        <p>Search should help users recover old context, not only match keywords.</p>
+
+        <h3>Exact Search</h3>
+        <p>Fast local keyword search across titles, headings, body text, tags, and paths. This is the enhanced Ctrl+F layer.</p>
+
+        <h3>Structured Search</h3>
+        <p>Filters over path, tag, note type, created time, updated time, linked notes, and broken links.</p>
+
+        <h3>Semantic Search</h3>
+        <p>Optional AI or embedding-powered retrieval over local notes. The result should show matching notes and snippets before generating any answer.</p>
+
+        <h3>AI Answers</h3>
+        <p>AI should answer only with visible sources.</p>
+        <ul>
+          <li>cite notes</li>
+          <li>link back to original text</li>
+          <li>show retrieved snippets</li>
+          <li>say when no relevant note was found</li>
+          <li>separate source facts from AI inference</li>
+        </ul>
+
+        <p>Private notes should not be sent to cloud models without explicit user permission.</p>
+
+        <h2>Publishing Stages</h2>
+        <h3>Static Export</h3>
+        <p>Generate a static website from selected notes. This can work without accounts or hosting through GitHub Pages, Cloudflare Pages, Vercel, or a personal server.</p>
+
+        <h3>Hosted Publish</h3>
+        <p>Opaline or another service may host public notes at a URL like <code>opaline.site/username</code>. This adds accounts, billing, domains, privacy, and content operations.</p>
+
+        <h3>Public Knowledge Network</h3>
+        <p>Later, public notes from many users could become discoverable through author pages, public note search, collections, citations, follows, bookmarks, cross-user references, and topic discovery.</p>
+
+        <h2>Reader-Facing Concept Search</h2>
+        <p>A future published Opaline site should let readers select text and search the author's public notes.</p>
+
+        <pre><code>Reader selects "HTML-native notes"
+  -&gt; Search this note
+  -&gt; Search this author
+  -&gt; Find related public notes
+  -&gt; Ask with cited sources</code></pre>
+
+        <p>This is different from ordinary site search. It lets readers treat an author's public knowledge base as a context they can query while reading.</p>
+
+        <p>The careful version should be triggered by selection, search only public content unless the reader is authenticated, show source snippets, link to original notes, clearly label AI summaries, and avoid presenting AI inference as the author's direct claim.</p>
+      </article>
+    </main>
+  </body>
+</html>

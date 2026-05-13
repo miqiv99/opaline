@@ -2,6 +2,8 @@
 
 Opaline is a local-first knowledge workspace built around clean HTML as the native note format.
 
+This Markdown file is kept as the repository landing page. Start from [index.html](index.html) for the document portal. The project-native HTML documentation starts at [README.html](README.html), with split documents under [docs/](docs/). 中文 Markdown 见 [README.zh.md](README.zh.md)，中文 HTML 入口见 [README.zh.html](README.zh.html)。
+
 It starts as a personal desktop note app, but the larger idea is broader: notes should be durable local documents that can be edited comfortably, searched deeply, linked together, published as webpages, and eventually queried by AI with clear citations.
 
 Obsidian proved that local Markdown files can become a serious personal knowledge base. Opaline explores a related but different bet:

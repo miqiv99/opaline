@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Storage and Architecture</title>
+    <meta name="opaline:doc" content="storage-architecture">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../README.html">Back to README</a></p>
+        <h1>Storage and Architecture</h1>
+
+        <section lang="zh-Hans" aria-label="中文简介">
+          <h2>中文简介</h2>
+          <p>这一页说明 Opaline 的本地存储和架构分层。HTML 文件是用户内容的真实来源，SQLite 只保存索引、反链、标签、最近访问、搜索缓存和可重建的派生数据。</p>
+          <p>架构上应该把编辑器层、领域层、格式层和存储适配器分开。Tiptap 是实现细节，Opaline HTML 格式应该比具体编辑器更长寿。</p>
+        </section>
+
+        <h2>Workspace Model</h2>
+        <pre><code>MyNotes/
+  notes/
+    index.html
+    projects/
+      opaline.html
+  assets/
+    images/
+    files/
+  .opaline/
+    index.sqlite
+    settings.json
+    cache/</code></pre>
+
+        <ul>
+          <li><code>notes/</code> stores durable user-authored HTML.</li>
+          <li><code>assets/</code> stores images and attachments.</li>
+          <li><code>.opaline/</code> stores rebuildable app metadata and cache.</li>
+          <li>Deleting <code>.opaline/index.sqlite</code> should not destroy user content.</li>
+          <li>The workspace should remain inspectable in normal file browsers.</li>
+        </ul>
+
+        <h2>Storage Rule</h2>
+        <blockquote>
+          <p>HTML files are canonical. SQLite is useful, fast, and rebuildable.</p>
+        </blockquote>
+
+        <h2>Files Store Durable Content</h2>
+        <ul>
+          <li>HTML notes</li>
+          <li>images</li>
+          <li>attachments</li>
+          <li>exported assets</li>
+        </ul>
+
+        <h2>SQLite Stores Derived Data</h2>
+        <ul>
+          <li>search index</li>
+          <li>backlinks</li>
+          <li>outgoing links</li>
+          <li>tags</li>
+          <li>titles and aliases</li>
+          <li>recent notes</li>
+          <li>favorites</li>
+          <li>workspace settings</li>
+          <li>AI embeddings if enabled</li>
+          <li>cached metadata</li>
+        </ul>
+
+        <h2>Identity Model</h2>
+        <p>Opaline should distinguish identity from location.</p>
+        <ul>
+          <li>Note IDs should be stable UUID-style identifiers.</li>
+          <li>Paths should be user-facing locations that may change.</li>
+          <li>Links should store both an <code>href</code> and a stable Opaline target ID when possible.</li>
+          <li>SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.</li>
+        </ul>
+
+        <h2>Architecture</h2>
+        <pre><code>React UI
+  -&gt; Editor layer
+  -&gt; Domain layer
+  -&gt; Storage adapter
+      -&gt; Tauri desktop file system
+      -&gt; Tauri mobile file system
+      -&gt; Web IndexedDB or OPFS</code></pre>
+
+        <h2>Layers</h2>
+        <h3>Note Format Layer</h3>
+        <ul>
+          <li>parse HTML</li>
+          <li>serialize HTML</li>
+          <li>normalize saved documents</li>
+          <li>validate the Opaline HTML Profile</li>
+          <li>migrate old note versions</li>
+        </ul>
+
+        <h3>Domain Layer</h3>
+        <ul>
+          <li>note identity</li>
+          <li>note metadata</li>
+          <li>links and backlinks</li>
+          <li>tags</li>
+          <li>assets</li>
+          <li>search indexing</li>
+          <li>publish metadata</li>
+        </ul>
+
+        <h3>Editor Layer</h3>
+        <ul>
+          <li>Tiptap extensions</li>
+          <li>editing commands</li>
+          <li>paste sanitization</li>
+          <li>selection behavior</li>
+          <li>rich block editing</li>
+          <li>undo and redo behavior</li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Roadmap</title>
+    <meta name="opaline:doc" content="roadmap">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../README.html">Back to README</a></p>
+        <h1>Roadmap and Non-Goals</h1>
+
+        <section lang="zh-Hans" aria-label="中文简介">
+          <h2>中文简介</h2>
+          <p>这一页说明阶段路线和暂时不做的事情。早期重点是可信的本地 HTML 笔记、搜索、链接和 SQLite 索引。AI、发布、公开知识网络、移动端和插件系统都应该排在后面。</p>
+          <p>这个路线的目的，是避免一开始就被平台、社区、同步、插件市场和网站生成器这些复杂任务拖住。</p>
+        </section>
+
+        <h2>Phase 0: Foundation</h2>
+        <ul>
+          <li>Initialize Tauri and React.</li>
+          <li>Choose package manager and formatter.</li>
+          <li>Add Tiptap editor baseline.</li>
+          <li>Add SQLite integration.</li>
+          <li>Define the first Opaline HTML Profile.</li>
+          <li>Decide workspace directory conventions.</li>
+          <li>Add basic test and build commands.</li>
+        </ul>
+
+        <h2>Phase 1: Trustworthy Local Notes</h2>
+        <ul>
+          <li>Open a local workspace folder.</li>
+          <li>Create a note.</li>
+          <li>Edit with Tiptap.</li>
+          <li>Save as clean HTML.</li>
+          <li>Load existing HTML notes.</li>
+          <li>Auto-save changes.</li>
+          <li>Rebuild SQLite metadata from files.</li>
+          <li>Show file tree and recent notes.</li>
+        </ul>
+
+        <h2>Phase 2: Search and Navigation</h2>
+        <ul>
+          <li>Title search.</li>
+          <li>Body search.</li>
+          <li>Heading extraction.</li>
+          <li>Tag extraction.</li>
+          <li>Recent notes.</li>
+          <li>Favorites.</li>
+          <li>Basic command palette.</li>
+          <li>Broken file detection.</li>
+        </ul>
+
+        <h2>Phase 3: Knowledge Links</h2>
+        <ul>
+          <li><code>[[note links]]</code>.</li>
+          <li>Resolve links to stable IDs.</li>
+          <li>Update links when notes move.</li>
+          <li>Backlinks.</li>
+          <li>Outgoing links.</li>
+          <li>Broken-link detection.</li>
+          <li>Daily notes.</li>
+          <li>Basic graph data.</li>
+        </ul>
+
+        <h2>Phase 4: Rich HTML Blocks</h2>
+        <ul>
+          <li>Tables.</li>
+          <li>Task lists.</li>
+          <li>Callouts.</li>
+          <li>Code blocks.</li>
+          <li>Images and attachments.</li>
+          <li>Embeds.</li>
+          <li>Math.</li>
+          <li>Diagrams.</li>
+          <li>Block IDs.</li>
+          <li>Block references.</li>
+          <li>Concept spans.</li>
+        </ul>
+
+        <h2>Phase 5: AI-Assisted Knowledge Work</h2>
+        <ul>
+          <li>Summarize a note.</li>
+          <li>Generate titles.</li>
+          <li>Extract tags.</li>
+          <li>Suggest related notes.</li>
+          <li>Detect duplicate or overlapping notes.</li>
+          <li>Turn rough writing into outlines.</li>
+          <li>Refactor long notes into smaller linked notes.</li>
+          <li>Ask questions over the workspace with citations.</li>
+          <li>Convert imported Markdown or web pages into clean Opaline HTML.</li>
+        </ul>
+
+        <h2>Phase 6: Publish</h2>
+        <ul>
+          <li>Select notes for publishing.</li>
+          <li>Generate static HTML site.</li>
+          <li>Include assets.</li>
+          <li>Include search index.</li>
+          <li>Include backlinks and table of contents.</li>
+          <li>Support custom theme basics.</li>
+          <li>Preserve public and private boundaries.</li>
+        </ul>
+
+        <h2>Phase 7: Reader Search and Public Knowledge</h2>
+        <ul>
+          <li>Select-to-search on published pages.</li>
+          <li>Search within the current author.</li>
+          <li>Show related public notes.</li>
+          <li>AI explanations with citations.</li>
+          <li>Public glossary or concept pages.</li>
+          <li>Optional Diandanr integration.</li>
+        </ul>
+
+        <h2>Phase 8: Sync, Mobile, Plugins</h2>
+        <ul>
+          <li>Cloud-folder compatibility.</li>
+          <li>Git-friendly workflows.</li>
+          <li>Optional hosted sync.</li>
+          <li>Mobile exploration.</li>
+          <li>Web storage adapter.</li>
+          <li>Theme API.</li>
+          <li>Plugin API.</li>
+          <li>Workspace automation hooks.</li>
+        </ul>
+
+        <h2>Not Doing First</h2>
+        <ul>
+          <li>real-time multiplayer collaboration</li>
+          <li>a full public forum</li>
+          <li>a social recommendation feed</li>
+          <li>a plugin marketplace</li>
+          <li>Notion-style databases</li>
+          <li>complex project management</li>
+          <li>mobile-first editing</li>
+          <li>hosted sync</li>
+          <li>all-in-one website generation</li>
+          <li>cross-user AI search</li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>

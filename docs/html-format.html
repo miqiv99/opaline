@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline HTML Format</title>
+    <meta name="opaline:doc" content="html-format">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../README.html">Back to README</a></p>
+        <h1>HTML Format and Multilingual Notes</h1>
+
+        <section lang="zh-Hans" aria-label="中文简介">
+          <h2>中文简介</h2>
+          <p>这一页说明为什么 Opaline 选择 HTML，以及 HTML 对多语言的支持方式。HTML 本身对中文、英文、阿拉伯文等混排支持很好，关键是统一使用 UTF-8，并正确保留 <code>lang</code> 和 <code>dir</code> 这类语言元数据。</p>
+          <p>真正的挑战不是 HTML 能不能表达多语言，而是 Opaline 的编辑器、导入导出、搜索和 AI 检索流程能不能稳定保留这些语义。</p>
+        </section>
+
+        <h2>Why HTML</h2>
+        <p>HTML is not the goal by itself. The goal is durable rich knowledge. HTML is useful because it is readable, publishable, structured, AI-friendly, interaction-friendly, multilingual, and portable.</p>
+
+        <p>Markdown is excellent for plain-text notes. Opaline's bet is that long-term knowledge work often wants richer structure than Markdown can express without many incompatible extensions.</p>
+
+        <h2>Multilingual Support</h2>
+        <p>HTML has strong multilingual support when documents are saved as UTF-8 and correctly annotated.</p>
+
+        <ul>
+          <li><code>&lt;meta charset="utf-8"&gt;</code> supports Chinese, English, Japanese, Korean, Arabic, emoji, symbols, and mixed scripts.</li>
+          <li>The <code>lang</code> attribute identifies the language of the document or a specific section.</li>
+          <li>The <code>dir</code> attribute supports left-to-right and right-to-left writing systems.</li>
+          <li>Different sections can use different languages in the same note.</li>
+          <li>Browsers, screen readers, search engines, and spellcheckers can use language metadata.</li>
+        </ul>
+
+        <p>Example:</p>
+
+        <pre><code>&lt;html lang="zh-Hans"&gt;
+  &lt;body&gt;
+    &lt;article data-opaline-note&gt;
+      &lt;h1&gt;HTML 笔记&lt;/h1&gt;
+      &lt;p&gt;这是一段中文。&lt;/p&gt;
+      &lt;p lang="en"&gt;This sentence is in English.&lt;/p&gt;
+      &lt;p lang="ar" dir="rtl"&gt;هذه فقرة عربية.&lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <p>The main challenge is not whether HTML supports languages. It does. The challenge is making Opaline preserve language metadata during editing, import, export, search, and AI retrieval.</p>
+
+        <h2>Opaline HTML Profile</h2>
+        <p>Opaline should define a strict, predictable subset of HTML instead of saving arbitrary editor output.</p>
+
+        <ul>
+          <li>Use semantic elements where possible.</li>
+          <li>Normalize pasted content.</li>
+          <li>Preserve meaningful <code>lang</code> and <code>dir</code> attributes.</li>
+          <li>Remove editor-only classes and unstable inline styles.</li>
+          <li>Use <code>data-opaline-*</code> attributes for app-specific meaning.</li>
+          <li>Serialize documents consistently for Git-friendly diffs.</li>
+        </ul>
+
+        <h2>Base Note Structure</h2>
+        <pre><code>&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;title&gt;Example Note&lt;/title&gt;
+    &lt;meta name="opaline:id" content="note-id"&gt;
+    &lt;meta name="opaline:created" content="2026-05-13T00:00:00Z"&gt;
+    &lt;meta name="opaline:updated" content="2026-05-13T00:00:00Z"&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;article data-opaline-note&gt;
+      &lt;h1&gt;Example Note&lt;/h1&gt;
+      &lt;p&gt;This is a portable HTML note.&lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <h2>Links, Tags, and Blocks</h2>
+        <pre><code>&lt;a href="../projects/opaline.html" data-opaline-link="note-id"&gt;Opaline&lt;/a&gt;
+
+&lt;span data-opaline-tag="research"&gt;#research&lt;/span&gt;
+
+&lt;section id="b-introduction" data-opaline-block&gt;
+  &lt;h2&gt;Introduction&lt;/h2&gt;
+  &lt;p&gt;...&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+      </article>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 中文入口</title>
+    <meta name="opaline:doc" content="readme-zh">
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfaf8;
+        --text: #1f2328;
+        --muted: #656d76;
+        --line: #d8dee4;
+        --accent: #6f4bb6;
+        --code-bg: #f1f4f8;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --text: #e6edf3;
+          --muted: #9aa4b2;
+          --line: #30363d;
+          --accent: #b99cff;
+          --code-bg: #171b22;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+
+      main {
+        width: min(880px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 56px 0 80px;
+      }
+
+      h1,
+      h2 {
+        line-height: 1.25;
+      }
+
+      h1 {
+        font-size: 2.35rem;
+        margin: 0 0 0.5rem;
+      }
+
+      h2 {
+        border-top: 1px solid var(--line);
+        margin-top: 2.4rem;
+        padding-top: 1.8rem;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 1.12rem;
+        margin-top: 0;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent);
+        margin: 1.5rem 0;
+        padding: 0.1rem 0 0.1rem 1rem;
+        color: var(--muted);
+      }
+
+      code {
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 0.1rem 0.3rem;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border-radius: 8px;
+        overflow-x: auto;
+        padding: 1rem;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <h1>Opaline 中文入口</h1>
+        <p class="subtitle">一个以干净 HTML 为原生笔记格式的本地优先知识工作台。</p>
+
+        <blockquote>
+          <p>Opaline 的核心想法是：笔记应该以干净的本地 HTML 保存，因此每篇笔记从一开始就是可阅读的文档、可发布的网页、也可以成为 AI 辅助检索和整理的结构化知识源。</p>
+        </blockquote>
+
+        <h2>文档导航</h2>
+        <p>目前拆分文档以英文正文为主，并补充中文摘要。中文入口用于快速理解结构和跳转。后续可以逐步补齐完整中文版本。</p>
+
+        <ul>
+          <li><a href="index.html">文档路口页</a></li>
+          <li><a href="README.zh.md">中文 Markdown README</a></li>
+          <li><a href="README.md">English Markdown README</a></li>
+          <li><a href="README.html">English README</a></li>
+          <li><a href="docs/vision.html">愿景和定位</a></li>
+          <li><a href="docs/html-format.html">HTML 格式和多语言支持</a></li>
+          <li><a href="docs/storage-architecture.html">存储模型和架构</a></li>
+          <li><a href="docs/search-ai-publish.html">搜索、AI 和发布</a></li>
+          <li><a href="docs/roadmap.html">路线图和暂不做的事情</a></li>
+        </ul>
+
+        <h2>一句话定位</h2>
+        <p>Opaline 先不是论坛，也不是平台，而是一个能产生高质量、可发布、可 AI 检索 HTML 知识文件的本地工具。</p>
+
+        <h2>第一阶段闭环</h2>
+        <pre><code>写下来 -&gt; 存得住 -&gt; 找得到 -&gt; 连得上 -&gt; 以后能发布</code></pre>
+
+        <h2>为什么是 HTML</h2>
+        <ul>
+          <li>不用 Opaline，也能用浏览器打开。</li>
+          <li>天然适合发布成网页。</li>
+          <li>比 Markdown 更适合富文档结构。</li>
+          <li>可以保留块、概念、引用、语言等语义信息。</li>
+          <li>适合未来做选中文字搜索、概念解释和带引用的 AI 问答。</li>
+        </ul>
+
+        <h2>打开 README 能不能跳转</h2>
+        <p>如果你打开的是 <code>README.html</code>，页面里的链接可以直接跳转到拆分文档。</p>
+        <p>如果你打开的是 <code>README.md</code>，它是 GitHub/代码仓库入口，只能显示链接，需要点击后跳转，不会自动重定向。</p>
+      </article>
+    </main>
+  </body>
+</html>

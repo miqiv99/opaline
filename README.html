@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline</title>
+    <meta name="opaline:doc" content="readme">
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfaf8;
+        --text: #1f2328;
+        --muted: #656d76;
+        --line: #d8dee4;
+        --accent: #6f4bb6;
+        --code-bg: #f1f4f8;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --text: #e6edf3;
+          --muted: #9aa4b2;
+          --line: #30363d;
+          --accent: #b99cff;
+          --code-bg: #171b22;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.65;
+      }
+
+      main {
+        width: min(880px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 56px 0 80px;
+      }
+
+      h1, h2 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin: 0 0 0.5rem;
+      }
+
+      h2 {
+        border-top: 1px solid var(--line);
+        margin-top: 2.4rem;
+        padding-top: 1.8rem;
+      }
+
+      p, li {
+        font-size: 1rem;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 1.15rem;
+        margin-top: 0;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent);
+        margin: 1.5rem 0;
+        padding: 0.1rem 0 0.1rem 1rem;
+        color: var(--muted);
+      }
+
+      code {
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 0.1rem 0.3rem;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border-radius: 8px;
+        overflow-x: auto;
+        padding: 1rem;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+
+      nav ul {
+        padding-left: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <h1>Opaline</h1>
+        <p class="subtitle">A local-first knowledge workspace built around clean HTML as the native note format.</p>
+
+        <blockquote>
+          <p>Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.</p>
+        </blockquote>
+
+        <h2>Documentation</h2>
+        <nav aria-label="Project documentation">
+          <ul>
+            <li><a href="index.html" lang="zh-Hans">文档路口页 / Document portal</a></li>
+            <li><a href="README.zh.html" lang="zh-Hans">中文入口</a></li>
+            <li><a href="README.md">English Markdown README</a></li>
+            <li><a href="README.zh.md" lang="zh-Hans">中文 Markdown README</a></li>
+            <li><a href="docs/vision.html">Vision and positioning</a></li>
+            <li><a href="docs/html-format.html">HTML format and multilingual notes</a></li>
+            <li><a href="docs/storage-architecture.html">Storage and architecture</a></li>
+            <li><a href="docs/search-ai-publish.html">Search, AI, and publishing</a></li>
+            <li><a href="docs/roadmap.html">Roadmap and non-goals</a></li>
+          </ul>
+        </nav>
+
+        <h2>Core Thesis</h2>
+        <p>Opaline should not begin as a social platform, forum, website builder, or full Obsidian clone. The first product should be a reliable local tool for one person.</p>
+
+        <pre><code>write -&gt; save -&gt; search -&gt; link -&gt; organize -&gt; publish later</code></pre>
+
+        <p>The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.</p>
+
+        <h2>Why HTML</h2>
+        <p>HTML is not the goal by itself. The goal is durable rich knowledge. HTML is attractive because it is readable, publishable, structured, AI-friendly, interaction-friendly, multilingual, and portable.</p>
+
+        <p>The product advantage is not merely using HTML. The advantage is maintaining clean HTML that remains useful for years.</p>
+
+        <h2>Proposed Stack</h2>
+        <ul>
+          <li>Tauri 2 for the native shell</li>
+          <li>React for UI</li>
+          <li>Tiptap on ProseMirror for rich editing</li>
+          <li>SQLite for metadata, search indexes, links, backlinks, tags, app state, and optional embeddings</li>
+          <li>File system storage for HTML notes and assets</li>
+        </ul>
+
+        <h2>Short-Term Roadmap</h2>
+        <ol>
+          <li>Scaffold Tauri and React.</li>
+          <li>Add Tiptap with basic rich text editing.</li>
+          <li>Save and load one clean HTML note.</li>
+          <li>Add workspace folder support.</li>
+          <li>Add SQLite metadata scanning.</li>
+          <li>Add file tree and recent notes.</li>
+          <li>Add title and body search.</li>
+          <li>Add <code>[[note links]]</code>.</li>
+          <li>Add backlinks.</li>
+          <li>Add AI-assisted note search with citations.</li>
+        </ol>
+
+        <h2>License</h2>
+        <p>Copyright (c) 2026 Enjun Lu.</p>
+        <p>Opaline is licensed under the PolyForm Noncommercial License 1.0.0. Noncommercial use is permitted under the terms in <a href="LICENSE">LICENSE</a>. Commercial use requires a separate commercial license from the author.</p>
+      </article>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 文档入口</title>
+    <meta name="opaline:doc" content="portal">
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfaf8;
+        --text: #1f2328;
+        --muted: #656d76;
+        --line: #d8dee4;
+        --accent: #6f4bb6;
+        --panel: #ffffff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --text: #e6edf3;
+          --muted: #9aa4b2;
+          --line: #30363d;
+          --accent: #b99cff;
+          --panel: #151922;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+
+      main {
+        width: min(920px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 56px 0 80px;
+      }
+
+      h1 {
+        font-size: 2.4rem;
+        line-height: 1.2;
+        margin: 0 0 0.5rem;
+      }
+
+      h2 {
+        border-top: 1px solid var(--line);
+        margin-top: 2.4rem;
+        padding-top: 1.8rem;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 1.12rem;
+        margin-top: 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        margin-top: 1rem;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      a {
+        color: var(--accent);
+        font-weight: 650;
+      }
+
+      p {
+        margin: 0.45rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <h1>Opaline 文档入口</h1>
+        <p class="subtitle">从这里进入 Markdown 文档、HTML 原生文档和中英文说明。</p>
+
+        <h2>Markdown 入口</h2>
+        <div class="grid">
+          <section class="card">
+            <h3>英文 Markdown</h3>
+            <p><a href="README.md">README.md</a></p>
+            <p>适合作为代码仓库默认首页。</p>
+          </section>
+          <section class="card">
+            <h3>中文 Markdown</h3>
+            <p><a href="README.zh.md">README.zh.md</a></p>
+            <p>中文概念说明和路线总结。</p>
+          </section>
+        </div>
+
+        <h2>HTML 原生文档</h2>
+        <div class="grid">
+          <section class="card">
+            <h3>英文 HTML</h3>
+            <p><a href="README.html">README.html</a></p>
+            <p>项目原生 HTML 文档入口。</p>
+          </section>
+          <section class="card">
+            <h3>中文 HTML</h3>
+            <p><a href="README.zh.html">README.zh.html</a></p>
+            <p>中文浏览入口和文档导航。</p>
+          </section>
+        </div>
+
+        <h2>拆分文档</h2>
+        <ul>
+          <li><a href="docs/vision.html">愿景和定位 / Vision</a></li>
+          <li><a href="docs/html-format.html">HTML 格式和多语言 / HTML Format</a></li>
+          <li><a href="docs/storage-architecture.html">存储模型和架构 / Storage and Architecture</a></li>
+          <li><a href="docs/search-ai-publish.html">搜索、AI 和发布 / Search, AI, and Publish</a></li>
+          <li><a href="docs/roadmap.html">路线图和暂不做的事 / Roadmap</a></li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>
