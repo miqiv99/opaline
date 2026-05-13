@@ -14,9 +14,16 @@
         <h1>HTML Format and Multilingual Notes</h1>
 
         <section lang="zh-Hans" aria-label="中文简介">
-          <h2>中文简介</h2>
+          <h2>中文概要</h2>
           <p>这一页说明为什么 Opaline 选择 HTML，以及 HTML 对多语言的支持方式。HTML 本身对中文、英文、阿拉伯文等混排支持很好，关键是统一使用 UTF-8，并正确保留 <code>lang</code> 和 <code>dir</code> 这类语言元数据。</p>
           <p>真正的挑战不是 HTML 能不能表达多语言，而是 Opaline 的编辑器、导入导出、搜索和 AI 检索流程能不能稳定保留这些语义。</p>
+          <ul>
+            <li>HTML 是发布格式，也是可被浏览器直接打开的文档格式。</li>
+            <li>Opaline 需要限制 HTML 子集，避免保存脏的编辑器输出。</li>
+            <li><code>data-opaline-*</code> 属性用于保存链接、标签、块、概念等应用语义。</li>
+            <li>多语言笔记应该允许整篇文档、局部段落甚至引用块分别声明语言。</li>
+          </ul>
+          <p>因此，Opaline 的优势不是“使用 HTML”，而是维护一套适合长期知识管理的干净 HTML Profile。</p>
         </section>
 
         <h2>Why HTML</h2>

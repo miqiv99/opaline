@@ -14,9 +14,16 @@
         <h1>Storage and Architecture</h1>
 
         <section lang="zh-Hans" aria-label="中文简介">
-          <h2>中文简介</h2>
+          <h2>中文概要</h2>
           <p>这一页说明 Opaline 的本地存储和架构分层。HTML 文件是用户内容的真实来源，SQLite 只保存索引、反链、标签、最近访问、搜索缓存和可重建的派生数据。</p>
           <p>架构上应该把编辑器层、领域层、格式层和存储适配器分开。Tiptap 是实现细节，Opaline HTML 格式应该比具体编辑器更长寿。</p>
+          <ul>
+            <li><code>notes/</code> 保存用户真正的 HTML 笔记。</li>
+            <li><code>assets/</code> 保存图片和附件。</li>
+            <li><code>.opaline/</code> 保存 SQLite、缓存和设置。</li>
+            <li>删除 SQLite 不应该导致笔记丢失，只需要重新扫描即可恢复索引。</li>
+          </ul>
+          <p>这套设计的核心是信任：用户内容属于文件系统，数据库只是让体验更快、更聪明。</p>
         </section>
 
         <h2>Workspace Model</h2>

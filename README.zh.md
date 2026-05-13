@@ -91,8 +91,23 @@ Diandanr = 发布、站点生成、分发和平台能力
 
 ## 拆分文档
 
-- [愿景和定位](docs/vision.html)
-- [HTML 格式和多语言支持](docs/html-format.html)
-- [存储模型和架构](docs/storage-architecture.html)
-- [搜索、AI 和发布](docs/search-ai-publish.html)
-- [路线图和暂不做的事情](docs/roadmap.html)
+- [愿景和定位](docs/vision.html)：说明 Opaline 为什么先做本地个人知识工具，而不是平台或论坛。
+- [HTML 格式和多语言支持](docs/html-format.html)：说明为什么选择 HTML、如何保持干净格式，以及中文/英文/RTL 语言如何共存。
+- [存储模型和架构](docs/storage-architecture.html)：说明 HTML 文件和 SQLite 的分工，以及编辑器层、领域层、存储层的边界。
+- [搜索、AI 和发布](docs/search-ai-publish.html)：说明普通搜索、语义搜索、AI 引用、静态发布和未来公开知识网络。
+- [路线图和暂不做的事情](docs/roadmap.html)：说明先做什么、后做什么，以及早期不碰哪些大功能。
+
+## 当前实施步骤
+
+短期步骤应该先把文档和格式地基打稳：
+
+1. 稳定中英文 Markdown 和 HTML 文档入口。
+2. 定义第一版 Opaline HTML Profile。
+3. 增加示例 HTML note，用来测试解析和序列化。
+4. 脚手架 Tauri + React。
+5. 接入 Tiptap 基础编辑器。
+6. 实现保存和读取一篇干净 HTML note。
+7. 增加 workspace 文件夹支持。
+8. 增加 SQLite 元数据扫描。
+9. 增加文件树、最近笔记、标题搜索和正文搜索。
+10. 增加 `[[note links]]`、反链，以及后续带引用的 AI 搜索。

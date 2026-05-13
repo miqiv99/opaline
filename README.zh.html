@@ -104,7 +104,7 @@
         </blockquote>
 
         <h2>文档导航</h2>
-        <p>目前拆分文档以英文正文为主，并补充中文摘要。中文入口用于快速理解结构和跳转。后续可以逐步补齐完整中文版本。</p>
+        <p>拆分文档目前采用“中文概要 + 英文详细正文”的形式。中文概要用于快速审阅方向，英文正文用于沉淀较完整的技术细节。后续可以逐步把每一页补成完整中英双语版本。</p>
 
         <ul>
           <li><a href="index.html">文档路口页</a></li>
@@ -136,6 +136,20 @@
         <h2>打开 README 能不能跳转</h2>
         <p>如果你打开的是 <code>README.html</code>，页面里的链接可以直接跳转到拆分文档。</p>
         <p>如果你打开的是 <code>README.md</code>，它是 GitHub/代码仓库入口，只能显示链接，需要点击后跳转，不会自动重定向。</p>
+
+        <h2>当前实施步骤</h2>
+        <ol>
+          <li>稳定中英文 Markdown 和 HTML 文档入口。</li>
+          <li>定义第一版 Opaline HTML Profile。</li>
+          <li>增加示例 HTML note，用来测试解析和序列化。</li>
+          <li>脚手架 Tauri + React。</li>
+          <li>接入 Tiptap 基础编辑器。</li>
+          <li>实现保存和读取一篇干净 HTML note。</li>
+          <li>增加 workspace 文件夹支持。</li>
+          <li>增加 SQLite 元数据扫描。</li>
+          <li>增加文件树、最近笔记、标题搜索和正文搜索。</li>
+          <li>增加 <code>[[note links]]</code>、反链，以及后续带引用的 AI 搜索。</li>
+        </ol>
       </article>
     </main>
   </body>

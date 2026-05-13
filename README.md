@@ -411,11 +411,16 @@ This keeps Opaline focused while preserving a path toward generated websites and
 
 Goal: define the system shape.
 
+- Keep `README.md` and `README.zh.md` as repository entry points.
+- Keep `README.html` and `README.zh.html` as project-native HTML entry points.
+- Keep split documentation under `docs/` as clean semantic HTML.
+- Define the first documentation style and linking conventions.
 - Initialize Tauri + React
 - Choose package manager and formatter
 - Add Tiptap editor baseline
 - Add SQLite integration
 - Define the first Opaline HTML Profile
+- Add example HTML notes for format testing
 - Decide workspace directory conventions
 - Add basic test and build commands
 
@@ -590,16 +595,16 @@ These may become possible later. They should not define the first working versio
 
 ## Short-Term Roadmap
 
-1. Scaffold Tauri + React.
-2. Add Tiptap with basic rich text editing.
-3. Save and load one clean HTML note.
-4. Add workspace folder support.
-5. Add SQLite metadata scanning.
-6. Add file tree and recent notes.
-7. Add title and body search.
-8. Add `[[note links]]`.
-9. Add backlinks.
-10. Add AI-assisted note search with citations.
+1. Stabilize the bilingual Markdown and HTML documentation entry points.
+2. Define the first Opaline HTML Profile.
+3. Add example HTML notes for parser and serializer testing.
+4. Scaffold Tauri + React.
+5. Add Tiptap with basic rich text editing.
+6. Save and load one clean HTML note.
+7. Add workspace folder support.
+8. Add SQLite metadata scanning.
+9. Add file tree, recent notes, title search, and body search.
+10. Add `[[note links]]`, backlinks, and later AI-assisted note search with citations.
 
 ## License
 
