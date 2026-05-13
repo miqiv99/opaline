@@ -1,8 +1,8 @@
-# diorite
+# Opaline
 
-diorite is a local-first note management app built around HTML as the native note format.
+Opaline is a local-first note management app built around HTML as the native note format.
 
-Obsidian treats Markdown files as the source of truth. diorite explores a different idea: notes should be rich HTML documents that remain portable, inspectable, editable, and publishable outside the app.
+Obsidian treats Markdown files as the source of truth. Opaline explores a different idea: notes should be rich HTML documents that remain portable, inspectable, editable, and publishable outside the app.
 
 The project is planned around:
 
@@ -16,7 +16,7 @@ The project is planned around:
 
 ## Vision
 
-diorite should feel like a serious personal knowledge base, not just a rich text editor.
+Opaline should feel like a serious personal knowledge base, not just a rich text editor.
 
 The goal is to combine:
 
@@ -26,12 +26,12 @@ The goal is to combine:
 - The programmable structure of HTML
 - The leverage of AI coding and AI-native workflows
 
-HTML is the core bet. A note can contain headings, links, images, tables, callouts, embedded media, semantic blocks, custom attributes, and eventually interactive components. This gives diorite room to grow beyond plain Markdown while still keeping notes readable and exportable.
+HTML is the core bet. A note can contain headings, links, images, tables, callouts, embedded media, semantic blocks, custom attributes, and eventually interactive components. This gives Opaline room to grow beyond plain Markdown while still keeping notes readable and exportable.
 
 ## Product Principles
 
 - Local-first by default.
-- Notes should remain useful without diorite installed.
+- Notes should remain useful without Opaline installed.
 - HTML output should be clean, predictable, and version-control friendly.
 - The editor should feel fast and calm.
 - Search and links should make the workspace navigable at scale.
@@ -64,7 +64,7 @@ The desktop app should be the first-class target. Mobile can come later after th
 The future app may use a structure like this:
 
 ```text
-diorite/
+opaline/
   src/
     app/
     components/
@@ -86,11 +86,11 @@ MyNotes/
   notes/
     index.html
     projects/
-      diorite.html
+      opaline.html
   assets/
     images/
     files/
-  .diorite/
+  .opaline/
     index.sqlite
     settings.json
     cache/
@@ -98,7 +98,7 @@ MyNotes/
 
 ## HTML Note Format
 
-diorite should define a clean HTML subset instead of saving arbitrary editor output.
+Opaline should define a clean HTML subset instead of saving arbitrary editor output.
 
 Early notes can use a structure like:
 
@@ -108,12 +108,12 @@ Early notes can use a structure like:
   <head>
     <meta charset="utf-8">
     <title>Example Note</title>
-    <meta name="diorite:id" content="note-id">
-    <meta name="diorite:created" content="2026-05-13T00:00:00Z">
-    <meta name="diorite:updated" content="2026-05-13T00:00:00Z">
+    <meta name="opaline:id" content="note-id">
+    <meta name="opaline:created" content="2026-05-13T00:00:00Z">
+    <meta name="opaline:updated" content="2026-05-13T00:00:00Z">
   </head>
   <body>
-    <article data-diorite-note>
+    <article data-opaline-note>
       <h1>Example Note</h1>
       <p>This is a portable HTML note.</p>
     </article>
@@ -124,13 +124,13 @@ Early notes can use a structure like:
 Internal note links can later compile to:
 
 ```html
-<a href="../projects/diorite.html" data-diorite-link="note-id">diorite</a>
+<a href="../projects/opaline.html" data-opaline-link="note-id">Opaline</a>
 ```
 
 Tags can use:
 
 ```html
-<span data-diorite-tag="research">#research</span>
+<span data-opaline-tag="research">#research</span>
 ```
 
 This keeps the document readable in browsers while preserving app-specific meaning.
@@ -164,7 +164,7 @@ Build the first version that is genuinely useful.
 - Support images and attachments
 - Add light and dark themes
 
-Success criteria: diorite can replace a simple local notes folder for daily writing.
+Success criteria: Opaline can replace a simple local notes folder for daily writing.
 
 ### Phase 2: Knowledge Base Features
 
@@ -182,7 +182,7 @@ Make notes connect to each other.
 - Add broken-link detection
 - Add import from Markdown and HTML
 
-Success criteria: diorite becomes useful for projects, research, and long-running personal knowledge.
+Success criteria: Opaline becomes useful for projects, research, and long-running personal knowledge.
 
 ### Phase 3: Rich HTML Blocks
 
@@ -201,11 +201,11 @@ Lean into HTML as the native format.
 - Block IDs
 - Block references
 
-Success criteria: diorite can handle rich documents without becoming messy or opaque.
+Success criteria: Opaline can handle rich documents without becoming messy or opaque.
 
 ### Phase 4: AI-Native Workflows
 
-Be ambitious here. AI coding and AI-assisted knowledge work are strong enough that diorite should treat AI as a core design pillar, not a plugin afterthought.
+Be ambitious here. AI coding and AI-assisted knowledge work are strong enough that Opaline should treat AI as a core design pillar, not a plugin afterthought.
 
 Possible capabilities:
 
@@ -220,7 +220,7 @@ Possible capabilities:
 - Create study questions from notes
 - Chat with the current workspace
 - Ask questions with citations to local notes
-- Convert Markdown notes into clean diorite HTML
+- Convert Markdown notes into clean Opaline HTML
 - Clean imported web pages into readable notes
 - Build AI-assisted search over SQLite and local embeddings
 
@@ -244,7 +244,7 @@ Success criteria: users can understand a large knowledge base without manually o
 
 ### Phase 6: Sync, Publish, and Interop
 
-Make diorite fit real workflows.
+Make Opaline fit real workflows.
 
 - Git-friendly note storage
 - WebDAV or cloud-folder sync compatibility
@@ -285,11 +285,11 @@ Open the app to user customization.
 - Custom block types
 - Workspace automation hooks
 
-Success criteria: diorite becomes a platform without sacrificing local trust.
+Success criteria: Opaline becomes a platform without sacrificing local trust.
 
 ## Editor Choice
 
-diorite should start with Tiptap.
+Opaline should start with Tiptap.
 
 Tiptap gives a practical middle path:
 
@@ -342,7 +342,7 @@ React UI
       -> Web IndexedDB or OPFS
 ```
 
-This separation matters if diorite later targets iOS, Android, or the web.
+This separation matters if Opaline later targets iOS, Android, or the web.
 
 ## Early Technical Questions
 
@@ -371,6 +371,6 @@ This separation matters if diorite later targets iOS, Android, or the web.
 
 Copyright (c) 2026 Enjun Lu.
 
-diorite is licensed under the PolyForm Noncommercial License 1.0.0.
+Opaline is licensed under the PolyForm Noncommercial License 1.0.0.
 
 Noncommercial use is permitted under the terms in [LICENSE](LICENSE). Commercial use requires a separate commercial license from the author.

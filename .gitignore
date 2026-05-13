@@ -25,7 +25,7 @@ pnpm-debug.log*
 !.env.example
 
 # Local app data
-.diorite/
+.opaline/
 AGENTS.md
 *.sqlite
 *.sqlite3
