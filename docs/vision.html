@@ -36,7 +36,37 @@
           <p>Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.</p>
         </blockquote>
 
-        <h2>First User</h2>
+        <h2>Why Not Markdown</h2>
+        <p>If Markdown already works for personal knowledge — Obsidian proved it does — why build on HTML?</p>
+
+        <p>The short answer: Markdown is a <strong>writing shorthand</strong>. HTML is a <strong>document format</strong>. When your notes stay small and single-language, the difference doesn't matter. When they grow complex, the gap widens.</p>
+
+        <p>Things HTML can express natively that Markdown cannot (or can only do with incompatible extensions):</p>
+
+        <h3>Language boundaries</h3>
+        <p>In HTML, a paragraph knows what language it is: <code>&lt;p lang="zh"&gt;中文&lt;/p&gt;&lt;p lang="en"&gt;English&lt;/p&gt;</code>. In Markdown, two adjacent paragraphs are just text. No parser can tell which is which. This matters for bilingual search ("search only my English notes"), spellcheck, screen readers, and AI retrieval that needs to know the language of a passage before embedding it.</p>
+
+        <h3>Stable block identity</h3>
+        <p>HTML allows every section to carry a persistent ID: <code>&lt;section id="b-db-choice" data-opaline-block&gt;</code>. You can link to it, it survives reordering and editing, and backlinks resolve correctly. Markdown has no concept of block identity — block references rely on fragile text matching or auto-generated slugs that break when headings change.</p>
+
+        <h3>Rich document primitives</h3>
+        <p>Definition lists, figure captions, asides, disclosure widgets — <code>&lt;dl&gt;</code>, <code>&lt;figure&gt;</code>, <code>&lt;aside&gt;</code>, <code>&lt;details&gt;</code> are standard HTML. In Markdown, each of these needs a different plugin or raw HTML escape hatch.</p>
+
+        <h3>Round-trip without loss</h3>
+        <p>Markdown → HTML → Markdown is lossy. Which flavor? Which extensions? Did you write <code>---</code> as a horizontal rule or YAML frontmatter? HTML → edit → HTML has no conversion step, so nothing is lost.</p>
+
+        <p>None of this means Markdown is bad. It means Markdown is optimized for <em>writing</em>, while HTML is optimized for <em>being the document</em>. Opaline bets that for long-term knowledge, the document format matters more than the typing shorthand.</p>
+
+        <h2>Relationship to Obsidian</h2>
+        <p>Obsidian proved the market: local files, wiki-links, and a plugin ecosystem can become a serious knowledge tool. Opaline is not trying to beat Obsidian at its own game.</p>
+
+        <p>The difference is structural:</p>
+        <ul>
+          <li><strong>Obsidian</strong> builds on Markdown and extends it with plugins (Dataview for queries, Callouts for admonitions, Canvas for visual layouts). These are well-executed workarounds — but they are workarounds for a format that wasn't designed for rich structure.</li>
+          <li><strong>Opaline</strong> bets that starting from a richer format lets the <em>core</em> do more without plugins: no Dataview needed when structured metadata is native HTML, no Callout syntax when <code>&lt;aside&gt;</code> exists, no Canvas JSON when blocks already have IDs that can be arranged.</li>
+        </ul>
+
+        <p>The real question for an Obsidian user is not "should I switch" — it's "is my knowledge work complex enough that Markdown's ceiling is starting to matter." Opaline is for people who feel that ceiling.</p>
         <p>The first user is the author, not the public reader. Opaline should serve people who accumulate knowledge over time: researchers, writers, developers, students, product thinkers, and technical creators.</p>
 
         <h2>First Product Loop</h2>
@@ -55,6 +85,7 @@
           <li>AI should propose, explain, and cite. It should not silently rewrite knowledge.</li>
           <li>Publishing should be a natural consequence of the file format, not the first product.</li>
           <li>Public and community features should come after the personal tool is solid.</li>
+          <li>When server-side features arrive (publishing, sync, public search), the local core must remain fully functional without them. Local is the foundation, server is additive.</li>
         </ul>
 
         <h2>Relationship to Diandanr</h2>

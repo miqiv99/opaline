@@ -26,6 +26,51 @@
 
         <p>因此，Opaline 的优势不是"使用 HTML"，而是维护一套适合长期知识管理的<strong>干净 HTML Profile</strong>。</p>
 
+        <h2>Markdown 的天花板，HTML 的地板</h2>
+        <p>用具体例子最容易看清差距。以下是 HTML 天然能做、Markdown 做不到（或做起来很脆弱）的事：</p>
+
+        <h3>双语内联标注</h3>
+        <pre><code>&lt;!-- Markdown：无法按段落标注语言 --&gt;
+This is English.
+这是中文。
+
+&lt;!-- HTML：每个段落声明自己的语言 --&gt;
+&lt;p lang="en"&gt;This is English.&lt;/p&gt;
+&lt;p lang="zh-Hans"&gt;这是中文。&lt;/p&gt;</code></pre>
+        <p>差别在于：HTML 可以让搜索引擎把结果限定在一种语言。拼写检查器不会把中文字符标成英文拼写错误。AI 嵌入模型可以把每个段落路由到正确的语言处理管道。Markdown 表达不了这些。</p>
+
+        <h3>稳定引用某个段落</h3>
+        <pre><code>&lt;!-- Markdown：标题有自动 slug，但段落没有身份 --&gt;
+## 数据库选型              &lt;!-- slug 变成 #数据库选型 --&gt;
+我们选了 PostgreSQL。       &lt;!-- 没办法直接链接到这里 --&gt;
+
+&lt;!-- HTML：每个块都可以带稳定 ID --&gt;
+&lt;section id="b-db-choice" data-opaline-block&gt;
+  &lt;h2&gt;数据库选型&lt;/h2&gt;
+  &lt;p id="b-db-reason" data-opaline-block&gt;我们选了 PostgreSQL。&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+        <p><code>id</code> 在重命名标题、调整段落顺序、甚至把段落移到另一篇笔记后仍然有效。Markdown 的块引用在以上任何变动下都会断掉。</p>
+
+        <h3>定义列表和语义关联</h3>
+        <pre><code>&lt;!-- HTML：原生定义列表 --&gt;
+&lt;dl&gt;
+  &lt;dt&gt;PostgreSQL&lt;/dt&gt;
+  &lt;dd&gt;选择原因：JSONB 支持和成熟的查询规划器。&lt;/dd&gt;
+  &lt;dt&gt;SQLite&lt;/dt&gt;
+  &lt;dd&gt;本地索引用，不存共享数据。&lt;/dd&gt;
+&lt;/dl&gt;
+
+&lt;!-- Markdown：没有等价物——用粗体加段落凑合，或直接写 raw HTML --&gt;</code></pre>
+
+        <h3>折叠部件，渐进展开细节</h3>
+        <pre><code>&lt;!-- HTML：原生可折叠区域 --&gt;
+&lt;details&gt;
+  &lt;summary&gt;为什么不用 MongoDB&lt;/summary&gt;
+  &lt;p&gt;三个原因：写入一致性、查询复杂度和运维开销。&lt;/p&gt;
+&lt;/details&gt;
+
+&lt;!-- Markdown：没有原生等价物——Obsidian callouts 也不支持折叠 --&gt;</code></pre>
+
         <h2>多语言支持</h2>
         <p>当文档以 UTF-8 保存并正确标注时，HTML 具有强大的多语言支持能力。</p>
 

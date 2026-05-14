@@ -26,7 +26,25 @@
           <p>公开发布的重点不是把文章丢到网上，而是让公开知识库可以被读者继续搜索、理解和追问。</p>
         </section>
 
-        <h2>Search Model</h2>
+        <h2>Before Semantic Search: What Keyword Search Already Solves</h2>
+        <p>A fair question: if SQLite FTS5 can search thousands of notes in milliseconds, and I wrote these notes myself so I mostly remember the keywords — do I even need embeddings or AI search?</p>
+
+        <p>For personal use, keyword search with good filtering solves more than it gets credit for:</p>
+        <ul>
+          <li>You remember a project name → title search finds it instantly.</li>
+          <li>You remember a technical term → body search with FTS5 is sub-millisecond.</li>
+          <li>You remember roughly when you wrote it → time-range filter narrows to 5 candidates.</li>
+          <li>You remember it linked to another note → backlinks surface it immediately.</li>
+        </ul>
+
+        <p>The limits of keyword search become real when:</p>
+        <ul>
+          <li>You remember the <em>conclusion</em> but not the <em>words</em> you used. ("That note about why we picked Postgres over MySQL" — but the note never says "picked" or "over.")</li>
+          <li>You wrote something years ago and your vocabulary has shifted.</li>
+          <li>Someone else is searching your published notes and doesn't know your naming habits.</li>
+        </ul>
+
+        <p>This is why the roadmap puts semantic search after keyword search, and reader-facing concept search even later. The 80/20 is: <strong>keyword search for yourself, semantic fallback for when keywords fail, and RAG as the killer feature for readers of published knowledge.</strong></p>
         <p>Search should help users recover old context, not only match keywords.</p>
 
         <h3>Exact Search</h3>
@@ -49,6 +67,55 @@
         </ul>
 
         <p>Private notes should not be sent to cloud models without explicit user permission.</p>
+
+        <h2>RAG Architecture and Pitfalls</h2>
+        <p>Opaline's format gives RAG a structural head start: every block already has a stable ID, language metadata, and semantic element type. But architecture that looks clean on paper still has real pitfalls. This section documents them so they are designed around, not discovered late.</p>
+
+        <h3>Why Opaline's Format Helps RAG</h3>
+        <ul>
+          <li><strong>Blocks are pre-chunked.</strong> A <code>&lt;section data-opaline-block&gt;</code> or <code>&lt;p id="..."&gt;</code> is a retrieval unit defined by the author, not by a sliding window. Author-defined boundaries beat algorithmic chunking every time.</li>
+          <li><strong>Stable IDs survive edits.</strong> When a note is reorganized, the block ID stays attached to the same content. Citations don't drift.</li>
+          <li><strong>Language metadata routes embeddings.</strong> A <code>lang="zh"</code> block goes to a Chinese-tuned embedding model. A <code>lang="en"</code> block goes to an English one. Mixing languages in one embedding vector degrades retrieval quality.</li>
+          <li><strong>Tags and links provide structured pre-filtering.</strong> Before any vector search, filter by tag or linked-note to cut the candidate set by 90%. This is faster and more precise than pure vector search over the entire workspace.</li>
+        </ul>
+
+        <h3>Pitfall 1: Block Size Drift</h3>
+        <p>If <code>data-opaline-block</code> is defined as "one retrieval unit," then block size directly determines retrieval quality. A 5000-word block will match everything and answer nothing. A single-sentence block loses surrounding context. The rule must be enforced early: <strong>one block contains one answerable idea</strong> — typically 50 to 300 words. The editor should discourage very long blocks and very short ones (except intentional one-liners like definitions).</p>
+
+        <h3>Pitfall 2: Embedding Model Lock-In</h3>
+        <p>Embedding vectors are model-specific. Switch from <code>text-embedding-3-small</code> to <code>bge-m3</code> and all existing vectors become garbage — they were produced by a different geometry. Since embeddings live in SQLite and are marked rebuildable, this is survivable. But the rebuild cost is real: 10,000 blocks × API latency is not instant. Plan for a "rebuild all embeddings" command from day one, and prefer embedding models with stable long-term availability.</p>
+
+        <h3>Pitfall 3: The Private-Cloud Boundary</h3>
+        <p>Embedding generation and answer generation are separate steps, but both may hit cloud APIs. A user who marks a note as private must be able to trust that its content never leaves the machine. This means:</p>
+        <ul>
+          <li>Embedding must support a local-only mode (e.g., ONNX model via <code>sqlite-vec</code> or <code>fastembed</code>).</li>
+          <li>AI answer generation must either run locally or explicitly prompt the user before sending retrieved private snippets to a cloud model.</li>
+          <li>The privacy boundary must be visible in the UI — a note marked private should show a clear indicator that it is excluded from cloud operations.</li>
+        </ul>
+
+        <h3>Pitfall 4: Citation Fragility Under Note Moves</h3>
+        <p>A block ID like <code>b-db-choice</code> is stable within a note. But if the note is renamed or moved, the <code>href</code> path in links pointing to it breaks. The ID stays valid, but the URL doesn't. This means citations must resolve through ID lookup (SQLite resolves ID → current path), not through raw href. Every AI citation should store the block ID as the canonical reference and resolve the display path at render time.</p>
+
+        <h3>Pitfall 5: Hybrid Search Is Not Optional</h3>
+        <p>Pure vector search produces fluent-looking but substantively wrong results often enough to erode trust. A query like "PostgreSQL JSONB performance" should match blocks that literally contain those terms, not blocks that are semantically adjacent. The retrieval pipeline must combine:</p>
+        <ul>
+          <li>Keyword match (FTS5) for precision on known terms.</li>
+          <li>Vector similarity for recall on conceptual matches.</li>
+          <li>Metadata filtering (tag, date, link) applied before either.</li>
+          <li>Re-ranking of combined results before they reach the LLM.</li>
+        </ul>
+
+        <h3>Pitfall 6: Re-ranking Budget</h3>
+        <p>Retrieval might return 50 candidate blocks. Most LLM context windows can't fit 50 blocks plus the user's question plus the answer. A re-ranker (cross-encoder or smaller model) must trim this to the top 5–10 before generating the final answer. This step is easy to skip in a prototype and immediately necessary in production.</p>
+
+        <h3>Recommended Stack for Phase 5</h3>
+        <ul>
+          <li><code>sqlite-vec</code> for vector storage alongside FTS5 in the same SQLite database.</li>
+          <li>A stable embedding model with a local fallback (e.g., <code>bge-small-en</code> / <code>bge-small-zh</code> via ONNX for offline, cloud API for higher quality when permitted).</li>
+          <li>Language detection from <code>lang</code> attribute — no heuristic guessing.</li>
+          <li>Block-level granularity: one embedding vector per <code>data-opaline-block</code>, not per document.</li>
+          <li>Rebuild command that walks all blocks, regenerates embeddings, and atomically swaps the index.</li>
+        </ul>
 
         <h2>Publishing Stages</h2>
         <h3>Static Export</h3>

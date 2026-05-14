@@ -31,6 +31,51 @@
 
         <p>Markdown is excellent for plain-text notes. Opaline's bet is that long-term knowledge work often wants richer structure than Markdown can express without many incompatible extensions.</p>
 
+        <h2>Markdown's Ceiling, HTML's Baseline</h2>
+        <p>The difference is easiest to see with concrete examples. Here are things that are natural in HTML and impossible (or fragile) in Markdown:</p>
+
+        <h3>Bilingual inline annotations</h3>
+        <pre><code>&lt;!-- Markdown: no way to mark language per paragraph --&gt;
+This is English.
+这是中文。
+
+&lt;!-- HTML: each section declares its language --&gt;
+&lt;p lang="en"&gt;This is English.&lt;/p&gt;
+&lt;p lang="zh-Hans"&gt;这是中文。&lt;/p&gt;</code></pre>
+        <p>The difference: with HTML, a search engine can limit results to one language. A spellchecker won't flag Chinese characters as English typos. An AI embedding model can route each passage to the right language pipeline. Markdown can't express any of this.</p>
+
+        <h3>Stable references to a specific paragraph</h3>
+        <pre><code>&lt;!-- Markdown: headings get auto-slugs, but paragraphs have no identity --&gt;
+## Database Choice          &lt;!-- slug becomes #database-choice --&gt;
+We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
+
+&lt;!-- HTML: every block can carry a stable ID --&gt;
+&lt;section id="b-db-choice" data-opaline-block&gt;
+  &lt;h2&gt;Database Choice&lt;/h2&gt;
+  &lt;p id="b-db-reason" data-opaline-block&gt;We chose PostgreSQL.&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+        <p>The <code>id</code> survives: renaming the heading, reordering sections, even moving the paragraph to a different note. Markdown block references break under any of these changes.</p>
+
+        <h3>Definition lists and semantic associations</h3>
+        <pre><code>&lt;!-- HTML: native definition list --&gt;
+&lt;dl&gt;
+  &lt;dt&gt;PostgreSQL&lt;/dt&gt;
+  &lt;dd&gt;Chosen for its JSONB support and mature query planner.&lt;/dd&gt;
+  &lt;dt&gt;SQLite&lt;/dt&gt;
+  &lt;dd&gt;Used for local indexes, not for shared data.&lt;/dd&gt;
+&lt;/dl&gt;
+
+&lt;!-- Markdown: no equivalent — you hack it with bold + paragraph or raw HTML --&gt;</code></pre>
+
+        <h3>Disclosure widgets for progressive detail</h3>
+        <pre><code>&lt;!-- HTML: native collapsible section --&gt;
+&lt;details&gt;
+  &lt;summary&gt;Why we rejected MongoDB&lt;/summary&gt;
+  &lt;p&gt;Three reasons: write consistency, query complexity, and operational overhead.&lt;/p&gt;
+&lt;/details&gt;
+
+&lt;!-- Markdown: no native equivalent — Obsidian callouts don't collapse --&gt;</code></pre>
+
         <h2>Multilingual Support</h2>
         <p>HTML has strong multilingual support when documents are saved as UTF-8 and correctly annotated.</p>
 

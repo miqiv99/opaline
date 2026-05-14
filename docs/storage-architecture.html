@@ -84,7 +84,10 @@
           <li>SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.</li>
         </ul>
 
-        <h2>Architecture</h2>
+        <h2>Architecture: Two Phases</h2>
+        <p>The architecture starts local-only and grows server-side components only in later phases. Local is the foundation; server is additive.</p>
+
+        <h3>Phase 0–3: Local-Only Core</h3>
         <pre><code>React UI
   -&gt; Editor layer
   -&gt; Domain layer
@@ -92,6 +95,29 @@
       -&gt; Tauri desktop file system
       -&gt; Tauri mobile file system
       -&gt; Web IndexedDB or OPFS</code></pre>
+        <p>Everything runs on the user's machine. No network dependency for editing, saving, searching, or linking. FTS5 and sqlite-vec run in-process. ONNX runs embedding models on CPU. The app is fully functional offline.</p>
+
+        <h3>Phase 5+: Server-Side Additions</h3>
+        <pre><code>                                    ┌──────────────────────────┐
+User Machine (primary)              │ Opaline Services (additive)│
+                                    │                            │
+  HTML notes  ────────────────→     │  Static site generation    │
+  SQLite index (read replica) ──→   │  Hosted publish            │
+  Selected public notes ────────→   │  Public note search        │
+                                    │  Optional sync             │
+  ← Published site preview          │  Reader-facing AI          │
+  ← Public knowledge discovery      │  Cross-user references     │
+                                    │  Accounts and billing      │
+                                    └──────────────────────────┘</code></pre>
+        <p>The server side exists only for features that inherently cross machine boundaries: publishing to a URL, letting readers search public notes, syncing across devices, and discovering knowledge from other authors. None of it replaces or downgrades the local experience.</p>
+
+        <h3>Shared Rules Across Both Phases</h3>
+        <ul>
+          <li>HTML files are always the canonical source of truth — not a database, not a server.</li>
+          <li>The local app must remain fully functional without network access for all core features (edit, save, search, link).</li>
+          <li>Server-side indexes are derived from published HTML files, never the other way around.</li>
+          <li>A user who never publishes, never syncs, and never uses AI should lose no value from the local tool.</li>
+        </ul>
 
         <h2>Layers</h2>
         <h3>Note Format Layer</h3>
