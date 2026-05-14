@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Code2,
   FileImage,
+  GitBranch,
   Heading1,
   Heading2,
   Italic,
@@ -21,6 +22,7 @@ import {
   List,
   ListOrdered,
   MessageSquareQuote,
+  Pi,
   Redo2,
   Save,
   Table2,
@@ -29,6 +31,18 @@ import {
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
+import { MathInline, MathBlock } from "./extensions/math";
+import { MermaidBlock } from "./extensions/mermaid";
+import { NoteEmbed } from "./extensions/embed";
+import { BlockId } from "./extensions/blockId";
+import "katex/dist/katex.min.css";
+
+export type NoteSuggestion = {
+  id: string;
+  title: string;
+  path: string;
+  excerpt: string;
+};
 
 type OpalineEditorProps = {
   content: string;
@@ -36,9 +50,10 @@ type OpalineEditorProps = {
   onChange: (html: string) => void;
   onSave: () => void;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
+  onPickNote?: () => Promise<NoteSuggestion | null>;
 };
 
-export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset }: OpalineEditorProps) {
+export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onPickNote }: OpalineEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -67,6 +82,11 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
       Placeholder.configure({
         placeholder: "写点东西，保存后就是一篇干净的 HTML 笔记...",
       }),
+      MathInline,
+      MathBlock,
+      MermaidBlock,
+      NoteEmbed,
+      BlockId,
     ],
     content,
     editorProps: {
@@ -137,6 +157,21 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         <IconButton label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
           <Table2 size={17} />
         </IconButton>
+        <span className="toolbar-divider" />
+        <IconButton label="行内公式 ($...$)" onClick={() => insertMathInline(editor)}>
+          <Pi size={17} />
+        </IconButton>
+        <IconButton label="公式块 ($$...$$)" onClick={() => insertMathBlock(editor)}>
+          <span className="icon-math-display">∑</span>
+        </IconButton>
+        <IconButton label="插入图表 (Mermaid)" onClick={() => insertMermaid(editor)}>
+          <GitBranch size={17} />
+        </IconButton>
+        {onPickNote ? (
+          <IconButton label="嵌入笔记" onClick={() => insertEmbed(editor, onPickNote)}>
+            <FileImage size={17} />
+          </IconButton>
+        ) : null}
         <button className="save-button" onClick={onSave} disabled={isSaving}>
           <Save size={17} />
           <span>{isSaving ? "保存中" : "保存"}</span>
@@ -207,4 +242,31 @@ const insertImage = async (
   }
 
   editor.chain().focus().setImage({ src: asset.href, alt: asset.name }).run();
+};
+
+const insertMathInline = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+  const latex = window.prompt("输入 LaTeX 公式", "x^2 + y^2 = 1")?.trim();
+  if (!latex) return;
+  editor.chain().focus().setMathInline(latex).run();
+};
+
+const insertMathBlock = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+  const latex = window.prompt("输入 LaTeX 公式（块级）", "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}")?.trim();
+  if (!latex) return;
+  editor.chain().focus().setMathBlock(latex).run();
+};
+
+const insertMermaid = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+  const code = window.prompt("输入 Mermaid 图表代码", "graph TD\n  A[开始] --> B[完成]")?.trim();
+  if (!code) return;
+  editor.chain().focus().setMermaidBlock(code).run();
+};
+
+const insertEmbed = async (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  onPickNote: () => Promise<{ id: string; title: string; excerpt: string } | null>,
+) => {
+  const note = await onPickNote();
+  if (!note) return;
+  editor.chain().focus().setNoteEmbed({ noteId: note.id, title: note.title, excerpt: note.excerpt }).run();
 };

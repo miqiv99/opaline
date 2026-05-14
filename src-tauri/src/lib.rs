@@ -374,6 +374,29 @@ fn import_asset(path: String, input: AssetImport) -> Result<ImportedAsset, Strin
     })
 }
 
+#[tauri::command]
+fn read_settings(path: String) -> Result<serde_json::Value, String> {
+    let workspace = workspace_path(&path)?;
+    let settings_path = workspace.join(".opaline/settings.json");
+    if !settings_path.exists() {
+        return Ok(serde_json::json!({
+            "profileVersion": 1,
+            "noteFormat": "opaline-html"
+        }));
+    }
+    let raw = fs::read_to_string(&settings_path).map_err(to_error)?;
+    serde_json::from_str(&raw).map_err(to_error)
+}
+
+#[tauri::command]
+fn write_settings(path: String, settings: serde_json::Value) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    let settings_path = workspace.join(".opaline/settings.json");
+    let raw = serde_json::to_string_pretty(&settings).map_err(to_error)?;
+    fs::write(&settings_path, raw).map_err(to_error)?;
+    Ok(())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -388,7 +411,9 @@ pub fn run() {
             list_backlinks,
             graph_data,
             toggle_favorite,
-            import_asset
+            import_asset,
+            read_settings,
+            write_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,6 +2,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CalendarDays, FilePlus2, FolderOpen, RefreshCw, Search, Star } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { AiPanel } from "./ai/AiPanel";
+import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
 import type { GraphData, ImportedAsset, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
@@ -220,6 +222,25 @@ export function App() {
     [workspace.path],
   );
 
+  const pickNote = useCallback(async (): Promise<NoteSuggestion | null> => {
+    if (!workspace.path) return null;
+    const title = window.prompt("输入要嵌入的笔记标题或路径")?.trim();
+    if (!title) return null;
+
+    const results = await workspaceAdapter.searchNotes(workspace.path, title);
+    if (!results[0]) {
+      setStatus("找不到匹配的笔记");
+      return null;
+    }
+
+    return {
+      id: results[0].id,
+      title: results[0].title,
+      path: results[0].path,
+      excerpt: results[0].excerpt,
+    };
+  }, [workspace.path]);
+
   useEffect(() => {
     if (!isDirty || isSaving || isBusy) {
       return;
@@ -347,8 +368,10 @@ export function App() {
               onChange={setArticleHtml}
               onSave={saveNote}
               onImportAsset={importAsset}
+              onPickNote={pickNote}
             />
             <aside className="inspector">
+              <AiPanel />
               <Section title="标题">
                 {workspace.activeNote.headings.length ? (
                   workspace.activeNote.headings.map((heading) => <p key={heading}>{heading}</p>)

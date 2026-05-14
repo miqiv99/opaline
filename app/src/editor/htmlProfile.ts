@@ -1,3 +1,5 @@
+import { assignBlockIds } from "./extensions/blockId";
+
 const parser = new DOMParser();
 
 type LinkableNote = {
@@ -31,7 +33,8 @@ export const replaceArticleInDocument = (
 
   const linkedArticleHtml = compileWikiLinks(articleHtml, linkableNotes);
   const cleanArticleHtml = sanitizeArticleHtml(linkedArticleHtml);
-  targetArticle.innerHTML = cleanArticleHtml;
+  const blockIdArticleHtml = assignBlockIds(cleanArticleHtml);
+  targetArticle.innerHTML = blockIdArticleHtml;
 
   if (!article) {
     document.body.replaceChildren(targetArticle);
@@ -169,12 +172,14 @@ const compileWikiLinks = (articleHtml: string, notes: LinkableNote[]): string =>
       fragment.append(document.createTextNode(text.slice(lastIndex, match.index)));
 
       const rawTitle = match[1].trim();
-      const note = noteByTitle.get(rawTitle.toLowerCase());
+      const [titlePart, blockId] = splitBlockRef(rawTitle);
+      const note = noteByTitle.get(titlePart.toLowerCase());
 
       if (note) {
         const link = document.createElement("a");
-        link.href = relativeHref(note.path);
+        link.href = blockId ? `${relativeHref(note.path)}#${blockId}` : relativeHref(note.path);
         link.setAttribute("data-opaline-link", note.id);
+        if (blockId) link.setAttribute("data-opaline-block-ref", blockId);
         link.textContent = rawTitle;
         fragment.append(link);
       } else {
@@ -207,6 +212,14 @@ const walkTextNodes = (root: Node, visitor: (node: Text) => void) => {
     current = walker.nextNode();
   }
   nodes.forEach(visitor);
+};
+
+const splitBlockRef = (raw: string): [string, string | null] => {
+  const hashIndex = raw.lastIndexOf("#");
+  if (hashIndex === -1) return [raw, null];
+  const titlePart = raw.slice(0, hashIndex).trim();
+  const blockId = raw.slice(hashIndex + 1).trim();
+  return titlePart ? [titlePart, blockId] : [raw, null];
 };
 
 const relativeHref = (notePath: string) => notePath.replace(/^notes\//, "");

@@ -21,4 +21,6 @@ export interface WorkspaceAdapter {
   graphData(path: string): Promise<GraphData>;
   toggleFavorite(path: string, noteId: string): Promise<boolean>;
   importAsset(path: string, input: AssetImport): Promise<ImportedAsset>;
+  readSettings(path: string): Promise<Record<string, unknown>>;
+  writeSettings(path: string, settings: Record<string, unknown>): Promise<void>;
 }

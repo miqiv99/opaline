@@ -137,6 +137,18 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     const name = input.sourcePath.split(/[\\/]/).pop() || "asset";
     return { name, href: input.kind === "image" ? `../assets/images/${name}` : `../assets/files/${name}` };
   },
+
+  async readSettings() {
+    try {
+      const raw = localStorage.getItem("opaline-workspace-settings");
+      if (raw) return JSON.parse(raw) as Record<string, unknown>;
+    } catch { /* ignore */ }
+    return { profileVersion: 1, noteFormat: "opaline-html" };
+  },
+
+  async writeSettings(_path: string, settings: Record<string, unknown>) {
+    localStorage.setItem("opaline-workspace-settings", JSON.stringify(settings));
+  },
 };
 
 const createDemoNote = (input: NewNoteInput) => {

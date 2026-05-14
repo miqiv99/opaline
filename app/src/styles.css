@@ -550,6 +550,229 @@ button:disabled {
   pointer-events: none;
 }
 
+/* ---- Phase 4: Math, Mermaid, Embed ---- */
+
+.editor-surface .math-inline {
+  display: inline;
+  font-size: 1.05em;
+  vertical-align: baseline;
+}
+
+.editor-surface .math-block {
+  display: flex;
+  justify-content: center;
+  margin: 1.2rem 0;
+  padding: 14px 0;
+  overflow-x: auto;
+}
+
+.editor-surface .mermaid-block {
+  display: flex;
+  justify-content: center;
+  margin: 1.2rem 0;
+  padding: 14px;
+  border: 1px solid var(--xz-border);
+  border-radius: 18px;
+  background: var(--xz-surface);
+  overflow-x: auto;
+}
+
+.editor-surface .mermaid-block svg {
+  max-width: 100%;
+}
+
+.editor-surface .mermaid-error {
+  color: #ff3b30;
+  font-family: monospace;
+}
+
+.editor-surface .note-embed {
+  margin: 1rem 0;
+}
+
+.note-embed-card {
+  border: 1px solid var(--xz-border);
+  border-radius: 18px;
+  background: var(--xz-bg-warm);
+  padding: 16px;
+  box-shadow: var(--xz-shadow-sm);
+}
+
+.note-embed-label {
+  display: inline-block;
+  border-radius: 8px;
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+  padding: 2px 10px;
+  font-size: 0.76rem;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+
+.note-embed-title {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.note-embed-excerpt {
+  color: var(--xz-text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+
+.note-embed-id {
+  font-size: 0.72rem;
+  color: var(--xz-text-tertiary);
+}
+
+/* ---- Phase 5: AI Panel ---- */
+
+.ai-panel {
+  border: 1px solid var(--xz-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 14px;
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--xz-green-deep);
+  font-weight: 700;
+}
+
+.ai-settings {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ai-settings label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--xz-text-secondary);
+}
+
+.ai-settings label span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--xz-text-primary);
+}
+
+.ai-settings select,
+.ai-settings input {
+  min-height: 36px;
+  border: 1px solid var(--xz-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0 10px;
+  outline: none;
+  color: var(--xz-text-primary);
+}
+
+.ai-settings select:focus,
+.ai-settings input:focus {
+  border-color: var(--xz-green);
+  box-shadow: 0 0 0 3px var(--xz-green-soft);
+}
+
+.ai-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0 12px;
+  font-size: 0.88rem;
+  color: var(--xz-text-primary);
+  cursor: pointer;
+}
+
+.ai-action-button:hover {
+  border-color: var(--xz-green);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.ai-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ai-result {
+  margin-top: 12px;
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--xz-bg-warm);
+  color: var(--xz-text-secondary);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-error {
+  background: #fff0f0;
+  color: #cc1a1a;
+}
+
+.ai-done {
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.ai-apply-button {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  min-height: 32px;
+  border: 1px solid var(--xz-green);
+  border-radius: 10px;
+  background: white;
+  padding: 0 12px;
+  color: var(--xz-green-deep);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ai-apply-button:hover {
+  background: var(--xz-green-deep);
+  color: white;
+}
+
+/* Math display icon */
+.icon-math-display {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: "Georgia", serif;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 1fr;

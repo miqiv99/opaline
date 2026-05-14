@@ -65,4 +65,12 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
   async importAsset(path: string, input: AssetImport) {
     return invoke<ImportedAsset>("import_asset", { path, input });
   },
+
+  async readSettings(path: string) {
+    return invoke<Record<string, unknown>>("read_settings", { path });
+  },
+
+  async writeSettings(path: string, settings: Record<string, unknown>) {
+    await invoke("write_settings", { path, settings });
+  },
 };
