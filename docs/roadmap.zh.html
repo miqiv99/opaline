@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 路线图和暂不做的事</title>
+    <meta name="opaline:doc" content="roadmap-zh">
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../index.html">文档入口</a> · <a href="roadmap.html">English</a></p>
+        <h1>路线图和暂不做的事</h1>
+
+        <h2>阶段 0：地基</h2>
+        <ul>
+          <li>初始化 Tauri 和 React。</li>
+          <li>选定包管理器和代码格式化工具。</li>
+          <li>接入 Tiptap 编辑器基线。</li>
+          <li>接入 SQLite。</li>
+          <li>定义第一版 Opaline HTML Profile。</li>
+          <li>确定工作区目录约定。</li>
+          <li>添加基础测试和构建命令。</li>
+        </ul>
+
+        <h2>阶段 1：可信的本地笔记</h2>
+        <ul>
+          <li>打开本地工作区文件夹。</li>
+          <li>创建笔记。</li>
+          <li>用 Tiptap 编辑。</li>
+          <li>保存为干净 HTML。</li>
+          <li>加载已有 HTML 笔记。</li>
+          <li>自动保存更改。</li>
+          <li>从文件重建 SQLite 元数据。</li>
+          <li>显示文件树和最近笔记。</li>
+        </ul>
+
+        <h2>阶段 2：搜索和导航</h2>
+        <ul>
+          <li>标题搜索。</li>
+          <li>正文搜索。</li>
+          <li>标题提取。</li>
+          <li>标签提取。</li>
+          <li>最近笔记。</li>
+          <li>收藏。</li>
+          <li>基础命令面板。</li>
+          <li>断链检测。</li>
+        </ul>
+
+        <h2>阶段 3：知识链接</h2>
+        <ul>
+          <li><code>[[笔记链接]]</code>。</li>
+          <li>将链接解析到稳定 ID。</li>
+          <li>笔记移动时更新链接。</li>
+          <li>反链。</li>
+          <li>出链。</li>
+          <li>断链检测。</li>
+          <li>日记。</li>
+          <li>基础图谱数据。</li>
+        </ul>
+
+        <h2>阶段 4：富 HTML 块</h2>
+        <ul>
+          <li>表格。</li>
+          <li>任务列表。</li>
+          <li>标注块。</li>
+          <li>代码块。</li>
+          <li>图片和附件。</li>
+          <li>嵌入。</li>
+          <li>数学公式。</li>
+          <li>图表。</li>
+          <li>块 ID。</li>
+          <li>块引用。</li>
+          <li>概念标记。</li>
+        </ul>
+
+        <h2>阶段 5：AI 辅助知识工作</h2>
+        <ul>
+          <li>总结笔记。</li>
+          <li>生成标题。</li>
+          <li>提取标签。</li>
+          <li>推荐相关笔记。</li>
+          <li>检测重复或重叠笔记。</li>
+          <li>将草稿转为大纲。</li>
+          <li>将长笔记重构为更小的链接笔记。</li>
+          <li>带引用向工作区提问。</li>
+          <li>将导入的 Markdown 或网页转换为干净的 Opaline HTML。</li>
+        </ul>
+
+        <h2>阶段 6：发布</h2>
+        <ul>
+          <li>选择要发布的笔记。</li>
+          <li>生成静态 HTML 站点。</li>
+          <li>包含资源文件。</li>
+          <li>包含搜索索引。</li>
+          <li>包含反链和目录。</li>
+          <li>支持基础自定义主题。</li>
+          <li>保留公开和私密的边界。</li>
+        </ul>
+
+        <h2>阶段 7：读者搜索和公开知识</h2>
+        <ul>
+          <li>发布页面的选中即搜。</li>
+          <li>在当前作者范围内搜索。</li>
+          <li>展示相关公开笔记。</li>
+          <li>带引用的 AI 解释。</li>
+          <li>公开词汇表或概念页面。</li>
+          <li>可选的 Diandanr 集成。</li>
+        </ul>
+
+        <h2>阶段 8：同步、移动端、插件</h2>
+        <ul>
+          <li>云文件夹兼容。</li>
+          <li>Git 友好的工作流。</li>
+          <li>可选的托管同步。</li>
+          <li>移动端探索。</li>
+          <li>Web 存储适配器。</li>
+          <li>主题 API。</li>
+          <li>插件 API。</li>
+          <li>工作区自动化钩子。</li>
+        </ul>
+
+        <h2>暂时不做</h2>
+        <ul>
+          <li>实时多人协作</li>
+          <li>完整的公开论坛</li>
+          <li>社交推荐信息流</li>
+          <li>插件市场</li>
+          <li>Notion 风格数据库</li>
+          <li>复杂项目管理</li>
+          <li>移动端优先编辑</li>
+          <li>托管同步</li>
+          <li>一体化网站生成</li>
+          <li>跨用户 AI 搜索</li>
+        </ul>
+
+        <p>这个路线的目的，是避免一开始就被平台、社区、同步、插件市场和网站生成器这些复杂任务拖住。先让个人工具成立，再谈公开网络。</p>
+      </article>
+    </main>
+  </body>
+</html>

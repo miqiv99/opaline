@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 搜索、AI 和发布</title>
+    <meta name="opaline:doc" content="search-ai-publish-zh">
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../index.html">文档入口</a> · <a href="search-ai-publish.html">English</a></p>
+        <h1>搜索、AI 和发布</h1>
+
+        <h2>搜索模型</h2>
+        <p>搜索应该帮助用户找回旧上下文，而不仅仅是匹配关键词。</p>
+
+        <h3>精确搜索</h3>
+        <p>跨标题、章节、正文、标签和路径的快速本地关键词搜索。这是增强版的 Ctrl+F 层。</p>
+
+        <h3>结构化搜索</h3>
+        <p>按路径、标签、笔记类型、创建时间、更新时间、链接笔记和断链进行过滤。</p>
+
+        <h3>语义搜索</h3>
+        <p>可选的 AI 或嵌入向量驱动的本地笔记检索。结果应该在生成任何回答之前先展示匹配的笔记和片段。</p>
+
+        <h3>AI 回答</h3>
+        <p>AI 应该只在有可见来源的情况下回答。</p>
+        <ul>
+          <li>引用笔记</li>
+          <li>链接回原文</li>
+          <li>展示检索到的片段</li>
+          <li>当没有找到相关笔记时明确说明</li>
+          <li>区分来源事实和 AI 推断</li>
+        </ul>
+
+        <p>私有笔记不应该在未经用户明确许可的情况下发送到云端模型。</p>
+
+        <h2>发布阶段</h2>
+        <h3>静态导出</h3>
+        <p>从选定笔记生成静态网站。这可以通过 GitHub Pages、Cloudflare Pages、Vercel 或个人服务器实现，无需账号或托管服务。</p>
+
+        <h3>托管发布</h3>
+        <p>Opaline 或其他服务可以在 <code>opaline.site/用户名</code> 这样的 URL 托管公开笔记。这会涉及账号、计费、域名、隐私和内容运营。</p>
+
+        <h3>公开知识网络</h3>
+        <p>后续，来自许多用户的公开笔记可以通过作者页面、公开笔记搜索、合集、引用、关注、书签、跨用户引用和话题发现变得可被发现。</p>
+
+        <h2>面向读者的概念搜索</h2>
+        <p>未来发布的 Opaline 站点应该让读者选中文本后可以搜索作者的公开笔记。</p>
+
+        <pre><code>读者选中 "HTML 原生笔记"
+  -&gt; 搜索本篇笔记
+  -&gt; 搜索该作者
+  -&gt; 查找相关公开笔记
+  -&gt; 带引用来源提问</code></pre>
+
+        <p>这与普通的网站搜索不同。它让读者把作者的公开知识库当作可以在阅读时查询的上下文。</p>
+
+        <p>谨慎的做法应该是：由选中文本触发、只搜索公开内容（除非读者已认证）、显示来源片段、链接到原始笔记、清晰标注 AI 摘要、避免将 AI 推断呈现为作者的直接主张。</p>
+      </article>
+    </main>
+  </body>
+</html>

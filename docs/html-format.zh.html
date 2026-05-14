@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline HTML 格式和多语言笔记</title>
+    <meta name="opaline:doc" content="html-format-zh">
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../index.html">文档入口</a> · <a href="html-format.html">English</a></p>
+        <h1>HTML 格式和多语言笔记</h1>
+
+        <h2>为什么选择 HTML</h2>
+        <p>HTML 本身不是目标。目标是持久且丰富的知识。HTML 之所以有用，是因为它可阅读、可发布、结构清晰、AI 友好、交互友好、支持多语言且可移植。</p>
+
+        <p>Markdown 在纯文本笔记方面很出色。Opaline 的赌注是，长期知识工作往往需要比 Markdown 更丰富的结构，而 Markdown 在不引入大量互不兼容扩展的情况下难以表达这些结构。</p>
+
+        <p>因此，Opaline 的优势不是"使用 HTML"，而是维护一套适合长期知识管理的<strong>干净 HTML Profile</strong>。</p>
+
+        <h2>多语言支持</h2>
+        <p>当文档以 UTF-8 保存并正确标注时，HTML 具有强大的多语言支持能力。</p>
+
+        <ul>
+          <li><code>&lt;meta charset="utf-8"&gt;</code> 支持中文、英文、日文、韩文、阿拉伯文、emoji、符号和混合文字。</li>
+          <li><code>lang</code> 属性标识文档或特定章节的语言。</li>
+          <li><code>dir</code> 属性支持从左到右和从右到左的书写系统。</li>
+          <li>同一篇笔记中不同章节可以使用不同语言。</li>
+          <li>浏览器、屏幕阅读器、搜索引擎和拼写检查器都可以利用语言元数据。</li>
+        </ul>
+
+        <p>示例：</p>
+
+        <pre><code>&lt;html lang="zh-Hans"&gt;
+  &lt;body&gt;
+    &lt;article data-opaline-note&gt;
+      &lt;h1&gt;HTML 笔记&lt;/h1&gt;
+      &lt;p&gt;这是一段中文。&lt;/p&gt;
+      &lt;p lang="en"&gt;This sentence is in English.&lt;/p&gt;
+      &lt;p lang="ar" dir="rtl"&gt;هذه فقرة عربية.&lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <p>真正的挑战不是 HTML 能不能支持多语言——它完全可以。挑战在于让 Opaline 在编辑、导入、导出、搜索和 AI 检索过程中稳定保留这些语言元数据。</p>
+
+        <h2>Opaline HTML Profile</h2>
+        <p>Opaline 应该定义一套严格、可预测的 HTML 子集，而不是保存编辑器输出的任意内容。</p>
+
+        <ul>
+          <li>尽可能使用语义化元素。</li>
+          <li>规范化粘贴内容。</li>
+          <li>保留有意义的 <code>lang</code> 和 <code>dir</code> 属性。</li>
+          <li>移除编辑器专用类名和不稳定的内联样式。</li>
+          <li>使用 <code>data-opaline-*</code> 属性保存应用级语义。</li>
+          <li>以 Git 友好的 diff 方式一致地序列化文档。</li>
+        </ul>
+
+        <h2>基础笔记结构</h2>
+        <pre><code>&lt;!doctype html&gt;
+&lt;html lang="zh-Hans"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;title&gt;示例笔记&lt;/title&gt;
+    &lt;meta name="opaline:id" content="note-id"&gt;
+    &lt;meta name="opaline:created" content="2026-05-13T00:00:00Z"&gt;
+    &lt;meta name="opaline:updated" content="2026-05-13T00:00:00Z"&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;article data-opaline-note&gt;
+      &lt;h1&gt;示例笔记&lt;/h1&gt;
+      &lt;p&gt;这是一篇可移植的 HTML 笔记。&lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <h2>链接、标签和块</h2>
+        <pre><code>&lt;a href="../projects/opaline.html" data-opaline-link="note-id"&gt;Opaline&lt;/a&gt;
+
+&lt;span data-opaline-tag="research"&gt;#研究&lt;/span&gt;
+
+&lt;section id="b-introduction" data-opaline-block&gt;
+  &lt;h2&gt;引言&lt;/h2&gt;
+  &lt;p&gt;...&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+      </article>
+    </main>
+  </body>
+</html>

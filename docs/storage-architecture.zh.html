@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 存储模型和架构</title>
+    <meta name="opaline:doc" content="storage-architecture-zh">
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        line-height: 1.75;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../index.html">文档入口</a> · <a href="storage-architecture.html">English</a></p>
+        <h1>存储模型和架构</h1>
+
+        <h2>工作区模型</h2>
+        <pre><code>MyNotes/
+  notes/
+    index.html
+    projects/
+      opaline.html
+  assets/
+    images/
+    files/
+  .opaline/
+    index.sqlite
+    settings.json
+    cache/</code></pre>
+
+        <ul>
+          <li><code>notes/</code> 保存用户创作的持久 HTML 笔记。</li>
+          <li><code>assets/</code> 保存图片和附件。</li>
+          <li><code>.opaline/</code> 保存可重建的应用元数据和缓存。</li>
+          <li>删除 <code>.opaline/index.sqlite</code> 不应导致用户内容丢失。</li>
+          <li>工作区应该在普通文件浏览器中保持可查看。</li>
+        </ul>
+
+        <h2>存储原则</h2>
+        <blockquote>
+          <p>HTML 文件是规范数据源。SQLite 是有用的、快速的、可重建的。</p>
+        </blockquote>
+
+        <h2>文件系统保存持久内容</h2>
+        <ul>
+          <li>HTML 笔记</li>
+          <li>图片</li>
+          <li>附件</li>
+          <li>导出的资源</li>
+        </ul>
+
+        <h2>SQLite 保存派生数据</h2>
+        <ul>
+          <li>搜索索引</li>
+          <li>反链</li>
+          <li>出链</li>
+          <li>标签</li>
+          <li>标题和别名</li>
+          <li>最近笔记</li>
+          <li>收藏</li>
+          <li>工作区设置</li>
+          <li>AI 嵌入向量（如果启用）</li>
+          <li>缓存元数据</li>
+        </ul>
+
+        <h2>身份模型</h2>
+        <p>Opaline 应该区分身份和位置。</p>
+        <ul>
+          <li>笔记 ID 应该是稳定的 UUID 风格标识符。</li>
+          <li>路径是面向用户的位置，可能会改变。</li>
+          <li>链接应同时保存 <code>href</code> 和稳定的 Opaline 目标 ID。</li>
+          <li>SQLite 可以解析 ID、路径、标题、别名、反链和断链。</li>
+        </ul>
+
+        <h2>架构分层</h2>
+        <pre><code>React UI
+  -&gt; 编辑器层
+  -&gt; 领域层
+  -&gt; 存储适配器
+      -&gt; Tauri 桌面文件系统
+      -&gt; Tauri 移动文件系统
+      -&gt; Web IndexedDB 或 OPFS</code></pre>
+
+        <h2>各层职责</h2>
+        <h3>笔记格式层</h3>
+        <ul>
+          <li>解析 HTML</li>
+          <li>序列化 HTML</li>
+          <li>规范化保存的文档</li>
+          <li>验证 Opaline HTML Profile</li>
+          <li>迁移旧版本笔记</li>
+        </ul>
+
+        <h3>领域层</h3>
+        <ul>
+          <li>笔记身份</li>
+          <li>笔记元数据</li>
+          <li>链接和反链</li>
+          <li>标签</li>
+          <li>资源管理</li>
+          <li>搜索索引</li>
+          <li>发布元数据</li>
+        </ul>
+
+        <h3>编辑器层</h3>
+        <ul>
+          <li>Tiptap 扩展</li>
+          <li>编辑命令</li>
+          <li>粘贴净化</li>
+          <li>选区行为</li>
+          <li>富块编辑</li>
+          <li>撤销和重做行为</li>
+        </ul>
+
+        <p>这套设计的核心是信任：用户内容属于文件系统，数据库只是让体验更快、更聪明。</p>
+      </article>
+    </main>
+  </body>
+</html>
