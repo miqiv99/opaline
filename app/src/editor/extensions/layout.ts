@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { Plugin } from "@tiptap/pm/state";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -6,7 +7,7 @@ declare module "@tiptap/core" {
       insertTwoColumnLayout: () => ReturnType;
       insertCompareLayout: () => ReturnType;
       insertSidenoteLayout: () => ReturnType;
-      insertDetailsLayout: () => ReturnType;
+      insertDisclosureBlock: () => ReturnType;
     };
   }
 }
@@ -117,18 +118,111 @@ export const OpalineLayout = Node.create({
             ],
           }),
 
-      insertDetailsLayout:
+      insertDisclosureBlock:
         () =>
         ({ commands }) =>
           commands.insertContent({
-            type: this.name,
-            attrs: { kind: "details" },
+            type: "disclosureBlock",
+            attrs: { open: true },
             content: [
-              column("summary", "折叠标题", "把这里改成摘要或问题。"),
-              column("detail", "展开内容", "这里写展开后显示的详细说明。"),
+              {
+                type: "disclosureSummary",
+                content: [{ type: "text", text: "点击这里修改折叠标题" }],
+              },
+              {
+                type: "disclosureContent",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "这里写展开后显示的内容。" }],
+                  },
+                ],
+              },
             ],
           }),
     };
+  },
+});
+
+export const DisclosureBlock = Node.create({
+  name: "disclosureBlock",
+  group: "block",
+  content: "disclosureSummary disclosureContent",
+  isolating: true,
+  defining: true,
+
+  addAttributes() {
+    return {
+      open: {
+        default: true,
+        parseHTML: (element) => (element as HTMLDetailsElement).open,
+        renderHTML: (attributes) => (attributes.open ? { open: "" } : {}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "details[data-opaline-disclosure]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["details", mergeAttributes(HTMLAttributes, { "data-opaline-disclosure": "" }), 0];
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleClickOn: (view, _pos, node, nodePos, event) => {
+            if (node.type.name !== this.name) {
+              return false;
+            }
+
+            const target = event.target as HTMLElement | null;
+            if (!target?.closest("summary")) {
+              return false;
+            }
+
+            event.preventDefault();
+            view.dispatch(
+              view.state.tr.setNodeMarkup(nodePos, undefined, {
+                ...node.attrs,
+                open: !node.attrs.open,
+              }),
+            );
+            return true;
+          },
+        },
+      }),
+    ];
+  },
+});
+
+export const DisclosureSummary = Node.create({
+  name: "disclosureSummary",
+  content: "inline*",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "summary" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["summary", HTMLAttributes, 0];
+  },
+});
+
+export const DisclosureContent = Node.create({
+  name: "disclosureContent",
+  content: "block+",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "div[data-opaline-disclosure-content]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["div", mergeAttributes(HTMLAttributes, { "data-opaline-disclosure-content": "" }), 0];
   },
 });
 

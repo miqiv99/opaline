@@ -38,7 +38,7 @@ import { MathInline, MathBlock } from "./extensions/math";
 import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
 import { BlockId } from "./extensions/blockId";
-import { LayoutColumn, OpalineLayout } from "./extensions/layout";
+import { DisclosureBlock, DisclosureContent, DisclosureSummary, LayoutColumn, OpalineLayout } from "./extensions/layout";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -94,6 +94,9 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
       BlockId,
       LayoutColumn,
       OpalineLayout,
+      DisclosureBlock,
+      DisclosureSummary,
+      DisclosureContent,
     ],
     content,
     editorProps: {
@@ -174,7 +177,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         <IconButton label="旁注布局" onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
           <PanelRight size={17} />
         </IconButton>
-        <IconButton label="折叠布局" onClick={() => editor.chain().focus().insertDetailsLayout().run()}>
+        <IconButton label="可展开说明" onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
           <span className="icon-math-display">⌄</span>
         </IconButton>
         <span className="toolbar-divider" />
