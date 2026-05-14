@@ -26,6 +26,9 @@ export function App() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [backlinks, setBacklinks] = useState<SearchResult[]>([]);
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [], brokenLinks: [] });
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("未命名笔记");
+  const [draftLang, setDraftLang] = useState("zh-Hans");
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
 
   const activeTitle = useMemo(() => {
@@ -71,12 +74,20 @@ export function App() {
     }
   }, [refreshBacklinks, refreshNotes]);
 
+  const requestCreateNote = useCallback(() => {
+    setDraftTitle("未命名笔记");
+    setDraftLang("zh-Hans");
+    setCreateDialogOpen(true);
+  }, []);
+
   const createNote = useCallback(async () => {
-    const title = window.prompt("新笔记标题", "未命名笔记")?.trim();
+    const title = draftTitle.trim();
     if (!title) {
+      setStatus("笔记标题不能为空");
       return;
     }
 
+    setCreateDialogOpen(false);
     setIsBusy(true);
     try {
       const path = workspace.path ?? (await workspaceAdapter.chooseWorkspace());
@@ -86,7 +97,7 @@ export function App() {
       }
 
       await workspaceAdapter.ensureWorkspace(path);
-      const note = await workspaceAdapter.createNote(path, { title, lang: "zh-Hans" });
+      const note = await workspaceAdapter.createNote(path, { title, lang: draftLang });
       const notes = await workspaceAdapter.listNotes(path);
       openNoteDocument(path, notes, note);
       setStatus("已创建笔记");
@@ -95,7 +106,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [workspace.path]);
+  }, [draftLang, draftTitle, workspace.path]);
 
   const createDailyNote = useCallback(async () => {
     setIsBusy(true);
@@ -276,7 +287,12 @@ export function App() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">O</span>
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
+              <path d="M14 33.6C19.4 27.6 25.5 22.9 33.4 18.9" />
+            </svg>
+          </span>
           <div>
             <strong>Opaline</strong>
             <span>本地 HTML 笔记</span>
@@ -288,7 +304,7 @@ export function App() {
             <FolderOpen size={17} />
             <span>打开工作区</span>
           </button>
-          <button type="button" onClick={createNote} disabled={isBusy}>
+          <button type="button" onClick={requestCreateNote} disabled={isBusy}>
             <FilePlus2 size={17} />
             <span>新建笔记</span>
           </button>
@@ -412,13 +428,23 @@ export function App() {
           <section className="welcome-panel">
             <h2>先从一个本地工作区开始</h2>
             <p>工作区会包含 notes、assets 和 .opaline。HTML 文件是源数据，SQLite 只保存可重建的索引和元数据。</p>
-            <button type="button" onClick={createNote} disabled={isBusy}>
+            <button type="button" onClick={requestCreateNote} disabled={isBusy}>
               <FilePlus2 size={18} />
               <span>创建第一篇笔记</span>
             </button>
           </section>
         )}
       </section>
+      <CreateNoteDialog
+        open={createDialogOpen}
+        title={draftTitle}
+        lang={draftLang}
+        busy={isBusy}
+        onTitleChange={setDraftTitle}
+        onLangChange={setDraftLang}
+        onCancel={() => setCreateDialogOpen(false)}
+        onSubmit={createNote}
+      />
     </main>
   );
 }
@@ -429,5 +455,75 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2>{title}</h2>
       {children}
     </section>
+  );
+}
+
+function CreateNoteDialog({
+  open,
+  title,
+  lang,
+  busy,
+  onTitleChange,
+  onLangChange,
+  onCancel,
+  onSubmit,
+}: {
+  open: boolean;
+  title: string;
+  lang: string;
+  busy: boolean;
+  onTitleChange: (value: string) => void;
+  onLangChange: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
+      <section className="note-dialog" role="dialog" aria-modal="true" aria-labelledby="create-note-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="note-dialog-header">
+          <span className="dialog-leaf" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
+              <path d="M14 33.6C19.4 27.6 25.5 22.9 33.4 18.9" />
+            </svg>
+          </span>
+          <div>
+            <h2 id="create-note-title">创建新笔记</h2>
+            <p>选择一个清晰标题，Opaline 会保存为干净 HTML 文件。</p>
+          </div>
+        </div>
+
+        <label className="dialog-field">
+          <span>笔记标题</span>
+          <input autoFocus value={title} onChange={(event) => onTitleChange(event.target.value)} onKeyDown={(event) => {
+            if (event.key === "Enter") onSubmit();
+            if (event.key === "Escape") onCancel();
+          }} />
+        </label>
+
+        <label className="dialog-field">
+          <span>语言</span>
+          <select value={lang} onChange={(event) => onLangChange(event.target.value)}>
+            <option value="zh-Hans">简体中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </label>
+
+        <div className="dialog-actions">
+          <button type="button" className="dialog-secondary" onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" className="dialog-primary" onClick={onSubmit} disabled={busy || !title.trim()}>
+            创建笔记
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline 链接规则</title>
+    <meta name="opaline:doc" content="link-rules-zh">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../index.html">返回文档入口</a></p>
+        <h1>链接规则</h1>
+
+        <h2><code>[[note]]</code> 笔记链接</h2>
+        <p>保存时，Opaline 会把 <code>[[标题]]</code> 编译成普通 HTML 链接。如果能按标题找到目标笔记，保存为：</p>
+        <pre><code>&lt;a href="target.html" data-opaline-link="note-id"&gt;标题&lt;/a&gt;</code></pre>
+        <p>如果找不到目标笔记，保存为 unresolved span，并在索引中标记为断链：</p>
+        <pre><code>&lt;span data-opaline-unresolved="标题"&gt;[[标题]]&lt;/span&gt;</code></pre>
+
+        <h2>普通 <code>&lt;a&gt;</code> 链接</h2>
+        <ul>
+          <li><code>http:</code>、<code>https:</code>、<code>mailto:</code>、<code>tel:</code> 视为外部链接，不算断链。</li>
+          <li><code>#block-id</code> 视为当前笔记内部锚点，不算断链。</li>
+          <li>相对路径如果能解析到 workspace 的 <code>notes/</code> 目录内 HTML 笔记，则记录目标 note id。</li>
+          <li>相对路径找不到目标笔记时，标记为断链。</li>
+          <li>如果链接文本等于某篇笔记标题，也可以作为兜底解析目标。</li>
+        </ul>
+
+        <h2>Block Ref</h2>
+        <p>块引用通过 URL hash 和 <code>data-opaline-block-ref</code> 表达：</p>
+        <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-block-ref="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
+        <p>当前版本先解析目标笔记是否存在；具体 block id 是否存在，后续可以在索引层继续校验。</p>
+
+        <h2>Broken Link</h2>
+        <p>以下情况会被标记为断链：</p>
+        <ul>
+          <li><code>[[标题]]</code> 找不到对应笔记。</li>
+          <li>相对 HTML 链接找不到目标笔记。</li>
+          <li><code>data-opaline-link</code> 指向的 note id 不存在。</li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>

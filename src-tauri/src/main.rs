@@ -1,3 +1,3 @@
 fn main() {
-    diorite_lib::run()
+    opaline_lib::run()
 }

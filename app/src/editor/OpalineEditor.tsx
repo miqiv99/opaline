@@ -13,6 +13,7 @@ import {
   Bold,
   CheckSquare,
   Code2,
+  Columns2,
   FileImage,
   GitBranch,
   Heading1,
@@ -22,19 +23,22 @@ import {
   List,
   ListOrdered,
   MessageSquareQuote,
+  PanelRight,
   Pi,
   Redo2,
   Save,
   Table2,
+  TextCursorInput,
   Undo2,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
 import { MathInline, MathBlock } from "./extensions/math";
 import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
 import { BlockId } from "./extensions/blockId";
+import { LayoutColumn, OpalineLayout } from "./extensions/layout";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -54,6 +58,7 @@ type OpalineEditorProps = {
 };
 
 export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onPickNote }: OpalineEditorProps) {
+  const [dialog, setDialog] = useState<InsertDialogState | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -87,6 +92,8 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
       MermaidBlock,
       NoteEmbed,
       BlockId,
+      LayoutColumn,
+      OpalineLayout,
     ],
     content,
     editorProps: {
@@ -148,7 +155,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         <IconButton label="标注块" onClick={() => insertCallout(editor)}>
           <MessageSquareQuote size={17} />
         </IconButton>
-        <IconButton label="链接" onClick={() => setLink(editor)} active={editor.isActive("link")}>
+        <IconButton label="链接" onClick={() => openLinkDialog(editor, setDialog)} active={editor.isActive("link")}>
           <LinkIcon size={17} />
         </IconButton>
         <IconButton label="插入图片" onClick={() => insertImage(editor, onImportAsset)}>
@@ -158,13 +165,26 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
           <Table2 size={17} />
         </IconButton>
         <span className="toolbar-divider" />
-        <IconButton label="行内公式 ($...$)" onClick={() => insertMathInline(editor)}>
+        <IconButton label="双栏布局" onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
+          <Columns2 size={17} />
+        </IconButton>
+        <IconButton label="对照布局" onClick={() => editor.chain().focus().insertCompareLayout().run()}>
+          <TextCursorInput size={17} />
+        </IconButton>
+        <IconButton label="旁注布局" onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
+          <PanelRight size={17} />
+        </IconButton>
+        <IconButton label="折叠布局" onClick={() => editor.chain().focus().insertDetailsLayout().run()}>
+          <span className="icon-math-display">⌄</span>
+        </IconButton>
+        <span className="toolbar-divider" />
+        <IconButton label="行内公式" onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
           <Pi size={17} />
         </IconButton>
-        <IconButton label="公式块 ($$...$$)" onClick={() => insertMathBlock(editor)}>
+        <IconButton label="公式块" onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
           <span className="icon-math-display">∑</span>
         </IconButton>
-        <IconButton label="插入图表 (Mermaid)" onClick={() => insertMermaid(editor)}>
+        <IconButton label="插入图表" onClick={() => setDialog({ type: "mermaid", value: "graph TD\n  A[开始] --> B[完成]" })}>
           <GitBranch size={17} />
         </IconButton>
         {onPickNote ? (
@@ -178,9 +198,16 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         </button>
       </div>
       <EditorContent editor={editor} />
+      <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
     </section>
   );
 }
+
+type InsertDialogState =
+  | { type: "link"; value: string }
+  | { type: "math-inline"; value: string }
+  | { type: "math-block"; value: string }
+  | { type: "mermaid"; value: string };
 
 type IconButtonProps = {
   label: string;
@@ -206,20 +233,12 @@ function IconButton({ label, active = false, disabled = false, children, onClick
   );
 }
 
-const setLink = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+const openLinkDialog = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  setDialog: (state: InsertDialogState) => void,
+) => {
   const current = editor.getAttributes("link").href as string | undefined;
-  const href = window.prompt("链接地址", current ?? "");
-
-  if (href === null) {
-    return;
-  }
-
-  if (href.trim() === "") {
-    editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    return;
-  }
-
-  editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  setDialog({ type: "link", value: current ?? "" });
 };
 
 const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
@@ -244,24 +263,6 @@ const insertImage = async (
   editor.chain().focus().setImage({ src: asset.href, alt: asset.name }).run();
 };
 
-const insertMathInline = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
-  const latex = window.prompt("输入 LaTeX 公式", "x^2 + y^2 = 1")?.trim();
-  if (!latex) return;
-  editor.chain().focus().setMathInline(latex).run();
-};
-
-const insertMathBlock = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
-  const latex = window.prompt("输入 LaTeX 公式（块级）", "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}")?.trim();
-  if (!latex) return;
-  editor.chain().focus().setMathBlock(latex).run();
-};
-
-const insertMermaid = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
-  const code = window.prompt("输入 Mermaid 图表代码", "graph TD\n  A[开始] --> B[完成]")?.trim();
-  if (!code) return;
-  editor.chain().focus().setMermaidBlock(code).run();
-};
-
 const insertEmbed = async (
   editor: NonNullable<ReturnType<typeof useEditor>>,
   onPickNote: () => Promise<{ id: string; title: string; excerpt: string } | null>,
@@ -270,3 +271,88 @@ const insertEmbed = async (
   if (!note) return;
   editor.chain().focus().setNoteEmbed({ noteId: note.id, title: note.title, excerpt: note.excerpt }).run();
 };
+
+function InsertDialog({
+  editor,
+  state,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  state: InsertDialogState | null;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    setValue(state?.value ?? "");
+  }, [state]);
+
+  if (!state) return null;
+
+  const isTextArea = state.type === "mermaid" || state.type === "math-block";
+  const titleMap: Record<InsertDialogState["type"], string> = {
+    link: "设置链接",
+    "math-inline": "插入行内公式",
+    "math-block": "插入公式块",
+    mermaid: "设计图表",
+  };
+  const helpMap: Record<InsertDialogState["type"], string> = {
+    link: "输入网页、文件或笔记链接。清空后会移除当前链接。",
+    "math-inline": "输入 LaTeX，插入为行内公式。",
+    "math-block": "输入 LaTeX，插入为居中的公式块。",
+    mermaid: "选择一个模板或编辑图表结构，插入后页面里显示为图表。",
+  };
+
+  const apply = () => {
+    const trimmed = value.trim();
+    if (state.type === "link") {
+      if (!trimmed) {
+        editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      } else {
+        editor.chain().focus().extendMarkRange("link").setLink({ href: trimmed }).run();
+      }
+    }
+    if (state.type === "math-inline" && trimmed) editor.chain().focus().setMathInline(trimmed).run();
+    if (state.type === "math-block" && trimmed) editor.chain().focus().setMathBlock(trimmed).run();
+    if (state.type === "mermaid" && trimmed) editor.chain().focus().setMermaidBlock(trimmed).run();
+    onClose();
+  };
+
+  const templates = [
+    { label: "流程图", value: "graph TD\n  A[开始] --> B[处理]\n  B --> C[完成]" },
+    { label: "左右流程", value: "graph LR\n  A[想法] --> B[证据]\n  B --> C[结论]" },
+    { label: "时序图", value: "sequenceDiagram\n  participant A as 用户\n  participant B as Opaline\n  A->>B: 创建笔记\n  B-->>A: 保存 HTML" },
+  ];
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label={titleMap[state.type]}>
+      <div className="insert-card">
+        <header>
+          <strong>{titleMap[state.type]}</strong>
+          <p>{helpMap[state.type]}</p>
+        </header>
+        {state.type === "mermaid" ? (
+          <div className="template-row">
+            {templates.map((template) => (
+              <button key={template.label} type="button" onClick={() => setValue(template.value)}>
+                {template.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {isTextArea ? (
+          <textarea value={value} onChange={(event) => setValue(event.target.value)} rows={7} autoFocus />
+        ) : (
+          <input value={value} onChange={(event) => setValue(event.target.value)} autoFocus onKeyDown={(event) => {
+            if (event.key === "Enter") apply();
+            if (event.key === "Escape") onClose();
+          }} />
+        )}
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
+          <button type="button" className="dialog-primary" onClick={apply}>插入</button>
+        </div>
+      </div>
+    </div>
+  );
+}

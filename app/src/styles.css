@@ -86,11 +86,29 @@ button:disabled {
   width: 40px;
   height: 40px;
   place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.42), transparent 18%),
+    linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
   color: white;
-  font-weight: 800;
   box-shadow: var(--xz-shadow-sm);
+}
+
+.brand-mark svg {
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+}
+
+.brand-mark path:first-child {
+  fill: currentColor;
+}
+
+.brand-mark path:last-child {
+  fill: none;
+  stroke: rgba(20, 122, 85, 0.9);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
 .brand strong,
@@ -381,6 +399,65 @@ button:disabled {
   border-radius: 16px;
   background: var(--xz-green-soft);
   padding: 12px 14px;
+}
+
+.editor-surface [data-opaline-layout] {
+  display: grid;
+  gap: 14px;
+  margin: 1.2rem 0;
+  border: 1px solid var(--xz-border);
+  border-radius: 20px;
+  background: rgba(250, 247, 240, 0.72);
+  padding: 14px;
+}
+
+.editor-surface [data-opaline-layout="two-column"],
+.editor-surface [data-opaline-layout="compare"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.editor-surface [data-opaline-layout="sidenote"] {
+  grid-template-columns: minmax(0, 1.6fr) minmax(180px, 0.8fr);
+}
+
+.editor-surface [data-opaline-layout="details"] {
+  gap: 8px;
+}
+
+.editor-surface [data-opaline-column] {
+  min-width: 0;
+  border: 1px solid rgba(60, 60, 67, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px;
+}
+
+.editor-surface [data-opaline-column="side"],
+.editor-surface [data-opaline-column="note"] {
+  background: var(--xz-green-soft);
+}
+
+.editor-surface [data-opaline-layout="compare"] [data-opaline-column="source"] {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.editor-surface [data-opaline-layout="compare"] [data-opaline-column="analysis"] {
+  background: var(--xz-green-soft);
+}
+
+.editor-surface [data-opaline-layout="details"] [data-opaline-column="summary"] {
+  border-color: transparent;
+  background: var(--xz-green-soft);
+}
+
+.editor-surface [data-opaline-layout="details"] [data-opaline-column="detail"] {
+  border-style: dashed;
+}
+
+.editor-surface [data-opaline-column] > h3:first-child {
+  margin-top: 0;
+  color: var(--xz-green-deep);
+  font-size: 0.95rem;
 }
 
 .editor-surface ul[data-type="taskList"] {
@@ -688,6 +765,69 @@ button:disabled {
   gap: 8px;
 }
 
+.ai-tool-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ai-tool-actions button,
+.ai-model-chips button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--xz-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--xz-text-primary);
+  font-size: 0.82rem;
+}
+
+.ai-tool-actions button:hover,
+.ai-model-chips button:hover {
+  border-color: var(--xz-green);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.ai-model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 12px;
+}
+
+.ai-model-chips button {
+  max-width: 100%;
+  min-height: 30px;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-tool-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  border-radius: 12px;
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+  padding: 9px 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.ai-tool-status.is-error {
+  background: #fff0f0;
+  color: #cc1a1a;
+}
+
 .ai-action-button {
   display: flex;
   align-items: center;
@@ -766,11 +906,233 @@ button:disabled {
   color: white;
 }
 
+/* ---- Create note dialog ---- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(29, 29, 31, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 20px;
+}
+
+.note-dialog {
+  width: min(460px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--xz-shadow-lg);
+  padding: 22px;
+}
+
+.note-dialog-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.dialog-leaf {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.42), transparent 18%),
+    linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
+  color: white;
+}
+
+.dialog-leaf svg {
+  width: 31px;
+  height: 31px;
+}
+
+.dialog-leaf path:first-child {
+  fill: currentColor;
+}
+
+.dialog-leaf path:last-child {
+  fill: none;
+  stroke: rgba(20, 122, 85, 0.9);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.note-dialog h2 {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  letter-spacing: 0;
+}
+
+.note-dialog p {
+  margin: 0;
+  color: var(--xz-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.dialog-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--xz-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.dialog-field input,
+.dialog-field select {
+  min-height: 44px;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--xz-text-primary);
+  padding: 0 12px;
+  outline: none;
+}
+
+.dialog-field input:focus,
+.dialog-field select:focus {
+  border-color: var(--xz-green);
+  box-shadow: 0 0 0 4px var(--xz-green-soft);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialog-actions button {
+  min-height: 40px;
+  border-radius: 14px;
+  padding: 0 16px;
+}
+
+.dialog-secondary {
+  border: 1px solid var(--xz-border);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--xz-text-primary);
+}
+
+.dialog-primary {
+  border: 1px solid transparent;
+  background: linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
+  color: white;
+  box-shadow: var(--xz-shadow-sm);
+}
+
 /* Math display icon */
 .icon-math-display {
   font-size: 1rem;
   font-weight: 700;
   font-family: "Georgia", serif;
+}
+
+/* ---- Editor insert dialog ---- */
+
+.insert-popover {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  background: rgba(29, 29, 31, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 20px;
+}
+
+.insert-card {
+  width: min(560px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--xz-shadow-lg);
+  padding: 18px;
+}
+
+.insert-card header {
+  margin-bottom: 12px;
+}
+
+.insert-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.06rem;
+}
+
+.insert-card p {
+  margin: 0;
+  color: var(--xz-text-secondary);
+  font-size: 0.9rem;
+}
+
+.insert-card input,
+.insert-card textarea {
+  width: 100%;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--xz-text-primary);
+  outline: none;
+  padding: 11px 12px;
+}
+
+.insert-card textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  line-height: 1.5;
+}
+
+.insert-card input:focus,
+.insert-card textarea:focus {
+  border-color: var(--xz-green);
+  box-shadow: 0 0 0 4px var(--xz-green-soft);
+}
+
+.template-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.template-row button {
+  min-height: 32px;
+  border: 1px solid var(--xz-border);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--xz-text-primary);
+  padding: 0 10px;
+  font-size: 0.84rem;
+}
+
+.template-row button:hover {
+  border-color: var(--xz-green);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.insert-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.insert-actions button {
+  min-height: 38px;
+  border-radius: 13px;
+  padding: 0 15px;
 }
 
 @media (max-width: 760px) {
@@ -793,5 +1155,11 @@ button:disabled {
 
   .editor-surface {
     width: min(100% - 28px, 880px);
+  }
+
+  .editor-surface [data-opaline-layout="two-column"],
+  .editor-surface [data-opaline-layout="compare"],
+  .editor-surface [data-opaline-layout="sidenote"] {
+    grid-template-columns: 1fr;
   }
 }

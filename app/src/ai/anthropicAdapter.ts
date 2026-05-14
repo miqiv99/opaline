@@ -1,6 +1,7 @@
 import type { AiAdapter, AiMessage, AiOptions } from "./adapter";
 
 const ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5-20251001";
+const ANTHROPIC_DEFAULT_BASE_URL = "https://api.anthropic.com/v1";
 
 const ANTHROPIC_MODELS = [
   "claude-haiku-4-5-20251001",
@@ -10,12 +11,44 @@ const ANTHROPIC_MODELS = [
 
 export const anthropicAdapter: AiAdapter = {
   id: "anthropic",
-  label: "Anthropic",
+  label: "Anthropic 兼容",
   defaultModel: ANTHROPIC_DEFAULT_MODEL,
+  defaultBaseUrl: ANTHROPIC_DEFAULT_BASE_URL,
   models: ANTHROPIC_MODELS,
 
+  async listModels(options: Omit<AiOptions, "model">) {
+    const baseUrl = apiBaseUrl(options.baseUrl);
+    const response = await fetch(`${baseUrl}/models`, {
+      method: "GET",
+      headers: anthropicHeaders(options.apiKey),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`模型列表请求失败 (${response.status}): ${body}`);
+    }
+
+    const data = (await response.json()) as {
+      data?: { id?: string }[];
+      models?: { id?: string }[];
+    };
+    const rows = data.data ?? data.models ?? [];
+    return rows.map((model) => model.id).filter((id): id is string => Boolean(id)).sort();
+  },
+
+  async testModel(options: AiOptions) {
+    await this.chat(
+      [
+        { role: "system", content: "You are a connection test. Reply with OK only." },
+        { role: "user", content: "ping" },
+      ],
+      options,
+    );
+  },
+
   async chat(messages: AiMessage[], options: AiOptions) {
-    const url = "https://api.anthropic.com/v1/messages";
+    const baseUrl = apiBaseUrl(options.baseUrl);
+    const url = `${baseUrl}/messages`;
 
     const systemMessages = messages.filter((m) => m.role === "system");
     const conversationMessages = messages.filter((m) => m.role !== "system");
@@ -35,11 +68,7 @@ export const anthropicAdapter: AiAdapter = {
 
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": options.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: anthropicHeaders(options.apiKey),
       body: JSON.stringify(body),
     });
 
@@ -64,3 +93,11 @@ export const anthropicAdapter: AiAdapter = {
     return text.trim();
   },
 };
+
+const apiBaseUrl = (baseUrl?: string) => (baseUrl || ANTHROPIC_DEFAULT_BASE_URL).replace(/\/+$/, "");
+
+const anthropicHeaders = (apiKey: string) => ({
+  "Content-Type": "application/json",
+  "x-api-key": apiKey,
+  "anthropic-version": "2023-06-01",
+});

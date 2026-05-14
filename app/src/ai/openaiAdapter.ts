@@ -18,8 +18,37 @@ export const openaiAdapter: AiAdapter = {
   defaultBaseUrl: "https://api.openai.com/v1",
   models: OPENAI_MODELS,
 
+  async listModels(options: Omit<AiOptions, "model">) {
+    const baseUrl = apiBaseUrl(options.baseUrl);
+    const response = await fetch(`${baseUrl}/models`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`模型列表请求失败 (${response.status}): ${body}`);
+    }
+
+    const data = (await response.json()) as { data?: { id?: string }[] };
+    const models = data.data?.map((model) => model.id).filter((id): id is string => Boolean(id)) ?? [];
+    return models.sort();
+  },
+
+  async testModel(options: AiOptions) {
+    await this.chat(
+      [
+        { role: "system", content: "You are a connection test. Reply with OK only." },
+        { role: "user", content: "ping" },
+      ],
+      options,
+    );
+  },
+
   async chat(messages: AiMessage[], options: AiOptions) {
-    const baseUrl = (options.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+    const baseUrl = apiBaseUrl(options.baseUrl);
     const url = `${baseUrl}/chat/completions`;
 
     const response = await fetch(url, {
@@ -53,3 +82,5 @@ export const openaiAdapter: AiAdapter = {
     return content.trim();
   },
 };
+
+const apiBaseUrl = (baseUrl?: string) => (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");

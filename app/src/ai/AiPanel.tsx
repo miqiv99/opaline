@@ -1,4 +1,4 @@
-import { Brain, Key, Loader2, Sparkles, Tag, TextSearch } from "lucide-react";
+import { Brain, Key, Loader2, PlugZap, RefreshCw, Sparkles, Tag, TextSearch } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { AiAdapter, AiSettings } from "./adapter";
@@ -24,6 +24,9 @@ export function AiPanel() {
   const [result, setResult] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState("");
+  const [toolStatus, setToolStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [toolMessage, setToolMessage] = useState("");
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
 
   const activeAdapter = ADAPTERS.find((a) => a.id === settings.provider) ?? ADAPTERS[0];
 
@@ -82,11 +85,67 @@ export function AiPanel() {
     [activeAdapter, settings],
   );
 
-  // Fetch note content for result display
-  const getNoteContent = useCallback(async (): Promise<string | null> => {
-    const articleElement = document.querySelector("[data-opaline-note]");
-    return articleElement?.textContent?.trim() ?? null;
-  }, []);
+  const aiOptions = {
+    model: settings.model || activeAdapter.defaultModel,
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl || activeAdapter.defaultBaseUrl,
+  };
+
+  const testModel = useCallback(async () => {
+    setToolStatus("loading");
+    setToolMessage("正在测试模型连通性...");
+    try {
+      if (!settings.apiKey.trim()) {
+        throw new Error("请先填写 API Key");
+      }
+      if (!aiOptions.model.trim()) {
+        throw new Error("请先填写模型名称");
+      }
+      if (activeAdapter.testModel) {
+        await activeAdapter.testModel(aiOptions);
+      } else {
+        await activeAdapter.chat(
+          [
+            { role: "system", content: "You are a connection test. Reply with OK only." },
+            { role: "user", content: "ping" },
+          ],
+          aiOptions,
+        );
+      }
+      setToolStatus("done");
+      setToolMessage(`模型可用：${aiOptions.model}`);
+    } catch (err) {
+      setToolStatus("error");
+      setToolMessage(err instanceof Error ? err.message : "模型测试失败");
+    }
+  }, [activeAdapter, aiOptions, settings.apiKey]);
+
+  const fetchModels = useCallback(async () => {
+    setToolStatus("loading");
+    setToolMessage("正在抓取模型列表...");
+    try {
+      if (!settings.apiKey.trim()) {
+        throw new Error("请先填写 API Key");
+      }
+      if (!activeAdapter.listModels) {
+        throw new Error("当前提供商不支持抓取模型列表");
+      }
+      const models = await activeAdapter.listModels({
+        apiKey: settings.apiKey,
+        baseUrl: settings.baseUrl || activeAdapter.defaultBaseUrl,
+      });
+      if (models.length === 0) {
+        throw new Error("接口返回了空模型列表");
+      }
+      setFetchedModels(models);
+      saveSettings({ ...settings, model: settings.model || models[0] });
+      setToolStatus("done");
+      setToolMessage(`已抓取 ${models.length} 个模型`);
+    } catch (err) {
+      setToolStatus("error");
+      setToolMessage(err instanceof Error ? err.message : "抓取模型失败");
+    }
+  }, [activeAdapter, saveSettings, settings]);
 
   return (
     <aside className="ai-panel">
@@ -118,17 +177,15 @@ export function AiPanel() {
           </select>
         </label>
 
-        {activeAdapter.id === "openai" ? (
-          <label>
-            <span>API 地址</span>
-            <input
-              type="text"
-              value={settings.baseUrl ?? activeAdapter.defaultBaseUrl ?? ""}
-              placeholder={activeAdapter.defaultBaseUrl}
-              onChange={(e) => saveSettings({ ...settings, baseUrl: e.target.value })}
-            />
-          </label>
-        ) : null}
+        <label>
+          <span>API 地址</span>
+          <input
+            type="text"
+            value={settings.baseUrl ?? activeAdapter.defaultBaseUrl ?? ""}
+            placeholder={activeAdapter.defaultBaseUrl}
+            onChange={(e) => saveSettings({ ...settings, baseUrl: e.target.value })}
+          />
+        </label>
 
         <label>
           <span>模型</span>
@@ -140,7 +197,7 @@ export function AiPanel() {
             onChange={(e) => saveSettings({ ...settings, model: e.target.value })}
           />
           <datalist id="ai-models">
-            {activeAdapter.models.map((m) => (
+            {[...new Set([...activeAdapter.models, ...fetchedModels])].map((m) => (
               <option key={m} value={m} />
             ))}
           </datalist>
@@ -156,6 +213,34 @@ export function AiPanel() {
           />
         </label>
       </div>
+
+      {fetchedModels.length > 0 ? (
+        <div className="ai-model-chips" aria-label="已抓取模型">
+          {fetchedModels.slice(0, 8).map((model) => (
+            <button key={model} type="button" onClick={() => saveSettings({ ...settings, model })}>
+              {model}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="ai-tool-actions">
+        <button type="button" onClick={testModel} disabled={toolStatus === "loading" || status === "loading"}>
+          <PlugZap size={15} />
+          <span>测试模型</span>
+        </button>
+        <button type="button" onClick={fetchModels} disabled={toolStatus === "loading" || status === "loading"}>
+          <RefreshCw size={15} />
+          <span>抓取模型</span>
+        </button>
+      </div>
+
+      {toolMessage ? (
+        <div className={toolStatus === "error" ? "ai-tool-status is-error" : "ai-tool-status"}>
+          {toolStatus === "loading" ? <Loader2 size={15} className="spinner" /> : null}
+          <span>{toolMessage}</span>
+        </div>
+      ) : null}
 
       <div className="ai-actions">
         <AiButton

@@ -23,6 +23,8 @@ export interface AiAdapter {
   defaultBaseUrl?: string;
   models: string[];
   chat(messages: AiMessage[], options: AiOptions): Promise<string>;
+  listModels?(options: Omit<AiOptions, "model">): Promise<string[]>;
+  testModel?(options: AiOptions): Promise<void>;
 }
 
 // ---- prompts ----

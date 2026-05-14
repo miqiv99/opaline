@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This file is for AI coding agents working on diorite.
+This file is for AI coding agents working on opaline.
 
 It is intentionally local-only for now and should not be committed.
 
 ## Project
 
-diorite is a local-first note management app based on HTML notes.
+opaline is a local-first note management app based on HTML notes.
 
 Target stack:
 
@@ -98,7 +98,7 @@ Prefer rebuilding derived data from note files when possible.
 
 ## Licensing
 
-diorite uses the PolyForm Noncommercial License 1.0.0.
+opaline uses the PolyForm Noncommercial License 1.0.0.
 
 Commercial use requires a separate license from the author.
 

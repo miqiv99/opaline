@@ -49,6 +49,7 @@ export const replaceArticleInDocument = (
 
 const allowedTags = new Set([
   "a",
+  "aside",
   "blockquote",
   "br",
   "code",

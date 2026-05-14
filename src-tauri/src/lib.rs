@@ -136,7 +136,12 @@ fn create_note(path: String, input: NewNoteInput) -> Result<NoteDocument, String
     ensure_workspace(path)?;
 
     let title = clean_title(&input.title);
-    create_note_at(&workspace, &title, input.lang.as_deref().unwrap_or("zh-Hans"), "notes")
+    create_note_at(
+        &workspace,
+        &title,
+        input.lang.as_deref().unwrap_or("zh-Hans"),
+        "notes",
+    )
 }
 
 #[tauri::command]
@@ -231,6 +236,30 @@ fn search_notes(path: String, query: String) -> Result<Vec<SearchResult>, String
             )
             .map_err(to_error)?;
         return collect_search_results(&mut statement, []);
+    }
+
+    let fts_query = to_fts_query(trimmed);
+    if !fts_query.is_empty() {
+        let mut statement = conn
+            .prepare(
+                "
+                select n.id,
+                       n.path,
+                       n.title,
+                       snippet(notes_fts, 2, '', '', '...', 18) as excerpt,
+                       n.updated_at
+                from notes_fts
+                join notes n on n.id = notes_fts.note_id
+                where notes_fts match ?1
+                order by bm25(notes_fts, 10.0, 1.0, 0.2), n.favorite desc, n.updated_at desc
+                limit 50
+                ",
+            )
+            .map_err(to_error)?;
+
+        if let Ok(results) = collect_search_results(&mut statement, params![fts_query]) {
+            return Ok(results);
+        }
     }
 
     let like_query = format!("%{trimmed}%");
@@ -342,8 +371,11 @@ fn toggle_favorite(path: String, note_id: String) -> Result<bool, String> {
         .map_err(to_error)?
         .unwrap_or(0);
     let next = if current == 0 { 1 } else { 0 };
-    conn.execute("update notes set favorite = ?1 where id = ?2", params![next, note_id])
-        .map_err(to_error)?;
+    conn.execute(
+        "update notes set favorite = ?1 where id = ?2",
+        params![next, note_id],
+    )
+    .map_err(to_error)?;
     Ok(next == 1)
 }
 
@@ -361,7 +393,11 @@ fn import_asset(path: String, input: AssetImport) -> Result<ImportedAsset, Strin
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| "附件文件名无效".to_string())?;
-    let bucket = if input.kind == "image" { "images" } else { "files" };
+    let bucket = if input.kind == "image" {
+        "images"
+    } else {
+        "files"
+    };
     let destination_dir = workspace.join("assets").join(bucket);
     let destination_name = unique_asset_file(&destination_dir, file_name);
     let destination = destination_dir.join(&destination_name);
@@ -510,8 +546,14 @@ fn migrate_index(conn: &Connection) -> Result<(), String> {
     .map_err(to_error)?;
 
     let _ = conn.execute("alter table notes add column created_at text", []);
-    let _ = conn.execute("alter table notes add column body_text text not null default ''", []);
-    let _ = conn.execute("alter table notes add column favorite integer not null default 0", []);
+    let _ = conn.execute(
+        "alter table notes add column body_text text not null default ''",
+        [],
+    );
+    let _ = conn.execute(
+        "alter table notes add column favorite integer not null default 0",
+        [],
+    );
     let _ = conn.execute("alter table notes add column last_opened_at text", []);
     Ok(())
 }
@@ -521,10 +563,14 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
     migrate_index(&conn)?;
 
     let favorite_by_id = load_favorites(&conn)?;
-    conn.execute("delete from note_tags", []).map_err(to_error)?;
-    conn.execute("delete from note_headings", []).map_err(to_error)?;
-    conn.execute("delete from note_links", []).map_err(to_error)?;
-    conn.execute("delete from notes_fts", []).map_err(to_error)?;
+    conn.execute("delete from note_tags", [])
+        .map_err(to_error)?;
+    conn.execute("delete from note_headings", [])
+        .map_err(to_error)?;
+    conn.execute("delete from note_links", [])
+        .map_err(to_error)?;
+    conn.execute("delete from notes_fts", [])
+        .map_err(to_error)?;
 
     let notes_dir = workspace.join("notes");
     let mut notes = Vec::new();
@@ -551,18 +597,25 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
     }
 
     for (summary, html) in &mut notes {
-        resolve_links(summary, &id_by_path, &id_by_title);
+        resolve_links(summary, &present_ids, &id_by_path, &id_by_title);
         upsert_note_index(&conn, summary, html)?;
     }
 
     if !present_ids.is_empty() {
-        let placeholders = present_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = present_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
         let sql = format!("delete from notes where id not in ({placeholders})");
         let params = rusqlite::params_from_iter(present_ids.iter());
         conn.execute(&sql, params).map_err(to_error)?;
     }
 
-    let mut summaries = notes.into_iter().map(|(summary, _)| summary).collect::<Vec<_>>();
+    let mut summaries = notes
+        .into_iter()
+        .map(|(summary, _)| summary)
+        .collect::<Vec<_>>();
     summaries.sort_by(|a, b| {
         b.favorite
             .cmp(&a.favorite)
@@ -572,7 +625,12 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
     Ok(summaries)
 }
 
-fn create_note_at(workspace: &Path, title: &str, lang: &str, directory: &str) -> Result<NoteDocument, String> {
+fn create_note_at(
+    workspace: &Path,
+    title: &str,
+    lang: &str,
+    directory: &str,
+) -> Result<NoteDocument, String> {
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let directory_path = workspace.join(directory);
@@ -645,8 +703,11 @@ fn upsert_note_index(conn: &Connection, note: &NoteSummary, html: &str) -> Resul
         .map_err(to_error)?;
     }
 
-    conn.execute("delete from note_headings where note_id = ?1", params![note.id])
-        .map_err(to_error)?;
+    conn.execute(
+        "delete from note_headings where note_id = ?1",
+        params![note.id],
+    )
+    .map_err(to_error)?;
     for (position, heading) in note.headings.iter().enumerate() {
         conn.execute(
             "insert or ignore into note_headings (note_id, heading, level, position) values (?1, ?2, ?3, ?4)",
@@ -655,8 +716,11 @@ fn upsert_note_index(conn: &Connection, note: &NoteSummary, html: &str) -> Resul
         .map_err(to_error)?;
     }
 
-    conn.execute("delete from note_links where note_id = ?1", params![note.id])
-        .map_err(to_error)?;
+    conn.execute(
+        "delete from note_links where note_id = ?1",
+        params![note.id],
+    )
+    .map_err(to_error)?;
     for link in &note.outgoing_links {
         conn.execute(
             "
@@ -677,14 +741,21 @@ fn upsert_note_index(conn: &Connection, note: &NoteSummary, html: &str) -> Resul
     Ok(())
 }
 
-fn summary_from_html(conn: &Connection, workspace: &Path, file_path: &Path, html: &str) -> Result<NoteSummary, String> {
+fn summary_from_html(
+    conn: &Connection,
+    workspace: &Path,
+    file_path: &Path,
+    html: &str,
+) -> Result<NoteSummary, String> {
     let relative_path = relative_to_workspace(workspace, file_path)?;
     let id = meta_content(html, "opaline:id").unwrap_or_else(|| Uuid::new_v4().to_string());
     let title = title_content(html)
         .or_else(|| first_heading_content(html))
         .unwrap_or_else(|| "未命名笔记".to_string());
-    let created_at = meta_content(html, "opaline:created").unwrap_or_else(|| file_timestamp(file_path));
-    let updated_at = meta_content(html, "opaline:updated").unwrap_or_else(|| file_timestamp(file_path));
+    let created_at =
+        meta_content(html, "opaline:created").unwrap_or_else(|| file_timestamp(file_path));
+    let updated_at =
+        meta_content(html, "opaline:updated").unwrap_or_else(|| file_timestamp(file_path));
 
     Ok(NoteSummary {
         favorite: favorite_for(conn, &id)?,
@@ -699,17 +770,24 @@ fn summary_from_html(conn: &Connection, workspace: &Path, file_path: &Path, html
     })
 }
 
-fn resolve_links(note: &mut NoteSummary, id_by_path: &HashMap<String, String>, id_by_title: &HashMap<String, String>) {
-    let note_dir = Path::new(&note.path).parent().unwrap_or_else(|| Path::new(""));
+fn resolve_links(
+    note: &mut NoteSummary,
+    present_ids: &BTreeSet<String>,
+    id_by_path: &HashMap<String, String>,
+    id_by_title: &HashMap<String, String>,
+) {
+    let note_dir = Path::new(&note.path)
+        .parent()
+        .unwrap_or_else(|| Path::new(""));
 
     for link in &mut note.outgoing_links {
-        if link.href.starts_with("http:") || link.href.starts_with("https:") || link.href.starts_with("mailto:") {
+        if is_external_href(&link.href) || link.href.starts_with('#') {
             link.is_broken = false;
             continue;
         }
 
         if let Some(target_id) = link.target_id.clone() {
-            link.is_broken = false;
+            link.is_broken = !present_ids.contains(&target_id);
             link.target_id = Some(target_id);
             continue;
         }
@@ -725,6 +803,13 @@ fn resolve_links(note: &mut NoteSummary, id_by_path: &HashMap<String, String>, i
             link.is_broken = true;
         }
     }
+}
+
+fn is_external_href(href: &str) -> bool {
+    href.starts_with("http:")
+        || href.starts_with("https:")
+        || href.starts_with("mailto:")
+        || href.starts_with("tel:")
 }
 
 fn collect_search_results<P: rusqlite::Params>(
@@ -747,12 +832,30 @@ fn collect_search_results<P: rusqlite::Params>(
         .map_err(to_error)
 }
 
+fn to_fts_query(query: &str) -> String {
+    query
+        .split_whitespace()
+        .map(|term| {
+            term.chars()
+                .filter(|character| {
+                    character.is_alphanumeric() || *character == '_' || *character == '-'
+                })
+                .collect::<String>()
+        })
+        .filter(|term| !term.is_empty())
+        .map(|term| format!(r#""{term}""#))
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
+
 fn load_favorites(conn: &Connection) -> Result<HashMap<String, bool>, String> {
     let mut statement = conn
         .prepare("select id, favorite from notes where favorite = 1")
         .map_err(to_error)?;
     let rows = statement
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? == 1)))
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? == 1))
+        })
         .map_err(to_error)?;
     let mut favorites = HashMap::new();
     for row in rows {
@@ -764,7 +867,11 @@ fn load_favorites(conn: &Connection) -> Result<HashMap<String, bool>, String> {
 
 fn favorite_for(conn: &Connection, id: &str) -> Result<bool, String> {
     let favorite: Option<i64> = conn
-        .query_row("select favorite from notes where id = ?1", params![id], |row| row.get(0))
+        .query_row(
+            "select favorite from notes where id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
         .optional()
         .map_err(to_error)?;
     Ok(favorite.unwrap_or(0) == 1)
@@ -842,8 +949,14 @@ fn unique_note_file(notes_dir: &Path, title: &str) -> String {
 
 fn unique_asset_file(directory: &Path, name: &str) -> String {
     let path = Path::new(name);
-    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("asset");
-    let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("");
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("asset");
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
     let mut candidate = name.to_string();
     let mut counter = 2;
 
@@ -888,7 +1001,11 @@ fn clean_title(title: &str) -> String {
     }
 }
 
-fn normalize_note_html(html: &str, fallback_id: &str, fallback_title: &str) -> Result<String, String> {
+fn normalize_note_html(
+    html: &str,
+    fallback_id: &str,
+    fallback_title: &str,
+) -> Result<String, String> {
     if !html.to_lowercase().contains("<html") || !html.to_lowercase().contains("<body") {
         return Err("保存失败：笔记必须是完整 HTML 文档".to_string());
     }
@@ -903,7 +1020,10 @@ fn normalize_note_html(html: &str, fallback_id: &str, fallback_title: &str) -> R
     if title_content(&normalized).is_none() {
         normalized = normalized.replace(
             "</head>",
-            &format!("    <title>{}</title>\n  </head>", escape_text(fallback_title)),
+            &format!(
+                "    <title>{}</title>\n  </head>",
+                escape_text(fallback_title)
+            ),
         );
     }
     if !normalized.starts_with("<!doctype html>") {
@@ -913,7 +1033,9 @@ fn normalize_note_html(html: &str, fallback_id: &str, fallback_title: &str) -> R
 }
 
 fn write_file_atomically(path: &Path, contents: &str) -> Result<(), String> {
-    let parent = path.parent().ok_or_else(|| "保存失败：笔记路径无父目录".to_string())?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "保存失败：笔记路径无父目录".to_string())?;
     fs::create_dir_all(parent).map_err(to_error)?;
     let temp_path = path.with_extension("html.tmp");
     let backup_path = path.with_extension("html.bak");
@@ -965,10 +1087,16 @@ fn extract_headings(html: &str) -> Vec<String> {
         let end_tag = format!("</{tag}>");
         while let Some(start) = rest.to_lowercase().find(&start_tag) {
             let after_start = &rest[start..];
-            let Some(content_start) = after_start.find('>') else { break };
+            let Some(content_start) = after_start.find('>') else {
+                break;
+            };
             let content = &after_start[content_start + 1..];
-            let Some(end) = content.to_lowercase().find(&end_tag) else { break };
-            let heading = unescape_text(&strip_tags(&content[..end])).trim().to_string();
+            let Some(end) = content.to_lowercase().find(&end_tag) else {
+                break;
+            };
+            let heading = unescape_text(&strip_tags(&content[..end]))
+                .trim()
+                .to_string();
             if !heading.is_empty() {
                 headings.push(heading);
             }
@@ -983,15 +1111,21 @@ fn extract_links(html: &str) -> Vec<LinkInfo> {
     let mut rest = html;
     while let Some(start) = rest.to_lowercase().find("<a ") {
         let after_start = &rest[start..];
-        let Some(tag_end) = after_start.find('>') else { break };
+        let Some(tag_end) = after_start.find('>') else {
+            break;
+        };
         let tag = &after_start[..tag_end + 1];
         let content = &after_start[tag_end + 1..];
-        let Some(close) = content.to_lowercase().find("</a>") else { break };
+        let Some(close) = content.to_lowercase().find("</a>") else {
+            break;
+        };
         let href = attr_value(tag, "href").unwrap_or_default();
         if !href.is_empty() {
             links.push(LinkInfo {
                 href,
-                label: unescape_text(&strip_tags(&content[..close])).trim().to_string(),
+                label: unescape_text(&strip_tags(&content[..close]))
+                    .trim()
+                    .to_string(),
                 target_id: attr_value(tag, "data-opaline-link"),
                 is_broken: false,
             });
@@ -1047,7 +1181,9 @@ fn normalize_relative_note_path(base_dir: &Path, href: &str) -> Option<String> {
     let mut components = Vec::new();
     for component in base_dir.join(href).components() {
         match component {
-            std::path::Component::Normal(value) => components.push(value.to_string_lossy().to_string()),
+            std::path::Component::Normal(value) => {
+                components.push(value.to_string_lossy().to_string())
+            }
             std::path::Component::ParentDir => {
                 components.pop();
             }
@@ -1101,13 +1237,18 @@ fn upsert_meta_content(html: &str, name: &str, content: &str) -> String {
 }
 
 fn meta_content(html: &str, name: &str) -> Option<String> {
-    let marker = format!(r#"name="{name}""#);
-    let start = html.find(&marker)?;
-    let rest = &html[start..];
-    let content_start = rest.find(r#"content=""#)? + r#"content=""#.len();
-    let content_rest = &rest[content_start..];
-    let content_end = content_rest.find('"')?;
-    Some(unescape_text(&content_rest[..content_end]))
+    let mut rest = html;
+    loop {
+        let lower = rest.to_lowercase();
+        let start = lower.find("<meta")?;
+        let after_start = &rest[start..];
+        let tag_end = after_start.find('>')?;
+        let tag = &after_start[..tag_end + 1];
+        if attr_value(tag, "name").as_deref() == Some(name) {
+            return attr_value(tag, "content").map(|value| unescape_text(&value));
+        }
+        rest = &after_start[tag_end + 1..];
+    }
 }
 
 fn title_content(html: &str) -> Option<String> {
@@ -1115,9 +1256,7 @@ fn title_content(html: &str) -> Option<String> {
 }
 
 fn first_heading_content(html: &str) -> Option<String> {
-    between_case_insensitive(html, "<h1>", "</h1>")
-        .map(strip_tags)
-        .map(|value| unescape_text(&value))
+    extract_headings(html).into_iter().next()
 }
 
 fn between_case_insensitive<'a>(html: &'a str, start: &str, end: &str) -> Option<&'a str> {
@@ -1171,13 +1310,17 @@ fn to_error(error: impl std::fmt::Display) -> String {
 mod tests {
     use super::*;
 
-    #[test]
-    fn workspace_round_trip_rebuilds_metadata() {
-        let workspace = std::env::current_dir()
+    fn test_workspace() -> PathBuf {
+        std::env::current_dir()
             .expect("current dir")
             .join("target")
             .join("test-workspaces")
-            .join(Uuid::new_v4().to_string());
+            .join(Uuid::new_v4().to_string())
+    }
+
+    #[test]
+    fn workspace_round_trip_rebuilds_metadata() {
+        let workspace = test_workspace();
         let workspace_string = workspace.to_string_lossy().to_string();
 
         ensure_workspace(workspace_string.clone()).expect("workspace is created");
@@ -1222,16 +1365,178 @@ mod tests {
 
         assert!(saved.tags.contains(&"research".to_string()));
         assert!(saved.headings.contains(&"二级标题".to_string()));
-        assert!(saved.outgoing_links.iter().any(|link| link.target_id == Some(linked.id.clone())));
+        assert!(saved
+            .outgoing_links
+            .iter()
+            .any(|link| link.target_id == Some(linked.id.clone())));
 
         let notes = list_notes(workspace_string.clone()).expect("notes are indexed");
         assert_eq!(notes.len(), 2);
 
-        let backlinks = list_backlinks(workspace_string.clone(), linked.id).expect("backlinks are listed");
+        let backlinks =
+            list_backlinks(workspace_string.clone(), linked.id).expect("backlinks are listed");
         assert_eq!(backlinks.len(), 1);
 
         let results = search_notes(workspace_string, "research".to_string()).expect("search works");
         assert!(!results.is_empty());
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn html_profile_extracts_core_metadata_from_nested_html() {
+        let html = r#"<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <title>测试 &amp; 标题</title>
+    <meta name="opaline:id" content="note-1">
+    <meta name="opaline:created" content="2026-05-14T00:00:00Z">
+    <meta name="opaline:updated" content="2026-05-14T00:00:00Z">
+  </head>
+  <body>
+    <article data-opaline-note>
+      <h1 data-opaline-block-id="b-title">测试 &amp; 标题</h1>
+      <section data-opaline-callout="note">
+        <h2>研究问题</h2>
+        <p><span data-opaline-tag="research">#research</span> HTML 笔记</p>
+        <p><a href="related.html#b-intro" data-opaline-link="note-2" data-opaline-block-ref="b-intro">相关笔记</a></p>
+      </section>
+    </article>
+  </body>
+</html>"#;
+
+        assert_eq!(meta_content(html, "opaline:id").as_deref(), Some("note-1"));
+        assert_eq!(
+            meta_content(r#"<meta content="note-2" name="opaline:id">"#, "opaline:id").as_deref(),
+            Some("note-2")
+        );
+        assert_eq!(title_content(html).as_deref(), Some("测试 & 标题"));
+        assert_eq!(first_heading_content(html).as_deref(), Some("测试 & 标题"));
+        assert!(extract_tags(html).contains(&"research".to_string()));
+        assert!(extract_headings(html).contains(&"研究问题".to_string()));
+        assert!(plain_text(html).contains("HTML 笔记"));
+
+        let links = extract_links(html);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].href, "related.html#b-intro");
+        assert_eq!(links[0].target_id.as_deref(), Some("note-2"));
+    }
+
+    #[test]
+    fn link_resolution_rules_distinguish_external_internal_and_broken_links() {
+        let mut note = NoteSummary {
+            id: "source".to_string(),
+            path: "notes/projects/source.html".to_string(),
+            title: "source".to_string(),
+            created_at: "2026-05-14T00:00:00Z".to_string(),
+            updated_at: "2026-05-14T00:00:00Z".to_string(),
+            tags: vec![],
+            headings: vec![],
+            favorite: false,
+            outgoing_links: vec![
+                LinkInfo {
+                    href: "https://example.com".to_string(),
+                    label: "external".to_string(),
+                    target_id: None,
+                    is_broken: false,
+                },
+                LinkInfo {
+                    href: "#local-block".to_string(),
+                    label: "local".to_string(),
+                    target_id: None,
+                    is_broken: false,
+                },
+                LinkInfo {
+                    href: "../target.html#b-intro".to_string(),
+                    label: "target".to_string(),
+                    target_id: None,
+                    is_broken: false,
+                },
+                LinkInfo {
+                    href: "missing.html".to_string(),
+                    label: "missing".to_string(),
+                    target_id: None,
+                    is_broken: false,
+                },
+                LinkInfo {
+                    href: "stale.html".to_string(),
+                    label: "stale".to_string(),
+                    target_id: Some("deleted".to_string()),
+                    is_broken: false,
+                },
+            ],
+        };
+        let present_ids = BTreeSet::from(["target-id".to_string()]);
+        let id_by_path =
+            HashMap::from([("notes/target.html".to_string(), "target-id".to_string())]);
+        let id_by_title = HashMap::from([("target".to_string(), "target-id".to_string())]);
+
+        resolve_links(&mut note, &present_ids, &id_by_path, &id_by_title);
+
+        assert!(!note.outgoing_links[0].is_broken);
+        assert!(!note.outgoing_links[1].is_broken);
+        assert_eq!(
+            note.outgoing_links[2].target_id.as_deref(),
+            Some("target-id")
+        );
+        assert!(!note.outgoing_links[2].is_broken);
+        assert!(note.outgoing_links[3].is_broken);
+        assert!(note.outgoing_links[4].is_broken);
+    }
+
+    #[test]
+    fn search_uses_fts_for_ranked_matches() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+
+        let alpha = create_note(
+            workspace_string.clone(),
+            NewNoteInput {
+                title: "Alpha Research".to_string(),
+                lang: Some("en".to_string()),
+            },
+        )
+        .expect("alpha is created");
+
+        let beta = create_note(
+            workspace_string.clone(),
+            NewNoteInput {
+                title: "Beta Notes".to_string(),
+                lang: Some("en".to_string()),
+            },
+        )
+        .expect("beta is created");
+
+        let _ = save_note(
+            workspace_string.clone(),
+            NoteDocument {
+                html: alpha.html.replace(
+                    "<p></p>",
+                    "<p>opaline semantic retrieval and html profile</p>",
+                ),
+                ..alpha
+            },
+        )
+        .expect("alpha is saved");
+        let _ = save_note(
+            workspace_string.clone(),
+            NoteDocument {
+                html: beta
+                    .html
+                    .replace("<p></p>", "<p>unrelated journal text</p>"),
+                ..beta
+            },
+        )
+        .expect("beta is saved");
+
+        let results =
+            search_notes(workspace_string, "semantic retrieval".to_string()).expect("search works");
+        assert_eq!(
+            results.first().map(|result| result.title.as_str()),
+            Some("Alpha Research")
+        );
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
     }
