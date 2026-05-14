@@ -26,7 +26,6 @@ pnpm-debug.log*
 
 # Local app data
 .opaline/
-AGENTS.md
 *.sqlite
 *.sqlite3
 *.db

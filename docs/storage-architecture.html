@@ -119,6 +119,72 @@ User Machine (primary)              │ Opaline Services (additive)│
           <li>A user who never publishes, never syncs, and never uses AI should lose no value from the local tool.</li>
         </ul>
 
+        <h2>Plugin Architecture: Initial Direction</h2>
+        <p>Opaline should be designed so plugins are possible, but the first releases do not need a full public marketplace. The early goal is to make core features internally extensible, then expose a stable third-party plugin API after the editor, storage model, and note format have settled.</p>
+
+        <p>The current architecture can support plugins if plugins interact with controlled application APIs instead of directly touching the file system, SQLite schema, or editor internals.</p>
+
+        <pre><code>React UI
+Editor
+Domain services
+Storage adapters
+
+Plugin host
+  -&gt; exposes controlled APIs over UI, editor, domain, search, and AI</code></pre>
+
+        <h3>Two Plugin Layers</h3>
+        <ul>
+          <li><strong>App plugins:</strong> JavaScript or TypeScript extensions for commands, editor behavior, side panels, import/export, search providers, and AI providers.</li>
+          <li><strong>Native plugins:</strong> Tauri or Rust extensions for capabilities that truly need system access, such as global shortcuts, tray integration, advanced file watching, OCR, local model runtimes, or mobile share targets.</li>
+        </ul>
+        <p>App plugins should be the main plugin ecosystem. Native plugins should remain more restricted because they affect packaging, security, signing, and cross-platform compatibility.</p>
+
+        <h3>Possible Plugin Types</h3>
+        <ul>
+          <li>Editor plugins: Tiptap extensions, callouts, math, tables, code highlighting, custom blocks.</li>
+          <li>Command plugins: command palette actions such as summarize note, clean pasted HTML, or create an index note.</li>
+          <li>UI plugins: sidebar panels, status items, context menu entries, and note inspectors.</li>
+          <li>Import/export plugins: Markdown import, HTML cleanup, static site export, PDF export, and migration tools.</li>
+          <li>Search and AI plugins: embedding providers, local model adapters, cloud model adapters, semantic search providers, and citation workflows.</li>
+        </ul>
+
+        <h3>Plugin Manifest Sketch</h3>
+        <pre><code>{
+  "id": "opaline-plugin-example",
+  "name": "Example Plugin",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "permissions": [
+    "notes:read",
+    "notes:write",
+    "ui:sidebar",
+    "editor:extend",
+    "ai:use"
+  ]
+}</code></pre>
+
+        <h3>Controlled Plugin APIs</h3>
+        <ul>
+          <li><code>workspace</code>: list notes, read notes, create notes, update notes through domain-level operations.</li>
+          <li><code>editor</code>: register Tiptap extensions, read the current selection, run editor commands, and transform the current note.</li>
+          <li><code>commands</code>: register and execute command palette actions.</li>
+          <li><code>ui</code>: register sidebar panels, context menu items, and status items.</li>
+          <li><code>search</code>: run searches and register optional search providers.</li>
+          <li><code>ai</code>: register providers and run user-approved AI workflows with citations.</li>
+        </ul>
+
+        <h3>Plugin Safety Rules</h3>
+        <ul>
+          <li>Plugins should not receive direct SQLite access.</li>
+          <li>Plugins should not receive unrestricted file system access.</li>
+          <li>Plugins should not execute shell commands by default.</li>
+          <li>Plugins should not silently upload workspace content.</li>
+          <li>Bulk edits to notes should be previewable, reversible, or explicitly confirmed.</li>
+          <li>AI plugins should clearly distinguish original note content from model-generated suggestions.</li>
+        </ul>
+
+        <p>A good early implementation path is to build internal features as plugins first: backlinks, daily notes, Markdown import, HTML cleanup, and AI note summary can all use the same registration system. This tests the plugin API before exposing it to third-party developers.</p>
+
         <h2>Layers</h2>
         <h3>Note Format Layer</h3>
         <ul>
