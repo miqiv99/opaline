@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { NewNoteInput, NoteDocument, NoteSummary } from "../domain/note";
+import type {
+  AssetImport,
+  GraphData,
+  ImportedAsset,
+  NewNoteInput,
+  NoteDocument,
+  NoteSummary,
+  SearchResult,
+} from "../domain/note";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 export const tauriWorkspaceAdapter: WorkspaceAdapter = {
@@ -26,11 +34,35 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     return invoke<NoteDocument>("create_note", { path, input });
   },
 
+  async createDailyNote(path: string) {
+    return invoke<NoteDocument>("create_daily_note", { path });
+  },
+
   async readNote(path: string, notePath: string) {
     return invoke<NoteDocument>("read_note", { path, notePath });
   },
 
   async saveNote(path: string, note: NoteDocument) {
     return invoke<NoteDocument>("save_note", { path, note });
+  },
+
+  async searchNotes(path: string, query: string) {
+    return invoke<SearchResult[]>("search_notes", { path, query });
+  },
+
+  async listBacklinks(path: string, noteId: string) {
+    return invoke<SearchResult[]>("list_backlinks", { path, noteId });
+  },
+
+  async graphData(path: string) {
+    return invoke<GraphData>("graph_data", { path });
+  },
+
+  async toggleFavorite(path: string, noteId: string) {
+    return invoke<boolean>("toggle_favorite", { path, noteId });
+  },
+
+  async importAsset(path: string, input: AssetImport) {
+    return invoke<ImportedAsset>("import_asset", { path, input });
   },
 };

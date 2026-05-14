@@ -1,5 +1,11 @@
 const parser = new DOMParser();
 
+type LinkableNote = {
+  id: string;
+  title: string;
+  path: string;
+};
+
 export const articleFromHtmlDocument = (html: string): string => {
   const document = parser.parseFromString(html, "text/html");
   const article = document.querySelector("[data-opaline-note]");
@@ -12,14 +18,19 @@ export const titleFromArticleHtml = (articleHtml: string, fallback: string): str
   return document.querySelector("h1")?.textContent?.trim() || fallback;
 };
 
-export const replaceArticleInDocument = (documentHtml: string, articleHtml: string): string => {
+export const replaceArticleInDocument = (
+  documentHtml: string,
+  articleHtml: string,
+  linkableNotes: LinkableNote[] = [],
+): string => {
   const document = parser.parseFromString(documentHtml, "text/html");
   const article = document.querySelector("[data-opaline-note]");
 
   const targetArticle = article ?? document.createElement("article");
   targetArticle.setAttribute("data-opaline-note", "");
 
-  const cleanArticleHtml = sanitizeArticleHtml(articleHtml);
+  const linkedArticleHtml = compileWikiLinks(articleHtml, linkableNotes);
+  const cleanArticleHtml = sanitizeArticleHtml(linkedArticleHtml);
   targetArticle.innerHTML = cleanArticleHtml;
 
   if (!article) {
@@ -50,6 +61,8 @@ const allowedTags = new Set([
   "h3",
   "hr",
   "img",
+  "input",
+  "label",
   "li",
   "ol",
   "p",
@@ -79,6 +92,7 @@ const allowedAttrs = new Set([
   "rowspan",
   "src",
   "title",
+  "type",
 ]);
 
 export const sanitizeArticleHtml = (articleHtml: string): string => {
@@ -112,8 +126,10 @@ const sanitizeElement = (element: Element) => {
       const name = attr.name.toLowerCase();
       const value = attr.value.trim();
       const isOpalineData = name.startsWith("data-opaline-");
+      const isTaskData = name === "data-type" || name === "data-checked";
+      const isInputState = name === "checked" || name === "disabled";
 
-      if (!allowedAttrs.has(name) && !isOpalineData) {
+      if (!allowedAttrs.has(name) && !isOpalineData && !isTaskData && !isInputState) {
         child.removeAttribute(attr.name);
         continue;
       }
@@ -126,6 +142,74 @@ const sanitizeElement = (element: Element) => {
     sanitizeElement(child);
   }
 };
+
+const compileWikiLinks = (articleHtml: string, notes: LinkableNote[]): string => {
+  if (!articleHtml.includes("[[")) {
+    return articleHtml;
+  }
+
+  const noteByTitle = new Map(notes.map((note) => [note.title.trim().toLowerCase(), note]));
+  const document = parser.parseFromString(`<article>${articleHtml}</article>`, "text/html");
+  const article = document.body.firstElementChild;
+
+  if (!article) {
+    return articleHtml;
+  }
+
+  walkTextNodes(article, (textNode) => {
+    const text = textNode.nodeValue ?? "";
+    const pattern = /\[\[([^\]]+)\]\]/g;
+    let match: RegExpExecArray | null;
+    let lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let changed = false;
+
+    while ((match = pattern.exec(text))) {
+      changed = true;
+      fragment.append(document.createTextNode(text.slice(lastIndex, match.index)));
+
+      const rawTitle = match[1].trim();
+      const note = noteByTitle.get(rawTitle.toLowerCase());
+
+      if (note) {
+        const link = document.createElement("a");
+        link.href = relativeHref(note.path);
+        link.setAttribute("data-opaline-link", note.id);
+        link.textContent = rawTitle;
+        fragment.append(link);
+      } else {
+        const span = document.createElement("span");
+        span.setAttribute("data-opaline-unresolved", rawTitle);
+        span.textContent = `[[${rawTitle}]]`;
+        fragment.append(span);
+      }
+
+      lastIndex = pattern.lastIndex;
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    fragment.append(document.createTextNode(text.slice(lastIndex)));
+    textNode.replaceWith(fragment);
+  });
+
+  return article.innerHTML;
+};
+
+const walkTextNodes = (root: Node, visitor: (node: Text) => void) => {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    nodes.push(current as Text);
+    current = walker.nextNode();
+  }
+  nodes.forEach(visitor);
+};
+
+const relativeHref = (notePath: string) => notePath.replace(/^notes\//, "");
 
 const isSafeUrl = (value: string): boolean => {
   if (value.startsWith("#") || value.startsWith("./") || value.startsWith("../") || value.startsWith("/")) {

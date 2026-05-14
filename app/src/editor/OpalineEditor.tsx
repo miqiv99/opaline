@@ -7,18 +7,38 @@ import Table from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
-import { Bold, Heading1, Heading2, Italic, LinkIcon, List, ListOrdered, Redo2, Save, Table2, Undo2 } from "lucide-react";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
+import {
+  Bold,
+  CheckSquare,
+  Code2,
+  FileImage,
+  Heading1,
+  Heading2,
+  Italic,
+  LinkIcon,
+  List,
+  ListOrdered,
+  MessageSquareQuote,
+  Redo2,
+  Save,
+  Table2,
+  Undo2,
+} from "lucide-react";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
+import type { ImportedAsset } from "../domain/note";
 
 type OpalineEditorProps = {
   content: string;
   isSaving: boolean;
   onChange: (html: string) => void;
   onSave: () => void;
+  onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
 };
 
-export function OpalineEditor({ content, isSaving, onChange, onSave }: OpalineEditorProps) {
+export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset }: OpalineEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -40,6 +60,10 @@ export function OpalineEditor({ content, isSaving, onChange, onSave }: OpalineEd
       TableRow,
       TableHeader,
       TableCell,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
       Placeholder.configure({
         placeholder: "写点东西，保存后就是一篇干净的 HTML 笔记...",
       }),
@@ -95,8 +119,20 @@ export function OpalineEditor({ content, isSaving, onChange, onSave }: OpalineEd
         <IconButton label="有序列表" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")}>
           <ListOrdered size={17} />
         </IconButton>
+        <IconButton label="任务列表" onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")}>
+          <CheckSquare size={17} />
+        </IconButton>
+        <IconButton label="代码块" onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")}>
+          <Code2 size={17} />
+        </IconButton>
+        <IconButton label="标注块" onClick={() => insertCallout(editor)}>
+          <MessageSquareQuote size={17} />
+        </IconButton>
         <IconButton label="链接" onClick={() => setLink(editor)} active={editor.isActive("link")}>
           <LinkIcon size={17} />
+        </IconButton>
+        <IconButton label="插入图片" onClick={() => insertImage(editor, onImportAsset)}>
+          <FileImage size={17} />
         </IconButton>
         <IconButton label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
           <Table2 size={17} />
@@ -149,4 +185,26 @@ const setLink = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
   }
 
   editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+};
+
+const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+  editor
+    .chain()
+    .focus()
+    .insertContent(
+      '<section data-opaline-callout="note"><p><strong>提示</strong></p><p>在这里写标注内容。</p></section><p></p>',
+    )
+    .run();
+};
+
+const insertImage = async (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>,
+) => {
+  const asset = await onImportAsset("image");
+  if (!asset) {
+    return;
+  }
+
+  editor.chain().focus().setImage({ src: asset.href, alt: asset.name }).run();
 };
