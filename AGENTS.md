@@ -2,8 +2,6 @@
 
 This file is for AI coding agents working on opaline.
 
-It is intentionally local-only for now and should not be committed.
-
 ## Project
 
 opaline is a local-first note management app based on HTML notes.
@@ -96,6 +94,26 @@ Derived or app-specific data:
 
 Prefer rebuilding derived data from note files when possible.
 
+## Windows Development Notes
+
+Current active development is on Windows.
+
+- Use PowerShell commands by default, and prefer explicit `-LiteralPath` when touching local files.
+- The workspace root is usually `D:\diorite`; commands should set `workdir` there unless they specifically need `src-tauri`.
+- Frontend dev server:
+  - `npm run dev` serves Vite on `http://127.0.0.1:1420/`.
+  - To check whether it is running: `Get-NetTCPConnection -LocalPort 1420 -State Listen -ErrorAction SilentlyContinue`.
+  - To stop it, stop the owning process from that command. Avoid broad Node process kills unless the user explicitly asks.
+- If `Start-Process npm ...` fails with `Item has already been added. Key in dictionary: 'Path' Key being added: 'PATH'`, it is a Windows environment-variable casing issue in the current shell. A workable fallback is launching through `cmd /c start "" /B cmd /c "cd /d D:\diorite && npm run dev > tmp-dev-server.log 2> tmp-dev-server.err.log"`.
+- If Vite fails with `Error: spawn EPERM` while loading `vite.config.ts`, retry outside the sandbox/with approval. This is usually an esbuild child process spawn permission issue, not an app code issue.
+- Temporary dev logs such as `tmp-dev-server.log` and `tmp-dev-server.err.log` are ignored by `*.log`; do not commit them.
+- Validation commands used so far:
+  - From `D:\diorite`: `npm run build`
+  - From `D:\diorite\src-tauri`: `cargo test`
+  - Optional Tauri smoke build: `npm run tauri -- build --debug --no-bundle`
+- Tauri icon generation on Windows is sensitive to valid `.ico` structure. If the app icon is regenerated, verify with a Tauri debug/no-bundle build rather than trusting file existence alone.
+- Local app/workspace data such as `.opaline/`, `notes/`, and `assets/` must remain uncommitted and should be treated as user data.
+
 ## Licensing
 
 opaline uses the PolyForm Noncommercial License 1.0.0.
@@ -106,11 +124,8 @@ Be careful when adding dependencies. Prefer dependencies with licenses compatibl
 
 ## Git
 
-This file is local-only for now.
-
 Do not commit:
 
-- `AGENTS.md`
 - local databases
 - generated caches
 - `.env` files
