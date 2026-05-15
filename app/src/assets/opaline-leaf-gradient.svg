@@ -1,0 +1,21 @@
+<svg width="420" height="320" viewBox="0 0 420 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Opaline leaf logo">
+  <defs>
+    <linearGradient id="leafGradient" x1="102" y1="54" x2="282" y2="282" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2fd37a"/>
+      <stop offset="0.48" stop-color="#16a85b"/>
+      <stop offset="1" stop-color="#078446"/>
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#leafGradient)"
+    d="M211 237c-8-46 7-91 39-130 37-45 91-70 150-72 11 0 18 5 18 17 3 76-22 140-70 183-34 31-77 50-127 58-11 2-15-3-10-56Z"
+  />
+  <path
+    fill="url(#leafGradient)"
+    d="M62 111c50-3 91 12 117 42 23 27 29 63 17 98-8 24-19 43-28 57-4 7-17 6-14-4 11-29 14-56 4-77-10-21-31-31-57-37-29-7-49-22-61-46-5-11-6-20-5-27 1-5 7-6 27-6Z"
+  />
+  <path
+    fill="#ffffff"
+    d="M128 194c36 12 52 33 59 58 24-39 62-66 128-79-64 28-103 70-117 124-8-56-29-89-70-103Z"
+  />
+</svg>

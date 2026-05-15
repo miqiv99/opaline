@@ -7,6 +7,7 @@ import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
 import type { GraphData, ImportedAsset, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
+import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
 
 const initialState: WorkspaceState = {
@@ -288,10 +289,7 @@ export function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" role="img">
-              <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
-              <path d="M14 33.6C19.4 27.6 25.5 22.9 33.4 18.9" />
-            </svg>
+            <img src={leafLogo} alt="" />
           </span>
           <div>
             <strong>Opaline</strong>
