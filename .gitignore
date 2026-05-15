@@ -40,6 +40,7 @@ pnpm-debug.log*
 Thumbs.db
 desktop.ini
 .idea/
+.claude/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json

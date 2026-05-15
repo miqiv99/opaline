@@ -12,6 +12,8 @@ use walkdir::WalkDir;
 struct NewNoteInput {
     title: String,
     lang: Option<String>,
+    body: Option<String>,
+    directory: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -140,7 +142,8 @@ fn create_note(path: String, input: NewNoteInput) -> Result<NoteDocument, String
         &workspace,
         &title,
         input.lang.as_deref().unwrap_or("zh-Hans"),
-        "notes",
+        input.directory.as_deref().unwrap_or("notes"),
+        input.body.as_deref().unwrap_or("<p></p>"),
     )
 }
 
@@ -161,7 +164,7 @@ fn create_daily_note(path: String) -> Result<NoteDocument, String> {
     }
 
     let title = format!("日记 {:04}-{:02}-{:02}", now.year(), now.month(), now.day());
-    create_note_at(&workspace, &title, "zh-Hans", "notes/journal")
+    create_note_at(&workspace, &title, "zh-Hans", "notes/journal", "<p></p>")
 }
 
 #[tauri::command]
@@ -630,14 +633,16 @@ fn create_note_at(
     title: &str,
     lang: &str,
     directory: &str,
+    body: &str,
 ) -> Result<NoteDocument, String> {
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
-    let directory_path = workspace.join(directory);
+    let directory = clean_note_directory(directory)?;
+    let directory_path = workspace.join(&directory);
     fs::create_dir_all(&directory_path).map_err(to_error)?;
     let file_name = unique_note_file(&directory_path, title);
     let note_path = directory_path.join(file_name);
-    let html = render_note_html(&id, title, lang, &now, "<p></p>");
+    let html = render_note_html(&id, title, lang, &now, body);
 
     write_file_atomically(&note_path, &html)?;
 
@@ -657,6 +662,23 @@ fn create_note_at(
         favorite: summary.favorite,
         html,
     })
+}
+
+fn clean_note_directory(directory: &str) -> Result<String, String> {
+    let directory = directory.trim().replace('\\', "/");
+    if directory.is_empty() {
+        return Ok("notes".to_string());
+    }
+    if directory != "notes" && !directory.starts_with("notes/") {
+        return Err("笔记目录必须位于 notes 内".to_string());
+    }
+    if directory
+        .split('/')
+        .any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err("笔记目录无效".to_string());
+    }
+    Ok(directory)
 }
 
 fn upsert_note_index(conn: &Connection, note: &NoteSummary, html: &str) -> Result<(), String> {
@@ -1319,6 +1341,15 @@ mod tests {
     }
 
     #[test]
+    fn note_directories_stay_inside_notes() {
+        assert_eq!(clean_note_directory("notes").unwrap(), "notes");
+        assert_eq!(clean_note_directory("notes/inbox").unwrap(), "notes/inbox");
+        assert!(clean_note_directory("notes-other").is_err());
+        assert!(clean_note_directory("../notes").is_err());
+        assert!(clean_note_directory("notes/../outside").is_err());
+    }
+
+    #[test]
     fn workspace_round_trip_rebuilds_metadata() {
         let workspace = test_workspace();
         let workspace_string = workspace.to_string_lossy().to_string();
@@ -1330,6 +1361,8 @@ mod tests {
             NewNoteInput {
                 title: "测试笔记".to_string(),
                 lang: Some("zh-Hans".to_string()),
+                body: None,
+                directory: None,
             },
         )
         .expect("note is created");
@@ -1339,6 +1372,8 @@ mod tests {
             NewNoteInput {
                 title: "linked".to_string(),
                 lang: Some("zh-Hans".to_string()),
+                body: None,
+                directory: None,
             },
         )
         .expect("linked note is created");
@@ -1496,6 +1531,8 @@ mod tests {
             NewNoteInput {
                 title: "Alpha Research".to_string(),
                 lang: Some("en".to_string()),
+                body: None,
+                directory: None,
             },
         )
         .expect("alpha is created");
@@ -1505,6 +1542,8 @@ mod tests {
             NewNoteInput {
                 title: "Beta Notes".to_string(),
                 lang: Some("en".to_string()),
+                body: None,
+                directory: None,
             },
         )
         .expect("beta is created");

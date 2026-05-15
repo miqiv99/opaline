@@ -25,6 +25,8 @@ export type WorkspaceState = {
 export type NewNoteInput = {
   title: string;
   lang?: string;
+  body?: string;
+  directory?: string;
 };
 
 export type LinkInfo = {

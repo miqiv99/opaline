@@ -155,9 +155,10 @@ const createDemoNote = (input: NewNoteInput) => {
   const title = input.title.trim() || "未命名笔记";
   const id = crypto.randomUUID();
   const created = nowIso();
+  const directory = input.directory?.replace(/^\/+|\/+$/g, "") || "notes";
   const note: NoteDocument = {
     id,
-    path: `notes/${slugify(title)}.html`,
+    path: `${directory}/${slugify(title)}.html`,
     title,
     createdAt: created,
     updatedAt: created,
@@ -165,7 +166,7 @@ const createDemoNote = (input: NewNoteInput) => {
     headings: [title],
     outgoingLinks: [],
     favorite: false,
-    html: makeHtmlNote(id, title, "<p></p>", input.lang),
+    html: makeHtmlNote(id, title, input.body || "<p></p>", input.lang),
   };
 
   notes = [note, ...notes];
