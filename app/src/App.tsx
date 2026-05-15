@@ -1,8 +1,23 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { BookOpen, Bug, CalendarDays, FilePlus2, FolderOpen, Inbox, Lightbulb, RefreshCw, Search, Star } from "lucide-react";
+import {
+  BookOpen,
+  Bot,
+  Bug,
+  CalendarDays,
+  FilePlus2,
+  FolderOpen,
+  Home,
+  Lightbulb,
+  RefreshCw,
+  Search,
+  Send,
+  Settings,
+  Star,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { AiPanel } from "./ai/AiPanel";
+import { AiPanel, AiSettingsPanel } from "./ai/AiPanel";
+import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
@@ -16,7 +31,16 @@ const initialState: WorkspaceState = {
   activeNote: null,
 };
 
+const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
+
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
+type AppView = "today" | "note" | "settings";
+type TodayMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
 
 const NOTE_TEMPLATES: Array<{
   id: NoteTemplateId;
@@ -78,9 +102,10 @@ const TODAY_PROMPTS = [
 
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(initialState);
+  const [view, setView] = useState<AppView>("today");
   const [articleHtml, setArticleHtml] = useState("");
   const [savedArticleHtml, setSavedArticleHtml] = useState("");
-  const [status, setStatus] = useState("请选择或创建一个工作区");
+  const [status, setStatus] = useState("正在准备工作区");
   const [isBusy, setIsBusy] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [query, setQuery] = useState("");
@@ -91,16 +116,25 @@ export function App() {
   const [draftTitle, setDraftTitle] = useState("未命名笔记");
   const [draftLang, setDraftLang] = useState("zh-Hans");
   const [draftTemplate, setDraftTemplate] = useState<NoteTemplateId>("blank");
-  const [inboxText, setInboxText] = useState("");
+  const [todayText, setTodayText] = useState("");
+  const [todayMessages, setTodayMessages] = useState<TodayMessage[]>([]);
+  const [isTodayBusy, setIsTodayBusy] = useState(false);
+  const [didLoadDefaultWorkspace, setDidLoadDefaultWorkspace] = useState(false);
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
 
   const activeTitle = useMemo(() => {
+    if (view === "settings") {
+      return "设置";
+    }
+    if (view === "today") {
+      return "今天";
+    }
     if (!workspace.activeNote) {
       return "没有打开的笔记";
     }
 
     return titleFromArticleHtml(articleHtml, workspace.activeNote.title);
-  }, [articleHtml, workspace.activeNote]);
+  }, [articleHtml, view, workspace.activeNote]);
 
   const refreshNotes = useCallback(async (path: string) => {
     const notes = await workspaceAdapter.listNotes(path);
@@ -113,6 +147,18 @@ export function App() {
     setBacklinks(await workspaceAdapter.listBacklinks(path, noteId));
   }, []);
 
+  const openWorkspacePath = useCallback(
+    async (path: string) => {
+      await workspaceAdapter.ensureWorkspace(path);
+      const notes = await refreshNotes(path);
+      localStorage.setItem(WORKSPACE_PATH_STORAGE_KEY, path);
+      setWorkspace((current) => ({ ...current, path, notes }));
+      setStatus(notes.length > 0 ? "工作区已打开" : "工作区已初始化");
+      return notes;
+    },
+    [refreshNotes],
+  );
+
   const openWorkspace = useCallback(async () => {
     setIsBusy(true);
     try {
@@ -122,20 +168,13 @@ export function App() {
         return;
       }
 
-      await workspaceAdapter.ensureWorkspace(path);
-      const notes = await refreshNotes(path);
-      if (notes[0]) {
-        const document = await workspaceAdapter.readNote(path, notes[0].path);
-        openNoteDocument(path, notes, document);
-        await refreshBacklinks(path, document.id);
-      }
-      setStatus(notes.length > 0 ? "工作区已打开" : "工作区已初始化，可以创建第一篇笔记");
+      await openWorkspacePath(path);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "打开工作区失败");
     } finally {
       setIsBusy(false);
     }
-  }, [refreshBacklinks, refreshNotes]);
+  }, [openWorkspacePath]);
 
   const requestCreateNote = useCallback(() => {
     const template = NOTE_TEMPLATES[0];
@@ -154,11 +193,7 @@ export function App() {
 
     setIsBusy(true);
     try {
-      const path = workspace.path ?? (await workspaceAdapter.chooseWorkspace());
-      if (!path) {
-        setStatus("需要先选择工作区");
-        return;
-      }
+      const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
 
       await workspaceAdapter.ensureWorkspace(path);
       const note = await workspaceAdapter.createNote(path, { ...input, title });
@@ -186,27 +221,12 @@ export function App() {
     );
   }, [createNoteFromInput, draftLang, draftTemplate, draftTitle]);
 
-  const captureInbox = useCallback(async () => {
-    const text = inboxText.trim();
-    if (!text) {
-      setStatus("先写一点内容再收进 Inbox");
-      return;
-    }
-
-    const title = inboxTitle(text);
-    await createNoteFromInput(
-      {
-        title,
-        lang: "zh-Hans",
-        directory: "notes/inbox",
-        body: `<p><span data-opaline-tag="inbox">#inbox</span></p><h2>原始记录</h2>${paragraphsFromPlainText(text)}<h2>整理线索</h2><ul><li>它属于哪个项目或主题？</li><li>它可以链接到哪篇笔记？</li><li>下一步要不要展开？</li></ul>`,
-      },
-      "已收进 Inbox",
-    );
-    setInboxText("");
-  }, [createNoteFromInput, inboxText]);
-
   const createFromPrompt = useCallback(async (prompt: string) => {
+    setTodayText(prompt);
+    setView("today");
+  }, []);
+
+  const createPromptNote = useCallback(async (prompt: string) => {
     await createNoteFromInput(
       {
         title: prompt.replace(/[？?]$/, ""),
@@ -220,11 +240,7 @@ export function App() {
   const createDailyNote = useCallback(async () => {
     setIsBusy(true);
     try {
-      const path = workspace.path ?? (await workspaceAdapter.chooseWorkspace());
-      if (!path) {
-        setStatus("需要先选择工作区");
-        return;
-      }
+      const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
 
       await workspaceAdapter.ensureWorkspace(path);
       const note = await workspaceAdapter.createDailyNote(path);
@@ -249,6 +265,7 @@ export function App() {
       try {
         const document = await workspaceAdapter.readNote(workspace.path, note.path);
         openNoteDocument(workspace.path, workspace.notes, document);
+        setView("note");
         await refreshBacklinks(workspace.path, document.id);
         setStatus("笔记已打开");
       } catch (error) {
@@ -268,6 +285,7 @@ export function App() {
 
       const document = await workspaceAdapter.readNote(workspace.path, result.path);
       openNoteDocument(workspace.path, workspace.notes, document);
+      setView("note");
       await refreshBacklinks(workspace.path, document.id);
     },
     [refreshBacklinks, workspace.notes, workspace.path],
@@ -323,7 +341,7 @@ export function App() {
   const importAsset = useCallback(
     async (kind: "image" | "file"): Promise<ImportedAsset | null> => {
       if (!workspace.path) {
-        setStatus("需要先选择工作区");
+        setStatus("工作区还在准备中");
         return null;
       }
 
@@ -362,6 +380,22 @@ export function App() {
   }, [workspace.path]);
 
   useEffect(() => {
+    if (didLoadDefaultWorkspace) {
+      return;
+    }
+
+    setDidLoadDefaultWorkspace(true);
+    void (async () => {
+      try {
+        const path = localStorage.getItem(WORKSPACE_PATH_STORAGE_KEY) || (await workspaceAdapter.defaultWorkspacePath());
+        await openWorkspacePath(path);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "初始化工作区失败");
+      }
+    })();
+  }, [didLoadDefaultWorkspace, openWorkspacePath]);
+
+  useEffect(() => {
     if (!isDirty || isSaving || isBusy) {
       return;
     }
@@ -385,11 +419,112 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [query, workspace.path, workspace.notes]);
 
+  const appendTodayConversation = useCallback(async () => {
+    const text = todayText.trim();
+    if (!text) {
+      setStatus("先写一点内容");
+      return;
+    }
+
+    const userMessage: TodayMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTodayMessages((current) => [...current, userMessage]);
+    setTodayText("");
+    setIsTodayBusy(true);
+
+    try {
+      const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
+
+      await workspaceAdapter.ensureWorkspace(path);
+      let dailyNote = await workspaceAdapter.createDailyNote(path);
+      const currentNotes = await workspaceAdapter.listNotes(path);
+      const withUserEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), userMessage);
+      dailyNote = await workspaceAdapter.saveNote(path, {
+        ...dailyNote,
+        html: replaceArticleInDocument(dailyNote.html, withUserEntry, currentNotes),
+      });
+
+      const settings = loadAiSettings();
+      const adapter = getAiAdapter(settings.provider);
+      if (!settings.apiKey.trim()) {
+        const assistantMessage: TodayMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "已记录。AI 还没配置，去设置里保存模型后我就能继续接话。",
+          createdAt: new Date().toISOString(),
+        };
+        setTodayMessages((current) => [...current, assistantMessage]);
+        setStatus("已写入今日日记，AI 尚未配置");
+        setWorkspace((current) => ({ ...current, path, notes: currentNotes, activeNote: current.activeNote }));
+        return;
+      }
+
+      const recentMessages = [...todayMessages, userMessage].slice(-8).map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+      const reply = await adapter.chat(
+        [
+          {
+            role: "system",
+            content:
+              "你是 Opaline 的随手记录助手。用户可能在吐槽、复盘、提问或记录灵感。请先接住用户的话，再给出有用的下一步、解决思路或可沉淀的笔记线索。用中文，简洁但具体。",
+          },
+          ...recentMessages,
+        ],
+        {
+          model: settings.model || adapter.defaultModel,
+          apiKey: settings.apiKey,
+          baseUrl: settings.baseUrl || adapter.defaultBaseUrl,
+        },
+      );
+
+      const assistantMessage: TodayMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: reply,
+        createdAt: new Date().toISOString(),
+      };
+      setTodayMessages((current) => [...current, assistantMessage]);
+
+      const withAssistantEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), assistantMessage);
+      const saved = await workspaceAdapter.saveNote(path, {
+        ...dailyNote,
+        html: replaceArticleInDocument(dailyNote.html, withAssistantEntry, currentNotes),
+      });
+      const notes = await refreshNotes(path);
+      setWorkspace((current) => ({
+        ...current,
+        path,
+        notes,
+        activeNote: current.activeNote?.id === saved.id ? saved : current.activeNote,
+      }));
+      setStatus("已写入今日日记，AI 已回复");
+    } catch (error) {
+      const assistantMessage: TodayMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: error instanceof Error ? error.message : "记录或 AI 请求失败",
+        createdAt: new Date().toISOString(),
+      };
+      setTodayMessages((current) => [...current, assistantMessage]);
+      setStatus(error instanceof Error ? error.message : "记录失败");
+    } finally {
+      setIsTodayBusy(false);
+    }
+  }, [refreshNotes, todayMessages, todayText, workspace.path]);
+
   const openNoteDocument = (path: string, notes: NoteSummary[], note: NoteDocument) => {
     const nextArticleHtml = articleFromHtmlDocument(note.html);
     setWorkspace({ path, notes, activeNote: note });
     setArticleHtml(nextArticleHtml);
     setSavedArticleHtml(nextArticleHtml);
+    setView("note");
   };
 
   return (
@@ -406,17 +541,21 @@ export function App() {
         </div>
 
         <div className="sidebar-actions">
+          <button type="button" onClick={() => setView("today")} disabled={isBusy}>
+            <Home size={17} />
+            <span>今天</span>
+          </button>
           <button type="button" onClick={openWorkspace} disabled={isBusy}>
             <FolderOpen size={17} />
-            <span>打开工作区</span>
+            <span>打开</span>
           </button>
           <button type="button" onClick={requestCreateNote} disabled={isBusy}>
             <FilePlus2 size={17} />
-            <span>新建笔记</span>
+            <span>新建</span>
           </button>
           <button type="button" onClick={createDailyNote} disabled={isBusy}>
             <CalendarDays size={17} />
-            <span>今日日记</span>
+            <span>日记</span>
           </button>
           {workspace.path ? (
             <button type="button" onClick={() => refreshNotes(workspace.path as string)} disabled={isBusy}>
@@ -429,22 +568,6 @@ export function App() {
         <div className="workspace-path" title={workspace.path ?? undefined}>
           {workspace.path ?? "未选择工作区"}
         </div>
-
-        <section className="inbox-capture" aria-label="Inbox 快速记录">
-          <div className="inbox-title">
-            <Inbox size={16} />
-            <strong>先记下来</strong>
-          </div>
-          <textarea
-            value={inboxText}
-            onChange={(event) => setInboxText(event.target.value)}
-            placeholder="一个想法、链接、报错、摘录..."
-            rows={4}
-          />
-          <button type="button" onClick={captureInbox} disabled={isBusy || !inboxText.trim()}>
-            收进 Inbox
-          </button>
-        </section>
 
         <label className="search-box">
           <Search size={16} />
@@ -480,6 +603,11 @@ export function App() {
             ))
           )}
         </nav>
+
+        <button type="button" className="settings-entry" onClick={() => setView("settings")}>
+          <Settings size={18} />
+          <span>设置</span>
+        </button>
       </aside>
 
       <section className="main-pane">
@@ -498,7 +626,16 @@ export function App() {
           ) : null}
         </header>
 
-        {workspace.activeNote ? (
+        {view === "settings" ? (
+          <SettingsView
+            workspacePath={workspace.path}
+            onChangeWorkspace={async () => {
+              const path = await workspaceAdapter.chooseWorkspace();
+              if (!path) return;
+              await openWorkspacePath(path);
+            }}
+          />
+        ) : view === "note" && workspace.activeNote ? (
           <div className="workbench">
             <OpalineEditor
               content={articleHtml}
@@ -547,42 +684,13 @@ export function App() {
             </aside>
           </div>
         ) : (
-          <section className="welcome-panel">
-            <div className="welcome-copy">
-              <h2>不用想清楚，先留下线索</h2>
-              <p>把想法、问题、摘录和项目过程先收进来，之后再慢慢整理成可以链接的 HTML 笔记。</p>
-            </div>
-            <div className="starter-grid">
-              {NOTE_TEMPLATES.filter((template) => template.id !== "blank").map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  className="starter-card"
-                  onClick={() => {
-                    setDraftTemplate(template.id);
-                    setDraftTitle(template.defaultTitle);
-                    setDraftLang("zh-Hans");
-                    setCreateDialogOpen(true);
-                  }}
-                  disabled={isBusy}
-                >
-                  {template.icon}
-                  <span>{template.title}</span>
-                  <small>{template.description}</small>
-                </button>
-              ))}
-            </div>
-            <section className="today-prompts">
-              <h3>今天可以写什么</h3>
-              <div>
-                {TODAY_PROMPTS.map((prompt) => (
-                  <button key={prompt} type="button" onClick={() => createFromPrompt(prompt)} disabled={isBusy}>
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </section>
-          </section>
+          <TodayView
+            text={todayText}
+            messages={todayMessages}
+            busy={isTodayBusy}
+            onTextChange={setTodayText}
+            onSubmit={appendTodayConversation}
+          />
         )}
       </section>
       <CreateNoteDialog
@@ -602,6 +710,84 @@ export function App() {
         onSubmit={createNote}
       />
     </main>
+  );
+}
+
+function TodayView({
+  text,
+  messages,
+  busy,
+  onTextChange,
+  onSubmit,
+}: {
+  text: string;
+  messages: TodayMessage[];
+  busy: boolean;
+  onTextChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="today-home">
+      <div className="today-chat">
+        <section className="today-thread" aria-label="今日对话">
+          {messages.map((message) => (
+            <article key={message.id} className={`today-message is-${message.role}`}>
+              <div>
+                <strong>{message.role === "user" ? "我" : "AI"}</strong>
+                <span>{formatTime(message.createdAt)}</span>
+              </div>
+              <div dangerouslySetInnerHTML={{ __html: paragraphsFromPlainText(message.content) }} />
+            </article>
+          ))}
+        </section>
+
+        <textarea
+          value={text}
+          onChange={(event) => onTextChange(event.target.value)}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              onSubmit();
+            }
+          }}
+          rows={4}
+          aria-label="今天"
+        />
+        <div className="today-composer-actions">
+          <button type="button" onClick={onSubmit} disabled={busy || !text.trim()}>
+            {busy ? <Bot size={17} className="spinner" /> : <Send size={17} />}
+            <span>{busy ? "处理中" : "发送"}</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SettingsView({
+  workspacePath,
+  onChangeWorkspace,
+}: {
+  workspacePath: string | null;
+  onChangeWorkspace: () => void | Promise<void>;
+}) {
+  return (
+    <section className="settings-view">
+      <section className="settings-card">
+        <div className="settings-card-header">
+          <FolderOpen size={18} />
+          <div>
+            <h2>工作区</h2>
+          </div>
+        </div>
+        <div className="workspace-settings-row">
+          <span title={workspacePath ?? undefined}>{workspacePath ?? "正在准备"}</span>
+          <button type="button" onClick={onChangeWorkspace}>
+            更改
+          </button>
+        </div>
+      </section>
+      <AiSettingsPanel />
+    </section>
   );
 }
 
@@ -720,7 +906,36 @@ const paragraphsFromPlainText = (value: string) =>
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
     .join("");
 
-const inboxTitle = (text: string) => {
-  const firstLine = text.split(/\r?\n/).find((line) => line.trim())?.trim() || "Inbox 记录";
-  return firstLine.length > 28 ? `${firstLine.slice(0, 28)}...` : firstLine;
+const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
+  const document = new DOMParser().parseFromString(`<article>${articleHtml}</article>`, "text/html");
+  const article = document.body.firstElementChild ?? document.createElement("article");
+  let log = article.querySelector<HTMLElement>("[data-opaline-daily-log]");
+
+  if (!log) {
+    log = document.createElement("section");
+    log.setAttribute("data-opaline-daily-log", "");
+    const heading = document.createElement("h2");
+    heading.textContent = "今日记录";
+    log.append(heading);
+    article.append(log);
+  }
+
+  const entry = document.createElement("section");
+  entry.setAttribute("data-opaline-entry", message.role);
+  const meta = document.createElement("p");
+  meta.setAttribute("data-opaline-entry-meta", "");
+  meta.textContent = `${message.role === "user" ? "我" : "AI"} · ${formatTime(message.createdAt)}`;
+  const content = document.createElement("div");
+  content.setAttribute("data-opaline-entry-content", "");
+  content.innerHTML = paragraphsFromPlainText(message.content);
+  entry.append(meta, content);
+  log.append(entry);
+
+  return article.innerHTML;
 };
+
+const formatTime = (iso: string) =>
+  new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));

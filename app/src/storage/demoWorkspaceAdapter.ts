@@ -47,6 +47,10 @@ const seedNote: NoteDocument = {
 let notes: NoteDocument[] = [seedNote];
 
 export const demoWorkspaceAdapter: WorkspaceAdapter = {
+  async defaultWorkspacePath() {
+    return demoWorkspacePath;
+  },
+
   async chooseWorkspace() {
     return demoWorkspacePath;
   },

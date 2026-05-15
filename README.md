@@ -17,10 +17,21 @@ Opaline should not begin as a social platform, forum, website builder, or full O
 The first product should be a reliable local tool for one person:
 
 ```text
-write -> save -> search -> link -> organize -> publish later
+speak -> auto-record -> save -> search -> link -> publish later
 ```
 
 The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.
+
+## Current Product Loop
+
+The current product direction splits users naturally by action rather than asking them to choose a mode:
+
+- Users who do not want to "write notes" can open Today and simply say what happened, what they are thinking, or what they are stuck on.
+- Each user turn is written into the daily HTML note before AI replies, so conversation becomes durable local knowledge instead of disposable chat.
+- Users who know exactly what they want can still create notes, search, open daily notes, edit rich HTML blocks, and manage links.
+- Settings owns workspace location and AI configuration so the note surface stays focused.
+
+The immediate next product gap is workspace migration: changing the workspace location should offer to copy or move the previous workspace files.
 
 ## Positioning
 
@@ -83,6 +94,8 @@ The product advantage is not merely "using HTML". The advantage is maintaining c
 
 - Local-first by default.
 - HTML files are the source of truth.
+- The app should initialize a sensible default workspace automatically.
+- Rough conversation can be a valid capture surface if it is recorded as local HTML.
 - SQLite indexes are rebuildable.
 - Notes should remain useful without Opaline installed.
 - The editor should feel fast, calm, and serious.
@@ -113,6 +126,8 @@ The product advantage is not merely "using HTML". The advantage is maintaining c
 Desktop comes first. Mobile and web should be enabled by architecture, not forced into the first release.
 
 ## Workspace Model
+
+On desktop, Opaline should create a default workspace in the user's documents folder under `Opaline`. Users can change that location from Settings, and the selected location is remembered. Changing location should eventually include a migration flow for moving existing notes and assets.
 
 A user workspace may look like this:
 
@@ -311,7 +326,18 @@ AI should answer only with visible sources:
 - say when no relevant note was found
 - separate source facts from AI inference
 
-Private notes should not be sent to cloud models without explicit user permission.
+Private notes should not be sent to cloud models without explicit user permission. AI provider, custom API base URL, model, API key, model tests, and model fetching belong in Settings and should be saved explicitly.
+
+### Today Conversation
+
+The Today page is not meant to be a full chat product. It is a low-friction capture surface:
+
+1. The user types a thought, complaint, question, or log entry.
+2. Opaline appends the raw user text to today's HTML journal note.
+3. If AI is configured, the assistant replies and that reply is also appended to the same daily note.
+4. Later search, links, summaries, and note extraction can build on the saved record.
+
+This preserves the difference between Opaline and a normal AI chat app: the durable object is the user's local knowledge base, not the conversation UI.
 
 ## Public Notes and Publishing
 
@@ -421,21 +447,23 @@ Goal: define the system shape.
 - Add SQLite integration
 - Define the first Opaline HTML Profile
 - Add example HTML notes for format testing
-- Decide workspace directory conventions
+- Use a default workspace convention and remember user-selected workspace locations
 - Add basic test and build commands
 
 ### Phase 1: Trustworthy Local Notes
 
 Goal: make the storage loop reliable.
 
-- Open a local workspace folder
+- Auto-initialize a default workspace under the user's documents folder
 - Create a note
+- Capture rough thoughts through the Today chat entry
 - Edit with Tiptap
 - Save as clean HTML
 - Load existing HTML notes
 - Auto-save changes
 - Rebuild SQLite metadata from files
 - Show file tree and recent notes
+- Allow users to change the workspace location in Settings
 
 Success criteria:
 
@@ -469,6 +497,7 @@ Goal: make notes connect.
 - Outgoing links
 - Broken-link detection
 - Daily notes
+- Today chat that appends user and AI turns into the daily HTML note
 - Basic graph data
 
 Success criteria:
@@ -499,6 +528,8 @@ Success criteria:
 
 Goal: help users recover and reorganize their own context.
 
+- Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings
+- Continue the Today conversation after recording the user's raw text locally
 - Summarize a note
 - Generate titles
 - Extract tags
@@ -597,14 +628,14 @@ These may become possible later. They should not define the first working versio
 
 1. Stabilize the bilingual Markdown and HTML documentation entry points.
 2. Define the first Opaline HTML Profile.
-3. Add example HTML notes for parser and serializer testing.
-4. Scaffold Tauri + React.
-5. Add Tiptap with basic rich text editing.
-6. Save and load one clean HTML note.
-7. Add workspace folder support.
-8. Add SQLite metadata scanning.
-9. Add file tree, recent notes, title search, and body search.
-10. Add `[[note links]]`, backlinks, and later AI-assisted note search with citations.
+3. Scaffold Tauri + React + Tiptap + SQLite.
+4. Auto-initialize a default workspace and remember user-selected workspace locations.
+5. Add the Today conversation entry and append turns to the daily HTML note.
+6. Save, auto-save, and load clean HTML notes.
+7. Add SQLite FTS search, metadata scanning, backlinks, and broken-link detection.
+8. Add rich HTML blocks: columns, comparison, sidenotes, disclosure, math, diagrams, and embeds.
+9. Add AI settings with custom base URLs, explicit save, model testing, and model fetching.
+10. Next: add workspace migration when users change locations.
 
 ## License
 

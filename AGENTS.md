@@ -28,6 +28,9 @@ The product direction is ambitious: start as a useful desktop HTML note app, the
 
 - Local-first by default.
 - HTML notes are durable user-owned files.
+- The app should auto-initialize a sensible default workspace instead of making first-run users choose a folder.
+- Changing workspace location should preserve user trust; migration support is the next expected step.
+- The Today conversation is a capture surface: user text should be recorded locally before AI continues the conversation.
 - SQLite is for metadata, indexes, backlinks, app state, and cache.
 - Notes should remain useful outside the app.
 - AI features should propose and explain changes, not silently rewrite user knowledge.

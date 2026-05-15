@@ -9,6 +9,7 @@ import type {
 } from "../domain/note";
 
 export interface WorkspaceAdapter {
+  defaultWorkspacePath(): Promise<string>;
   chooseWorkspace(): Promise<string | null>;
   ensureWorkspace(path: string): Promise<void>;
   listNotes(path: string): Promise<NoteSummary[]>;

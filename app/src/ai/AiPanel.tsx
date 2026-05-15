@@ -1,39 +1,20 @@
 import { Brain, Key, Loader2, PlugZap, RefreshCw, Sparkles, Tag, TextSearch } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
-import type { AiAdapter, AiSettings } from "./adapter";
+import type { AiSettings } from "./adapter";
 import { SUMMARY_PROMPT, TAG_PROMPT, TITLE_PROMPT } from "./adapter";
-import { anthropicAdapter } from "./anthropicAdapter";
-import { openaiAdapter } from "./openaiAdapter";
-
-const ADAPTERS: AiAdapter[] = [openaiAdapter, anthropicAdapter];
-
-const SETTINGS_STORAGE_KEY = "opaline-ai-settings";
+import { AI_ADAPTERS, getAiAdapter, loadAiSettings, saveAiSettings } from "./settings";
 
 type AiAction = "summarize" | "title" | "tags";
 
 export function AiPanel() {
-  const [settings, setSettings] = useState<AiSettings>(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as AiSettings;
-    } catch { /* ignore */ }
-    return { provider: "openai", model: "gpt-4o-mini", apiKey: "", baseUrl: "" };
-  });
+  const [settings] = useState<AiSettings>(() => loadAiSettings());
 
   const [result, setResult] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState("");
-  const [toolStatus, setToolStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [toolMessage, setToolMessage] = useState("");
-  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
 
-  const activeAdapter = ADAPTERS.find((a) => a.id === settings.provider) ?? ADAPTERS[0];
-
-  const saveSettings = useCallback((next: AiSettings) => {
-    setSettings(next);
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
-  }, []);
+  const activeAdapter = getAiAdapter(settings.provider);
 
   const runAction = useCallback(
     async (action: AiAction) => {
@@ -84,6 +65,89 @@ export function AiPanel() {
     },
     [activeAdapter, settings],
   );
+
+  return (
+    <aside className="ai-panel">
+      <div className="ai-panel-header">
+        <Brain size={18} />
+        <strong>AI 助手</strong>
+      </div>
+
+      <div className="ai-actions">
+        <AiButton
+          label="生成摘要"
+          loadingLabel="生成中..."
+          status={status}
+          onClick={() => runAction("summarize")}
+        >
+          <Sparkles size={16} />
+        </AiButton>
+        <AiButton
+          label="建议标题"
+          loadingLabel="生成中..."
+          status={status}
+          onClick={() => runAction("title")}
+        >
+          <TextSearch size={16} />
+        </AiButton>
+        <AiButton
+          label="提取标签"
+          loadingLabel="提取中..."
+          status={status}
+          onClick={() => runAction("tags")}
+        >
+          <Tag size={16} />
+        </AiButton>
+      </div>
+
+      {status === "loading" ? (
+        <div className="ai-result ai-loading">
+          <Loader2 size={18} className="spinner" />
+          <span>正在请求 AI...</span>
+        </div>
+      ) : null}
+
+      {status === "error" ? (
+        <div className="ai-result ai-error">
+          <p>{error}</p>
+        </div>
+      ) : null}
+
+      {status === "done" ? (
+        <div className="ai-result ai-done">
+          <p>{result}</p>
+          <button
+            className="ai-apply-button"
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(result).catch(() => {});
+            }}
+          >
+            复制结果
+          </button>
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+export function AiSettingsPanel() {
+  const [settings, setSettings] = useState<AiSettings>(() => loadAiSettings());
+  const [savedMessage, setSavedMessage] = useState("");
+  const [toolStatus, setToolStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [toolMessage, setToolMessage] = useState("");
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const activeAdapter = getAiAdapter(settings.provider);
+
+  const saveSettings = useCallback((next: AiSettings) => {
+    setSettings(next);
+  }, []);
+
+  const persistSettings = useCallback(() => {
+    saveAiSettings(settings);
+    setSavedMessage("已保存");
+    window.setTimeout(() => setSavedMessage(""), 1800);
+  }, [settings]);
 
   const aiOptions = {
     model: settings.model || activeAdapter.defaultModel,
@@ -148,10 +212,13 @@ export function AiPanel() {
   }, [activeAdapter, saveSettings, settings]);
 
   return (
-    <aside className="ai-panel">
-      <div className="ai-panel-header">
+    <section className="settings-card">
+      <div className="settings-card-header">
         <Brain size={18} />
-        <strong>AI 助手</strong>
+        <div>
+          <h2>AI 设置</h2>
+          <p>聊天、整理和模型测试会使用这里的配置。</p>
+        </div>
       </div>
 
       <div className="ai-settings">
@@ -160,7 +227,7 @@ export function AiPanel() {
           <select
             value={settings.provider}
             onChange={(e) => {
-              const adapter = ADAPTERS.find((a) => a.id === e.target.value);
+              const adapter = AI_ADAPTERS.find((a) => a.id === e.target.value);
               saveSettings({
                 ...settings,
                 provider: e.target.value,
@@ -169,7 +236,7 @@ export function AiPanel() {
               });
             }}
           >
-            {ADAPTERS.map((a) => (
+            {AI_ADAPTERS.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.label}
               </option>
@@ -225,15 +292,24 @@ export function AiPanel() {
       ) : null}
 
       <div className="ai-tool-actions">
-        <button type="button" onClick={testModel} disabled={toolStatus === "loading" || status === "loading"}>
+        <button type="button" onClick={persistSettings}>
+          <span>保存</span>
+        </button>
+        <button type="button" onClick={testModel} disabled={toolStatus === "loading"}>
           <PlugZap size={15} />
           <span>测试模型</span>
         </button>
-        <button type="button" onClick={fetchModels} disabled={toolStatus === "loading" || status === "loading"}>
+        <button type="button" onClick={fetchModels} disabled={toolStatus === "loading"}>
           <RefreshCw size={15} />
           <span>抓取模型</span>
         </button>
       </div>
+
+      {savedMessage ? (
+        <div className="ai-tool-status">
+          <span>{savedMessage}</span>
+        </div>
+      ) : null}
 
       {toolMessage ? (
         <div className={toolStatus === "error" ? "ai-tool-status is-error" : "ai-tool-status"}>
@@ -241,62 +317,7 @@ export function AiPanel() {
           <span>{toolMessage}</span>
         </div>
       ) : null}
-
-      <div className="ai-actions">
-        <AiButton
-          label="生成摘要"
-          loadingLabel="生成中..."
-          status={status}
-          onClick={() => runAction("summarize")}
-        >
-          <Sparkles size={16} />
-        </AiButton>
-        <AiButton
-          label="建议标题"
-          loadingLabel="生成中..."
-          status={status}
-          onClick={() => runAction("title")}
-        >
-          <TextSearch size={16} />
-        </AiButton>
-        <AiButton
-          label="提取标签"
-          loadingLabel="提取中..."
-          status={status}
-          onClick={() => runAction("tags")}
-        >
-          <Tag size={16} />
-        </AiButton>
-      </div>
-
-      {status === "loading" ? (
-        <div className="ai-result ai-loading">
-          <Loader2 size={18} className="spinner" />
-          <span>正在请求 AI...</span>
-        </div>
-      ) : null}
-
-      {status === "error" ? (
-        <div className="ai-result ai-error">
-          <p>{error}</p>
-        </div>
-      ) : null}
-
-      {status === "done" ? (
-        <div className="ai-result ai-done">
-          <p>{result}</p>
-          <button
-            className="ai-apply-button"
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(result).catch(() => {});
-            }}
-          >
-            复制结果
-          </button>
-        </div>
-      ) : null}
-    </aside>
+    </section>
   );
 }
 

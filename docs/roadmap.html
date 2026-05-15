@@ -18,8 +18,8 @@
           <p>这一页说明阶段路线和暂时不做的事情。早期重点是可信的本地 HTML 笔记、搜索、链接和 SQLite 索引。AI、发布、公开知识网络、移动端和插件系统都应该排在后面。</p>
           <p>这个路线的目的，是避免一开始就被平台、社区、同步、插件市场和网站生成器这些复杂任务拖住。</p>
           <ul>
-            <li>Phase 0 应该先把文档、格式、目录约定和基础技术栈定稳。</li>
-            <li>Phase 1 只追求本地笔记可信保存，不追求复杂功能。</li>
+            <li>Phase 0 应该先把文档、格式、默认工作区和基础技术栈定稳。</li>
+            <li>Phase 1 只追求本地笔记可信保存，并让用户无需先选择目录就能开始。</li>
             <li>Phase 2 和 Phase 3 让用户能找回和连接自己的知识。</li>
             <li>AI、发布、公开知识网络是后续增长方向，不能压垮 MVP。</li>
           </ul>
@@ -33,13 +33,14 @@
           <li>Add Tiptap editor baseline.</li>
           <li>Add SQLite integration.</li>
           <li>Define the first Opaline HTML Profile.</li>
-          <li>Decide workspace directory conventions.</li>
+          <li>Decide default workspace conventions and remember user-selected locations.</li>
           <li>Add basic test and build commands.</li>
         </ul>
 
         <h2>Phase 1: Trustworthy Local Notes</h2>
         <ul>
-          <li>Open a local workspace folder.</li>
+          <li>Auto-initialize a default local workspace.</li>
+          <li>Allow workspace location changes from Settings.</li>
           <li>Create a note.</li>
           <li>Edit with Tiptap.</li>
           <li>Save as clean HTML.</li>
@@ -70,6 +71,7 @@
           <li>Outgoing links.</li>
           <li>Broken-link detection.</li>
           <li>Daily notes.</li>
+          <li>Today chat that appends user and AI turns to the daily HTML note.</li>
           <li>Basic graph data.</li>
         </ul>
 
@@ -90,6 +92,8 @@
 
         <h2>Phase 5: AI-Assisted Knowledge Work</h2>
         <ul>
+          <li>Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings.</li>
+          <li>Continue the Today conversation after recording the user's raw text locally.</li>
           <li>Summarize a note.</li>
           <li>Generate titles.</li>
           <li>Extract tags.</li>
@@ -132,6 +136,7 @@
           <li>Theme API.</li>
           <li>Plugin API.</li>
           <li>Workspace automation hooks.</li>
+          <li>Migrate old workspace files when users change workspace location.</li>
         </ul>
 
         <h2>Not Doing First</h2>

@@ -12,6 +12,10 @@ import type {
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 export const tauriWorkspaceAdapter: WorkspaceAdapter = {
+  async defaultWorkspacePath() {
+    return invoke<string>("default_workspace_path");
+  },
+
   async chooseWorkspace() {
     const selected = await open({
       directory: true,

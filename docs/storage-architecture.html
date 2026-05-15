@@ -27,6 +27,7 @@
         </section>
 
         <h2>Workspace Model</h2>
+        <p>The desktop app creates a default <code>Opaline</code> workspace under the user's documents folder. Users can change this location from Settings; the next step is a migration flow that can copy or move files from the previous workspace into the new one.</p>
         <pre><code>MyNotes/
   notes/
     index.html
@@ -46,6 +47,7 @@
           <li><code>.opaline/</code> stores rebuildable app metadata and cache.</li>
           <li>Deleting <code>.opaline/index.sqlite</code> should not destroy user content.</li>
           <li>The workspace should remain inspectable in normal file browsers.</li>
+          <li>Workspace location is a user setting, not a first-launch obstacle.</li>
         </ul>
 
         <h2>Storage Rule</h2>

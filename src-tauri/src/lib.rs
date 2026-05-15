@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
@@ -99,6 +100,16 @@ struct AssetImport {
 struct ImportedAsset {
     href: String,
     name: String,
+}
+
+#[tauri::command]
+fn default_workspace_path(app: tauri::AppHandle) -> Result<String, String> {
+    let base = app
+        .path()
+        .document_dir()
+        .or_else(|_| app.path().home_dir())
+        .map_err(to_error)?;
+    Ok(base.join("Opaline").to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -440,6 +451,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            default_workspace_path,
             ensure_workspace,
             list_notes,
             create_note,
