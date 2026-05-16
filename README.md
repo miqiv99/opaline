@@ -50,10 +50,12 @@ The current app is no longer only a scaffold. It already has the first usable de
 - SQLite-backed metadata/search direction, with FTS participation already introduced for search.
 - Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.
 - Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for the graph model.
+- The editor can copy a stable link to the current block and insert links to headings or blocks in the current note using stored block IDs.
+- A controlled built-in widget placeholder exists for future live components through readable `<opaline-widget>` HTML, starting with a local-graph widget; it does not allow arbitrary note scripts.
 - Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.
 - Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.
 - File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.
-- Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters.
+- Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters, current-note neighborhood mode, and edge details.
 
 Still rough:
 
@@ -231,6 +233,16 @@ Blocks can later receive stable identifiers:
   <p>...</p>
 </section>
 ```
+
+Controlled live components are stored as readable custom elements rather than arbitrary scripts:
+
+```html
+<opaline-widget type="local-graph" title="Current note neighborhood">
+  Opaline widget: Current note neighborhood
+</opaline-widget>
+```
+
+The first built-in model is intentionally narrow: Opaline may render known widget types such as `query`, `chart`, and `local-graph`, while an unsupported widget still degrades to readable text in a browser or another editor.
 
 ## Identity Model
 
@@ -663,8 +675,8 @@ These may become possible later. They should not define the first working versio
 1. Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.
 2. Add workspace migration when users change locations.
 3. Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.
-4. Improve the graph view now that it supports relation-type filters: better layout, focused neighborhoods, and clearer edge inspection.
-5. Add ordinary-user creation flows for heading, block, and concept links from the editor context menu.
+4. Improve the graph view beyond the first neighborhood and edge-detail pass: better layout, saved graph presets, and clearer navigation from edges back to exact targets.
+5. Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.
 6. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
 7. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
 8. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.

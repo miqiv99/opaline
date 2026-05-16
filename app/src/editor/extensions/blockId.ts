@@ -19,10 +19,44 @@ const blockTags = new Set([
   "table",
   "ul",
   "ol",
+  "opaline-widget",
 ]);
 
 export const BlockId = Extension.create({
   name: "blockId",
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: [
+          "paragraph",
+          "heading",
+          "listItem",
+          "codeBlock",
+          "blockquote",
+          "horizontalRule",
+          "table",
+          "bulletList",
+          "orderedList",
+          "opalineLayout",
+          "noteEmbed",
+          "mermaidBlock",
+          "mathBlock",
+          "opalineWidget",
+        ],
+        attributes: {
+          opalineBlockId: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("data-opaline-block-id"),
+            renderHTML: (attributes) => {
+              if (!attributes.opalineBlockId) return {};
+              return { "data-opaline-block-id": attributes.opalineBlockId as string };
+            },
+          },
+        },
+      },
+    ];
+  },
 
   addProseMirrorPlugins() {
     return [

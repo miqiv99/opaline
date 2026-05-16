@@ -20,7 +20,7 @@
         <pre><code>&lt;span data-opaline-unresolved="标题"&gt;[[标题]]&lt;/span&gt;</code></pre>
 
         <h2>四类关系</h2>
-        <p>当前数据模型和图谱已经区分四种关系，但普通用户通过右键创建“概念级关系”的交互还没做完。</p>
+        <p>当前数据模型和图谱已经区分四种关系。编辑器已经提供复制当前块链接、从当前笔记选择标题或块并插入链接的普通用户入口；从选中文字创建“概念级关系”的交互仍是后续步骤。</p>
         <ul>
           <li><strong>文件级：</strong>链接到某篇笔记。</li>
           <li><strong>标题级：</strong>链接到某篇笔记的某个标题。</li>
@@ -32,6 +32,7 @@
 &lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;某段内容&lt;/a&gt;
 &lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
         <p>图谱会把这些关系渲染为不同类型的边：文件、标题、块、概念。这样后续可以按关系类型过滤，而不是把所有链接都当作同一种边。</p>
+        <p>完整图谱现在可以聚焦当前笔记邻域，也可以点击边查看关系类型、来源、目标，以及具体标题、块或概念元数据。</p>
 
         <h2>普通 <code>&lt;a&gt;</code> 链接</h2>
         <ul>
@@ -45,7 +46,12 @@
         <h2>Block Ref</h2>
         <p>块引用通过 URL hash 和 <code>data-opaline-block-ref</code> 表达：</p>
         <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
-        <p>当前版本先解析目标笔记是否存在；具体 block id 是否存在，后续可以在索引层继续校验。</p>
+        <p>编辑器会在 Tiptap 状态中保留 <code>data-opaline-block-id</code>，创建块链接前也会补齐缺失 ID。当前索引先解析目标笔记是否存在；跨笔记精确校验 block id 是否存在，仍留给后续索引层实现。</p>
+
+        <h2>受控活组件</h2>
+        <p>活组件使用受控、可读 HTML 表达，而不是让笔记运行任意脚本：</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;Opaline widget: 当前笔记邻域&lt;/opaline-widget&gt;</code></pre>
+        <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。如果组件未支持、未安装，或在 Opaline 之外打开，保存的 fallback 文本仍然可读，也不会执行笔记作者写入的 JavaScript。</p>
 
         <h2>Broken Link</h2>
         <p>以下情况会被标记为断链：</p>

@@ -68,6 +68,7 @@
           <li>search index</li>
           <li>backlinks</li>
           <li>outgoing links</li>
+          <li>relationship kinds and block-reference metadata</li>
           <li>tags</li>
           <li>titles and aliases</li>
           <li>recent notes</li>
@@ -126,6 +127,7 @@ User Machine (primary)              │ Opaline Services (additive)│
         <p>Opaline should be designed so plugins are possible, but the first releases do not need a full public marketplace. The early goal is to make core features internally extensible, then expose a stable third-party plugin API after the editor, storage model, and note format have settled.</p>
 
         <p>The current architecture can support plugins if plugins interact with controlled application APIs instead of directly touching the file system, SQLite schema, or editor internals.</p>
+        <p>Live components should follow the same boundary. Notes may store readable <code>&lt;opaline-widget&gt;</code> elements, but rendering is handled by known built-in components or future permissioned plugins. The note itself does not get to execute arbitrary script.</p>
 
         <pre><code>React UI
 Editor
@@ -182,6 +184,7 @@ Plugin host
           <li>Plugins should not receive unrestricted file system access.</li>
           <li>Plugins should not execute shell commands by default.</li>
           <li>Plugins should not silently upload workspace content.</li>
+          <li>Plugin-rendered widgets should degrade to readable HTML when the plugin is missing.</li>
           <li>Bulk edits to notes should be previewable, reversible, or explicitly confirmed.</li>
           <li>AI plugins should clearly distinguish original note content from model-generated suggestions.</li>
         </ul>

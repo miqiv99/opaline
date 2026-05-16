@@ -957,6 +957,53 @@ button:disabled {
   color: #5b67db;
 }
 
+.atomic-link-dialog {
+  width: min(660px, 100%);
+}
+
+.atomic-link-list {
+  display: grid;
+  gap: 7px;
+  max-height: min(360px, 44vh);
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.atomic-link-list button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: 100%;
+  border: 1px solid var(--xz-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--xz-text-primary);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.atomic-link-list button:hover {
+  border-color: var(--xz-green);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.atomic-link-list strong,
+.atomic-link-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atomic-link-list small {
+  grid-column: 2;
+  color: var(--xz-text-tertiary);
+  font-size: 0.74rem;
+}
+
 .inspector-actions {
   display: grid;
   gap: 7px;
@@ -1395,6 +1442,46 @@ button:disabled {
 
 .editor-surface a {
   color: var(--xz-green-deep);
+}
+
+.editor-surface .is-block-link-target {
+  position: relative;
+  border-radius: 8px;
+  background: rgba(34, 168, 115, 0.16);
+  box-shadow:
+    0 0 0 2px rgba(34, 168, 115, 0.42),
+    0 10px 28px rgba(34, 168, 115, 0.18);
+  outline: 0;
+  animation: block-link-target-pulse 1.25s ease-in-out 2;
+}
+
+.editor-surface .is-block-link-target::before {
+  content: "";
+  position: absolute;
+  top: 0.18em;
+  bottom: 0.18em;
+  left: -14px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--xz-green);
+}
+
+@keyframes block-link-target-pulse {
+  0% {
+    box-shadow:
+      0 0 0 2px rgba(34, 168, 115, 0.28),
+      0 6px 18px rgba(34, 168, 115, 0.12);
+  }
+  45% {
+    box-shadow:
+      0 0 0 5px rgba(34, 168, 115, 0.5),
+      0 14px 34px rgba(34, 168, 115, 0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(34, 168, 115, 0.42),
+      0 10px 28px rgba(34, 168, 115, 0.18);
+  }
 }
 
 .editor-surface table {
@@ -1950,6 +2037,33 @@ button:disabled {
 
 .editor-surface .note-embed {
   margin: 1rem 0;
+}
+
+.editor-surface .opaline-widget-card {
+  display: grid;
+  gap: 7px;
+  margin: 1rem 0;
+  border: 1px solid rgba(91, 103, 219, 0.24);
+  border-radius: 16px;
+  background: rgba(91, 103, 219, 0.07);
+  padding: 14px;
+}
+
+.editor-surface .opaline-widget-card span {
+  color: #5b67db;
+  font-size: 0.76rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.editor-surface .opaline-widget-card strong {
+  font-size: 1rem;
+}
+
+.editor-surface .opaline-widget-card p {
+  margin: 0;
+  color: var(--xz-text-secondary);
+  font-size: 0.86rem;
 }
 
 .note-embed-card {
@@ -2690,6 +2804,20 @@ button:disabled {
   background: var(--xz-green-soft);
 }
 
+.graph-toolbar > button.graph-neighborhood-toggle {
+  width: auto;
+  min-width: 82px;
+  padding: 0 11px;
+  color: var(--xz-text-secondary);
+  font-size: 0.82rem;
+}
+
+.graph-toolbar > button.graph-neighborhood-toggle.is-active {
+  border-color: var(--xz-green-deep);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
 .graph-search-box {
   display: flex;
   align-items: center;
@@ -2839,4 +2967,43 @@ button:disabled {
 
 .graph-canvas g.is-active circle {
   filter: drop-shadow(0 2px 4px rgba(20, 122, 85, 0.3));
+}
+
+.graph-edge-detail {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  width: min(360px, calc(100% - 28px));
+  border: 1px solid rgba(60, 60, 67, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+}
+
+.graph-edge-detail strong,
+.graph-edge-detail p,
+.graph-edge-detail small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-edge-detail p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--xz-text-secondary);
+  font-size: 0.8rem;
+}
+
+.graph-edge-detail small {
+  grid-column: 1 / -1;
+  color: var(--xz-text-tertiary);
+  font-size: 0.76rem;
 }

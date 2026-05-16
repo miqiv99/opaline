@@ -72,6 +72,7 @@ const allowedTags = new Set([
   "label",
   "li",
   "ol",
+  "opaline-widget",
   "p",
   "pre",
   "section",
@@ -98,6 +99,7 @@ const allowedAttrs = new Set([
   "lang",
   "rowspan",
   "src",
+  "data-query",
   "title",
   "type",
 ]);
@@ -239,7 +241,7 @@ const isSafeUrl = (value: string): boolean => {
 
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:";
+    return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:" || url.protocol === "tel:" || url.protocol === "opaline:";
   } catch {
     return false;
   }

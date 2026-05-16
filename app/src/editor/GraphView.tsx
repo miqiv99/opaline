@@ -1,7 +1,7 @@
 import { ArrowLeft, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import type { GraphData, LinkKind } from "../domain/note";
+import type { GraphData, GraphEdge, LinkKind } from "../domain/note";
 import { createForceSimulation } from "./graphForce";
 import type { SimEdge, SimNode } from "./graphForce";
 
@@ -41,6 +41,8 @@ export function GraphView({
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [activeKinds, setActiveKinds] = useState<Set<LinkKind>>(new Set(LINK_KINDS));
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<(GraphEdge & { idx: number }) | null>(null);
+  const [focusNeighborhood, setFocusNeighborhood] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const simRef = useRef<ReturnType<typeof createForceSimulation> | null>(null);
   const animRef = useRef(0);
@@ -56,21 +58,34 @@ export function GraphView({
       .slice(0, maxNodes);
 
     const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
-    const filteredEdges = graph.edges.filter(
+    const kindFilteredEdges = graph.edges.filter(
       (e) =>
         candidateNodeIds.has(e.source) &&
         candidateNodeIds.has(e.target) &&
         activeKinds.has((e.kind ?? "note") as LinkKind),
     );
+    const neighborhoodIds = new Set<string>();
+    if (focusNeighborhood && activeNoteId) {
+      neighborhoodIds.add(activeNoteId);
+      for (const edge of kindFilteredEdges) {
+        if (edge.source === activeNoteId) neighborhoodIds.add(edge.target);
+        if (edge.target === activeNoteId) neighborhoodIds.add(edge.source);
+      }
+    }
+    const filteredEdges = focusNeighborhood && activeNoteId
+      ? kindFilteredEdges.filter((edge) => neighborhoodIds.has(edge.source) && neighborhoodIds.has(edge.target))
+      : kindFilteredEdges;
     const connectedConcepts = new Set(
       filteredEdges.flatMap((edge) => [edge.source, edge.target]),
     );
     const filteredNodes = candidateNodes.filter(
-      (node) => node.kind !== "concept" || connectedConcepts.has(node.id),
+      (node) =>
+        (!focusNeighborhood || !activeNoteId || neighborhoodIds.has(node.id)) &&
+        (node.kind !== "concept" || connectedConcepts.has(node.id)),
     );
 
     return { nodes: filteredNodes, edges: filteredEdges };
-  }, [graph, activeTags, activeKinds]);
+  }, [graph, activeTags, activeKinds, activeNoteId, focusNeighborhood]);
 
   const simEdges: SimEdge[] = useMemo(
     () => visibleGraph.edges.map((e) => ({ source: e.source, target: e.target })),
@@ -249,10 +264,12 @@ export function GraphView({
         ? edge.source !== hoveredNode && edge.target !== hoveredNode
         : highlightedNodes
           ? !highlightedNodes.has(edge.source) && !highlightedNodes.has(edge.target)
-          : false;
-      return { ...edge, idx, dimmed };
+          : selectedEdge
+            ? selectedEdge.idx !== idx
+            : false;
+      return { ...edge, idx, dimmed, selected: selectedEdge?.idx === idx };
     });
-  }, [visibleGraph.edges, hoveredNode, highlightedNodes]);
+  }, [visibleGraph.edges, hoveredNode, highlightedNodes, selectedEdge]);
 
   if (!graph.nodes.length) {
     return (
@@ -296,9 +313,17 @@ export function GraphView({
           </div>
         ) : null}
         <div className="graph-summary">
-          {graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {graph.edges.length} 条关系
+          {visibleGraph.nodes.filter((node) => node.kind !== "concept").length} / {graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {visibleGraph.edges.length} / {graph.edges.length} 条关系
           {graph.brokenLinks.length ? ` · ${graph.brokenLinks.length} 条断链` : ""}
         </div>
+        <button
+          type="button"
+          className={focusNeighborhood ? "graph-neighborhood-toggle is-active" : "graph-neighborhood-toggle"}
+          disabled={!activeNoteId}
+          onClick={() => setFocusNeighborhood((value) => !value)}
+        >
+          当前邻域
+        </button>
         <div className="graph-kind-filters" aria-label="关系类型">
           {LINK_KINDS.map((kind) => (
             <button
@@ -331,6 +356,7 @@ export function GraphView({
           aria-label="笔记图谱"
           onWheel={handleWheel}
           onPointerDown={handlePointerDown}
+          onClick={() => setSelectedEdge(null)}
         >
           {displayEdges.map((edge) => {
             const source = displayNodes.find((n) => n.id === edge.source);
@@ -346,8 +372,13 @@ export function GraphView({
                 x2={target.x}
                 y2={target.y}
                 stroke={edge.dimmed ? meta.dim : meta.color}
-                strokeWidth={kind === "block" ? 1.5 : 1.25}
+                strokeWidth={edge.selected ? 3 : kind === "block" ? 1.5 : 1.25}
                 strokeDasharray={meta.dash}
+                style={{ cursor: "pointer" }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedEdge(edge);
+                }}
               >
                 <title>{`${LINK_KIND_META[kind].label}关系：${edge.label || ""}`}</title>
               </line>
@@ -387,7 +418,22 @@ export function GraphView({
             </g>
           ))}
         </svg>
+        {selectedEdge ? (
+          <div className="graph-edge-detail" role="status">
+            <span className={`relation-kind is-${selectedEdge.kind ?? "note"}`}>
+              {LINK_KIND_META[(selectedEdge.kind ?? "note") as LinkKind].label}
+            </span>
+            <strong>{selectedEdge.label || "未命名关系"}</strong>
+            <p>{edgeNodeTitle(graph, selectedEdge.source)} {"->"} {edgeNodeTitle(graph, selectedEdge.target)}</p>
+            {selectedEdge.targetHeading ? <small>标题：{selectedEdge.targetHeading}</small> : null}
+            {selectedEdge.targetBlockId ? <small>块：#{selectedEdge.targetBlockId}</small> : null}
+            {selectedEdge.concept ? <small>概念：#{selectedEdge.concept}</small> : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
 }
+
+const edgeNodeTitle = (graph: GraphData, nodeId: string) =>
+  graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;

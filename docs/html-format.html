@@ -143,6 +143,13 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
   &lt;h2&gt;Introduction&lt;/h2&gt;
   &lt;p&gt;...&lt;/p&gt;
 &lt;/section&gt;</code></pre>
+
+        <h2>Controlled Widgets</h2>
+        <p>Opaline can store future live components as custom elements while keeping the note readable outside the app. The current allowed model is deliberately small: known built-ins such as <code>query</code>, <code>chart</code>, and <code>local-graph</code> may be rendered by Opaline, but note-authored JavaScript is not allowed.</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;
+  Opaline widget: Current note neighborhood
+&lt;/opaline-widget&gt;</code></pre>
+        <p>If the widget is unsupported or opened in a normal browser, the fallback text remains visible. Data should live in attributes or readable child content, not hidden script blocks.</p>
       </article>
     </main>
   </body>

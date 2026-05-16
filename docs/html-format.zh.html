@@ -138,6 +138,13 @@ This is English.
   &lt;h2&gt;引言&lt;/h2&gt;
   &lt;p&gt;...&lt;/p&gt;
 &lt;/section&gt;</code></pre>
+
+        <h2>受控活组件</h2>
+        <p>Opaline 可以把未来的活组件保存为自定义元素，同时让笔记在应用之外仍然可读。当前模型刻意保持很小：<code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型可以由 Opaline 渲染，但笔记作者不能写入任意 JavaScript。</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;
+  Opaline widget: 当前笔记邻域
+&lt;/opaline-widget&gt;</code></pre>
+        <p>如果组件未支持，或用普通浏览器打开，fallback 文本仍可见。组件数据应放在属性或可读子内容中，而不是隐藏脚本块里。</p>
       </article>
     </main>
   </body>

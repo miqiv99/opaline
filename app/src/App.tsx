@@ -55,6 +55,12 @@ const LINK_KIND_LABEL: Record<LinkKind, string> = {
   concept: "概念",
 };
 
+const normalizeInternalNotePath = (value: string) =>
+  decodeURIComponent(value)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/^notes\//, "");
+
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
 type AppView = "home" | "today" | "note" | "settings" | "graph";
 type VaultSortMode = "updated" | "title";
@@ -127,6 +133,7 @@ export function App() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [backlinks, setBacklinks] = useState<SearchResult[]>([]);
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [], brokenLinks: [] });
+  const [pendingBlockTarget, setPendingBlockTarget] = useState<{ blockId: string; requestId: number } | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("未命名笔记");
   const [draftLang, setDraftLang] = useState("zh-Hans");
@@ -393,6 +400,28 @@ export function App() {
       }
     },
     [refreshBacklinks, workspace.notes, workspace.path],
+  );
+
+  const openInternalLink = useCallback(
+    async (target: { noteId?: string; notePath?: string; blockId?: string | null }) => {
+      const normalizedTargetPath = target.notePath ? normalizeInternalNotePath(target.notePath) : null;
+      const note = workspace.notes.find((item) => {
+        if (target.noteId && item.id === target.noteId) return true;
+        return normalizedTargetPath !== null && normalizeInternalNotePath(item.path) === normalizedTargetPath;
+      });
+
+      if (!note) {
+        setStatus("找不到这个内部链接指向的笔记");
+        return;
+      }
+
+      if (target.blockId) {
+        setPendingBlockTarget({ blockId: target.blockId, requestId: Date.now() });
+      }
+
+      await openNote(note);
+    },
+    [openNote, workspace.notes],
   );
 
   const openSearchResult = useCallback(
@@ -988,10 +1017,14 @@ export function App() {
             <OpalineEditor
               content={articleHtml}
               isSaving={isSaving}
+              currentNote={workspace.activeNote}
+              linkableNotes={workspace.notes}
+              scrollToBlockTarget={pendingBlockTarget}
               onChange={setArticleHtml}
               onSave={saveNote}
               onImportAsset={importAsset}
               onSearchNotes={searchNoteSuggestions}
+              onOpenInternalLink={openInternalLink}
             />
             <aside className="inspector">
               <Section title="大纲" icon={<FileText size={16} />}>
@@ -1001,7 +1034,7 @@ export function App() {
                   <p className="muted">还没有标题。</p>
                 )}
               </Section>
-              <Section title="出链" icon={<Link2 size={16} />}>
+              <Section title="本篇关联" icon={<Link2 size={16} />}>
                 {workspace.activeNote.outgoingLinks.length ? (
                   workspace.activeNote.outgoingLinks.map((link) => {
                     const target = link.targetId ? workspace.notes.find((note) => note.id === link.targetId) : null;
@@ -1026,10 +1059,10 @@ export function App() {
                     );
                   })
                 ) : (
-                  <p className="muted">还没有链接。</p>
+                  <p className="muted">这篇笔记还没有引用其他笔记、标题、块或概念。</p>
                 )}
               </Section>
-              <Section title="反链" icon={<Clock3 size={16} />}>
+              <Section title="谁提到本篇" icon={<Clock3 size={16} />}>
                 {backlinks.length ? (
                   backlinks.map((link) => (
                     <button key={link.id} className="inspector-link" type="button" onClick={() => openSearchResult(link)}>
@@ -1037,10 +1070,10 @@ export function App() {
                     </button>
                   ))
                 ) : (
-                  <p className="muted">还没有反链。</p>
+                  <p className="muted">还没有其他笔记提到本篇。保存链接后这里会自动更新。</p>
                 )}
               </Section>
-              <Section title="图谱" icon={<Network size={16} />}>
+              <Section title="本篇图谱" icon={<Network size={16} />}>
                 <GraphPreview
                   graph={graph}
                   activeNoteId={workspace.activeNote.id}
@@ -1049,7 +1082,11 @@ export function App() {
                     if (note) void openNote(note);
                   }}
                 />
-                {graph.brokenLinks.length ? <p className="is-broken">{graph.brokenLinks.length} 条断链</p> : null}
+                {workspace.activeNote.outgoingLinks.filter((link) => link.isBroken).length ? (
+                  <p className="is-broken">
+                    {workspace.activeNote.outgoingLinks.filter((link) => link.isBroken).length} 条本篇断链
+                  </p>
+                ) : null}
               </Section>
             </aside>
           </div>
@@ -1244,28 +1281,43 @@ function GraphPreview({
   activeNoteId: string;
   onOpenNode: (nodeId: string) => void;
 }) {
-  const nodes = graph.nodes.slice(0, 20);
+  const activeNode = graph.nodes.find((node) => node.id === activeNoteId);
+  const neighborhoodEdges = graph.edges.filter((edge) => edge.source === activeNoteId || edge.target === activeNoteId);
+  const neighborhoodIds = new Set<string>([activeNoteId]);
+  for (const edge of neighborhoodEdges) {
+    neighborhoodIds.add(edge.source);
+    neighborhoodIds.add(edge.target);
+  }
+  const nodes = graph.nodes
+    .filter((node) => neighborhoodIds.has(node.id))
+    .sort((a, b) => Number(b.id === activeNoteId) - Number(a.id === activeNoteId))
+    .slice(0, 20);
   const width = 260;
   const height = 200;
   const centerX = width / 2;
   const centerY = height / 2;
-  const radius = Math.max(60, nodes.length <= 1 ? 0 : Math.min(80, nodes.length * 8));
+  const neighborNodes = nodes.filter((node) => node.id !== activeNoteId);
+  const radius = Math.max(60, neighborNodes.length <= 1 ? 0 : Math.min(80, neighborNodes.length * 10));
   const positions = new Map(
     nodes.map((node, index) => {
-      const angle = nodes.length <= 1 ? 0 : (Math.PI * 2 * index) / nodes.length - Math.PI / 2;
+      if (node.id === activeNoteId) {
+        return [node.id, { x: centerX, y: centerY }] as const;
+      }
+      const neighborIndex = Math.max(0, index - 1);
+      const angle = neighborNodes.length <= 1 ? -Math.PI / 2 : (Math.PI * 2 * neighborIndex) / neighborNodes.length - Math.PI / 2;
       return [
         node.id,
         {
-          x: nodes.length <= 1 ? centerX : centerX + Math.cos(angle) * radius,
-          y: nodes.length <= 1 ? centerY : centerY + Math.sin(angle) * radius,
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
         },
       ] as const;
     }),
   );
   const visibleIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 36);
+  const edges = neighborhoodEdges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 36);
 
-  if (!nodes.length) {
+  if (!activeNode) {
     return <p className="muted">还没有可显示的图谱。</p>;
   }
 
@@ -1305,7 +1357,11 @@ function GraphPreview({
           );
         })}
       </svg>
-      <p>{graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {graph.edges.length} 条关系</p>
+      <p>
+        {edges.length
+          ? `当前笔记 · ${nodes.length - 1} 个相邻节点 · ${edges.length} 条关系`
+          : "当前笔记暂时没有关联关系"}
+      </p>
     </div>
   );
 }

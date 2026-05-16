@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Code2,
   Columns2,
+  Copy,
   FileImage,
   GitBranch,
   Heading1,
@@ -24,6 +25,7 @@ import {
   List,
   ListOrdered,
   MessageSquareQuote,
+  Network,
   PanelRight,
   Pi,
   Redo2,
@@ -44,8 +46,9 @@ import { getAiAdapter, loadAiSettings } from "../ai/settings";
 import { MathInline, MathBlock } from "./extensions/math";
 import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
-import { BlockId } from "./extensions/blockId";
+import { BlockId, assignBlockIds, listBlockIds } from "./extensions/blockId";
 import { DisclosureBlock, DisclosureContent, DisclosureSummary, LayoutColumn, OpalineLayout } from "./extensions/layout";
+import { OpalineWidget } from "./extensions/widget";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -55,20 +58,57 @@ export type NoteSuggestion = {
   excerpt: string;
 };
 
+type EditorNoteReference = {
+  id: string;
+  title: string;
+  path: string;
+};
+
 type OpalineEditorProps = {
   content: string;
   isSaving: boolean;
+  currentNote: EditorNoteReference | null;
+  linkableNotes?: EditorNoteReference[];
+  scrollToBlockTarget?: { blockId: string; requestId: number } | null;
   onChange: (html: string) => void;
   onSave: () => void;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
   onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
+  onOpenInternalLink?: (target: InternalLinkTarget) => void;
 };
 
-export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onSearchNotes }: OpalineEditorProps) {
+export function OpalineEditor({
+  content,
+  isSaving,
+  currentNote,
+  linkableNotes = [],
+  scrollToBlockTarget,
+  onChange,
+  onSave,
+  onImportAsset,
+  onSearchNotes,
+  onOpenInternalLink,
+}: OpalineEditorProps) {
   const [dialog, setDialog] = useState<InsertDialogState | null>(null);
   const [aiResult, setAiResult] = useState<AiResultState | null>(null);
+  const [noteLinkDialogOpen, setNoteLinkDialogOpen] = useState(false);
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
+  const [atomicLinkDialogOpen, setAtomicLinkDialogOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const linkContextRef = useRef<InternalLinkContext>({
+    currentNote,
+    notes: linkableNotes,
+    onOpenInternalLink,
+  });
+
+  useEffect(() => {
+    linkContextRef.current = {
+      currentNote,
+      notes: linkableNotes,
+      onOpenInternalLink,
+    };
+  }, [currentNote, linkableNotes, onOpenInternalLink]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -101,6 +141,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
       MathBlock,
       MermaidBlock,
       NoteEmbed,
+      OpalineWidget,
       BlockId,
       LayoutColumn,
       OpalineLayout,
@@ -114,6 +155,9 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         class: "editor-surface",
       },
       handleDOMEvents: {
+        click: (_view, event) => {
+          return handleEditorLinkClick(event, linkContextRef.current);
+        },
         contextmenu: (_view, event) => {
           event.preventDefault();
           setContextMenu({ x: event.clientX, y: event.clientY });
@@ -133,6 +177,18 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
 
     editor.commands.setContent(content, false);
   }, [content, editor]);
+
+  useEffect(() => {
+    if (!editor || !scrollToBlockTarget) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      scrollEditorToBlock(editor, scrollToBlockTarget.blockId);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [content, editor, scrollToBlockTarget]);
 
   if (!editor) {
     return <div className="editor-empty">正在准备编辑器...</div>;
@@ -173,6 +229,12 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         <IconButton label="插入图表" onClick={() => setDialog({ type: "mermaid", value: "graph TD\n  A[开始] --> B[完成]" })}>
           <GitBranch size={17} />
         </IconButton>
+        <IconButton label="链接到本篇标题/段落" onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
+          <LinkIcon size={17} />
+        </IconButton>
+        <IconButton label="本地图谱组件" onClick={() => editor.chain().focus().insertOpalineWidget({ type: "local-graph", title: "当前笔记邻域" }).run()}>
+          <Network size={17} />
+        </IconButton>
         {onSearchNotes ? (
           <IconButton label="嵌入笔记" onClick={() => setEmbedDialogOpen(true)}>
             <FileImage size={17} />
@@ -188,16 +250,33 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         editor={editor}
         state={contextMenu}
         onClose={() => setContextMenu(null)}
-        onLink={() => openLinkDialog(editor, setDialog)}
+        onNoteLink={() => setNoteLinkDialogOpen(true)}
+        onAtomicLink={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}
+        onCopyBlockLink={() => copyCurrentBlockLink(editor, currentNote, onChange)}
+        onWebLink={() => openLinkDialog(editor, setDialog)}
         onImage={() => insertImage(editor, onImportAsset)}
         onMathInline={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}
         onAiAction={(action) => {
           void runEditorAiAction(editor, action, setAiResult);
         }}
         onEmbedNote={() => setEmbedDialogOpen(true)}
+        canLinkNote={Boolean(onSearchNotes)}
         canEmbedNote={Boolean(onSearchNotes)}
       />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
+      <AtomicLinkDialog
+        editor={editor}
+        open={atomicLinkDialogOpen}
+        currentNote={currentNote}
+        onChange={onChange}
+        onClose={() => setAtomicLinkDialogOpen(false)}
+      />
+      <NoteLinkDialog
+        editor={editor}
+        open={noteLinkDialogOpen}
+        onSearchNotes={onSearchNotes}
+        onClose={() => setNoteLinkDialogOpen(false)}
+      />
       <EmbedNoteDialog
         editor={editor}
         open={embedDialogOpen}
@@ -345,6 +424,374 @@ const insertEmbed = (
   editor.chain().focus().setNoteEmbed({ noteId: note.id, title: note.title, excerpt: note.excerpt }).run();
 };
 
+const insertNoteLink = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  note: NoteSuggestion,
+) => {
+  const { from, to } = editor.state.selection;
+  const selected = editor.state.doc.textBetween(from, to, " ").trim();
+  const text = selected || note.title;
+  const href = relativeNoteHref(note.path);
+  const linkHtml = `<a href="${escapeAttribute(href)}" data-opaline-link="${escapeAttribute(note.id)}" data-opaline-link-kind="note">${escapeHtml(text)}</a>`;
+  editor.chain().focus().insertContentAt({ from, to }, linkHtml).run();
+};
+
+const relativeNoteHref = (notePath: string) => notePath.replace(/^notes\//, "");
+
+const cssEscape = (value: string) => {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return value.replace(/["\\]/g, "\\$&");
+};
+
+type InternalLinkTarget = {
+  noteId?: string;
+  notePath?: string;
+  blockId?: string | null;
+};
+
+type InternalLinkContext = {
+  currentNote: EditorNoteReference | null;
+  notes: EditorNoteReference[];
+  onOpenInternalLink?: (target: InternalLinkTarget) => void;
+};
+
+const handleEditorLinkClick = (
+  event: MouseEvent,
+  context: InternalLinkContext,
+) => {
+  const target = event.target as HTMLElement | null;
+  const link = target?.closest<HTMLAnchorElement>("a[href]");
+  if (!link) return false;
+
+  const internalTarget = getInternalLinkTarget(link, context.notes);
+  if (!internalTarget) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const targetNotePath = internalTarget.notePath ? normalizeNoteHrefPath(internalTarget.notePath) : null;
+  const currentNotePath = context.currentNote ? normalizeNoteHrefPath(relativeNoteHref(context.currentNote.path)) : null;
+  const isCurrentNote =
+    !internalTarget.noteId && !targetNotePath
+      ? true
+      : Boolean(
+          context.currentNote &&
+          ((internalTarget.noteId && internalTarget.noteId === context.currentNote.id) ||
+            (targetNotePath && targetNotePath === currentNotePath)),
+        );
+
+  if (!isCurrentNote && (internalTarget.noteId || internalTarget.notePath)) {
+    context.onOpenInternalLink?.(internalTarget);
+    return true;
+  }
+
+  if (internalTarget.blockId) {
+    const didScroll = scrollEditorToBlockFromLink(link, internalTarget.blockId);
+    if (!didScroll && (internalTarget.noteId || internalTarget.notePath)) {
+      context.onOpenInternalLink?.(internalTarget);
+    }
+  }
+
+  return true;
+};
+
+const getInternalLinkTarget = (
+  link: HTMLAnchorElement,
+  notes: EditorNoteReference[],
+): InternalLinkTarget | null => {
+  const href = link.getAttribute("href") ?? "";
+  const noteId = link.getAttribute("data-opaline-link") ?? undefined;
+  const explicitBlockId = link.getAttribute("data-opaline-block-ref");
+  const textTarget = resolveInternalLinkText(link.textContent ?? "", notes);
+  let notePath: string | undefined;
+  let blockId = explicitBlockId ?? textTarget?.blockId ?? null;
+
+  if (href.startsWith("#")) {
+    blockId = blockId ?? decodeURIComponent(href.slice(1));
+    return mergeInternalTargets({ noteId, blockId }, textTarget);
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(href, window.location.href);
+  } catch {
+    return mergeInternalTargets(noteId ? { noteId, blockId } : null, textTarget);
+  }
+
+  if (parsed.origin !== window.location.origin) {
+    return mergeInternalTargets(noteId ? { noteId, blockId } : null, textTarget);
+  }
+
+  if (parsed.hash) {
+    blockId = blockId ?? decodeURIComponent(parsed.hash.slice(1));
+  }
+
+  const parsedPath = normalizeNoteHrefPath(parsed.pathname);
+  const currentPath = normalizeNoteHrefPath(window.location.pathname);
+  if (parsedPath && parsedPath !== currentPath) {
+    notePath = parsedPath;
+  }
+
+  return mergeInternalTargets(
+    noteId || notePath || blockId ? { noteId, notePath, blockId } : null,
+    textTarget,
+  );
+};
+
+const scrollEditorToBlock = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  blockId: string,
+) => {
+  const targetBlock = editor.view.dom.querySelector<HTMLElement>(
+    `[data-opaline-block-id="${cssEscape(blockId)}"], #${cssEscape(blockId)}`,
+  );
+
+  return revealBlockTarget(targetBlock);
+};
+
+const scrollEditorToBlockFromLink = (link: HTMLAnchorElement, blockId: string) => {
+  const surface = link.closest(".editor-surface");
+  const targetBlock = surface?.querySelector<HTMLElement>(
+    `[data-opaline-block-id="${cssEscape(blockId)}"], #${cssEscape(blockId)}`,
+  );
+
+  return revealBlockTarget(targetBlock ?? null);
+};
+
+const revealBlockTarget = (targetBlock: HTMLElement | null) => {
+  if (!targetBlock) return false;
+
+  targetBlock.scrollIntoView({ block: "center", behavior: "smooth" });
+  targetBlock.classList.add("is-block-link-target");
+  window.setTimeout(() => targetBlock.classList.remove("is-block-link-target"), 3200);
+  return true;
+};
+
+const normalizeNoteHrefPath = (value: string) =>
+  decodeURIComponent(value)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/^notes\//, "");
+
+const resolveInternalLinkText = (
+  value: string,
+  notes: EditorNoteReference[],
+): InternalLinkTarget | null => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  const [title, blockId] = splitVisibleBlockRef(normalized);
+  if (!blockId) return null;
+
+  const note = notes.find((item) => item.title.toLowerCase() === title.toLowerCase());
+  if (!note) return null;
+
+  return {
+    noteId: note.id,
+    notePath: relativeNoteHref(note.path),
+    blockId,
+  };
+};
+
+const splitVisibleBlockRef = (value: string): [string, string | null] => {
+  const hashIndex = value.lastIndexOf("#");
+  if (hashIndex === -1) return [value.trim(), null];
+  const title = value.slice(0, hashIndex).trim();
+  const blockId = value.slice(hashIndex + 1).trim();
+  return title && blockId ? [title, blockId] : [value.trim(), null];
+};
+
+const mergeInternalTargets = (
+  primary: InternalLinkTarget | null,
+  fallback: InternalLinkTarget | null,
+): InternalLinkTarget | null => {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+
+  return {
+    noteId: primary.noteId ?? fallback.noteId,
+    notePath: primary.notePath ?? fallback.notePath,
+    blockId: primary.blockId ?? fallback.blockId,
+  };
+};
+
+type AtomicLinkTarget = {
+  id: string;
+  kind: "heading" | "block";
+  label: string;
+  detail: string;
+};
+
+const openAtomicLinkDialog = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  onChange: (html: string) => void,
+  setOpen: (open: boolean) => void,
+) => {
+  ensureEditorBlockIds(editor, onChange);
+  setOpen(true);
+};
+
+const ensureEditorBlockIds = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  onChange: (html: string) => void,
+) => {
+  const current = editor.getHTML();
+  const withIds = assignBlockIds(current);
+  if (withIds !== current) {
+    editor.commands.setContent(withIds, false);
+    onChange(withIds);
+  }
+  return withIds;
+};
+
+const copyCurrentBlockLink = async (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  currentNote: { id: string; title: string; path: string } | null,
+  onChange: (html: string) => void,
+) => {
+  if (!currentNote) {
+    window.alert("请先打开一篇笔记。");
+    return;
+  }
+
+  ensureEditorBlockIds(editor, onChange);
+  const blockId = currentBlockId(editor) ?? listBlockIds(editor.getHTML())[0]?.id;
+  if (!blockId) {
+    window.alert("当前没有可复制的块链接。");
+    return;
+  }
+
+  const plainText = `[[${currentNote.title}#${blockId}]]`;
+  const linkText = `${currentNote.title}#${blockId}`;
+  const href = `${relativeNoteHref(currentNote.path)}#${blockId}`;
+  const linkHtml = `<a href="${escapeAttribute(href)}" data-opaline-link="${escapeAttribute(currentNote.id)}" data-opaline-link-kind="block" data-opaline-block-ref="${escapeAttribute(blockId)}">${escapeHtml(linkText)}</a>`;
+  await writeClipboardLink(plainText, linkHtml);
+};
+
+const writeClipboardLink = async (plainText: string, html: string) => {
+  const clipboardItem = typeof ClipboardItem !== "undefined" ? ClipboardItem : null;
+  if (clipboardItem && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new clipboardItem({
+          "text/plain": new Blob([plainText], { type: "text/plain" }),
+          "text/html": new Blob([html], { type: "text/html" }),
+        }),
+      ]);
+      return;
+    } catch {
+      await navigator.clipboard?.writeText(plainText);
+      return;
+    }
+  }
+
+  await navigator.clipboard?.writeText(plainText);
+};
+
+const currentBlockId = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+  const { from } = editor.state.selection;
+  const domAtPos = editor.view.domAtPos(from).node;
+  const element =
+    domAtPos.nodeType === Node.ELEMENT_NODE
+      ? (domAtPos as Element)
+      : (domAtPos.parentElement as Element | null);
+  return element?.closest("[data-opaline-block-id]")?.getAttribute("data-opaline-block-id") ?? null;
+};
+
+function AtomicLinkDialog({
+  editor,
+  open,
+  currentNote,
+  onChange,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  open: boolean;
+  currentNote: { id: string; title: string; path: string } | null;
+  onChange: (html: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (open) setQuery("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const html = editor.getHTML();
+  const blocks = listBlockIds(html);
+  const targets: AtomicLinkTarget[] = blocks.map((block) => {
+    const isHeading = /^h[1-6]$/.test(block.tag);
+    return {
+      id: block.id,
+      kind: isHeading ? "heading" : "block",
+      label: block.text || block.id,
+      detail: isHeading ? `${block.tag.toUpperCase()} · #${block.id}` : `${block.tag} · #${block.id}`,
+    };
+  });
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleTargets = normalizedQuery
+    ? targets.filter((target) => `${target.label} ${target.detail}`.toLowerCase().includes(normalizedQuery))
+    : targets;
+
+  const pick = (target: AtomicLinkTarget) => {
+    if (!currentNote) return;
+    const { from, to } = editor.state.selection;
+    const selected = editor.state.doc.textBetween(from, to, " ").trim();
+    const text = selected || target.label || target.id;
+    const metadata =
+      target.kind === "heading"
+        ? `data-opaline-heading="${escapeAttribute(target.label)}"`
+        : `data-opaline-block-ref="${escapeAttribute(target.id)}"`;
+    const linkHtml = `<a href="#${escapeAttribute(target.id)}" data-opaline-link="${escapeAttribute(currentNote.id)}" data-opaline-link-kind="${target.kind}" ${metadata}>${escapeHtml(text)}</a>`;
+    editor.chain().focus().insertContentAt({ from, to }, linkHtml).run();
+    onClose();
+  };
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label="链接到本篇标题或段落">
+      <div className="insert-card atomic-link-dialog">
+        <header>
+          <strong>链接到本篇标题/段落</strong>
+          <p>选择当前笔记里的标题、段落、表格或块。链接会使用稳定 ID，不靠第几段这种脆弱位置。</p>
+        </header>
+        {!currentNote ? (
+          <p className="muted">请先打开一篇笔记。</p>
+        ) : (
+          <>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="筛选标题、段落、表格或块 ID"
+              autoFocus
+              onKeyDown={(event) => {
+                if (event.key === "Escape") onClose();
+                if (event.key === "Enter" && visibleTargets[0]) pick(visibleTargets[0]);
+              }}
+            />
+            <div className="atomic-link-list">
+              {visibleTargets.slice(0, 40).map((target) => (
+                <button key={`${target.kind}-${target.id}`} type="button" onClick={() => pick(target)}>
+                  <span className={`relation-kind is-${target.kind}`}>{target.kind === "heading" ? "标题" : "块"}</span>
+                  <strong>{target.label}</strong>
+                  <small>{target.detail}</small>
+                </button>
+              ))}
+              {!visibleTargets.length ? <p className="muted">没有匹配的标题或块。</p> : null}
+            </div>
+          </>
+        )}
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InsertDialog({
   editor,
   state,
@@ -364,13 +811,13 @@ function InsertDialog({
 
   const isTextArea = state.type === "mermaid" || state.type === "math-block";
   const titleMap: Record<InsertDialogState["type"], string> = {
-    link: "设置链接",
+    link: "添加网页链接",
     "math-inline": "插入行内公式",
     "math-block": "插入公式块",
     mermaid: "设计图表",
   };
   const helpMap: Record<InsertDialogState["type"], string> = {
-    link: "输入网页、文件或笔记链接。清空后会移除当前链接。",
+    link: "链到外部 URL。清空后会移除当前链接。",
     "math-inline": "输入 LaTeX，插入为行内公式。",
     "math-block": "输入 LaTeX，插入为居中的公式块。",
     mermaid: "选择一个模板或编辑图表结构，插入后页面里显示为图表。",
@@ -434,21 +881,29 @@ function EditorContextMenu({
   editor,
   state,
   onClose,
-  onLink,
+  onNoteLink,
+  onAtomicLink,
+  onCopyBlockLink,
+  onWebLink,
   onImage,
   onMathInline,
   onAiAction,
   onEmbedNote,
+  canLinkNote,
   canEmbedNote,
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
   state: ContextMenuState | null;
   onClose: () => void;
-  onLink: () => void;
+  onNoteLink: () => void;
+  onAtomicLink: () => void;
+  onCopyBlockLink: () => void | Promise<void>;
+  onWebLink: () => void;
   onImage: () => void;
   onMathInline: () => void;
   onAiAction: (action: AiEditorAction) => void;
   onEmbedNote: () => void;
+  canLinkNote: boolean;
   canEmbedNote: boolean;
 }) {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -497,14 +952,13 @@ function EditorContextMenu({
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <ContextMenuItem icon={<LinkIcon size={17} />} label="新增链接" onClick={() => run(onLink)} />
+      <ContextMenuItem icon={<LinkIcon size={17} />} label="链接到其他笔记..." disabled={!canLinkNote} onClick={() => run(onNoteLink)} />
+      <ContextMenuItem icon={<LinkIcon size={17} />} label="链接到本篇标题/段落..." onClick={() => run(onAtomicLink)} />
+      <ContextMenuItem icon={<Copy size={17} />} label="复制这段的链接" onClick={() => run(onCopyBlockLink)} />
       <ContextMenuItem
         icon={<LinkIcon size={17} />}
-        label="新增外部链接"
-        onClick={() => run(() => {
-          const href = window.prompt("输入外部链接")?.trim();
-          if (href) editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
-        })}
+        label="添加网页链接..."
+        onClick={() => run(onWebLink)}
       />
       <ContextMenuSeparator />
       <ContextMenuItem
@@ -661,6 +1115,93 @@ function ContextMenuSeparator() {
   return <span className="context-menu-separator" role="separator" />;
 }
 
+function NoteLinkDialog({
+  editor,
+  open,
+  onSearchNotes,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  open: boolean;
+  onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NoteSuggestion[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "empty">("idle");
+
+  useEffect(() => {
+    if (!open || !onSearchNotes) {
+      return;
+    }
+
+    let cancelled = false;
+    setStatus("loading");
+    const timer = window.setTimeout(() => {
+      void onSearchNotes(query).then((notes) => {
+        if (cancelled) return;
+        setResults(notes);
+        setStatus(notes.length ? "idle" : "empty");
+      });
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [onSearchNotes, open, query]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+    }
+  }, [open]);
+
+  if (!open || !onSearchNotes) return null;
+
+  const pick = (note: NoteSuggestion) => {
+    insertNoteLink(editor, note);
+    onClose();
+  };
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label="链接到其他笔记">
+      <div className="insert-card embed-note-dialog">
+        <header>
+          <strong>链接到其他笔记</strong>
+          <p>搜索笔记，选中后把当前文字变成内部链接。没有选中文字时会插入笔记标题。</p>
+        </header>
+        <label className="embed-search-box">
+          <Search size={16} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索笔记标题或正文"
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key === "Escape") onClose();
+              if (event.key === "Enter" && results[0]) pick(results[0]);
+            }}
+          />
+        </label>
+        <div className="embed-result-list" aria-label="可链接笔记">
+          {results.map((note) => (
+            <button key={note.id} type="button" onClick={() => pick(note)}>
+              <strong>{note.title}</strong>
+              <span>{note.excerpt || note.path}</span>
+            </button>
+          ))}
+          {status === "loading" ? <p className="muted">正在搜索...</p> : null}
+          {status === "empty" ? <p className="muted">没有找到匹配的笔记。</p> : null}
+        </div>
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmbedNoteDialog({
   editor,
   open,
@@ -797,6 +1338,8 @@ const escapeHtml = (value: string) =>
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+
+const escapeAttribute = (value: string) => escapeHtml(value).replace(/"/g, "&quot;");
 
 const plainTextToHtml = (value: string) =>
   value

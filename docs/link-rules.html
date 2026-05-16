@@ -20,7 +20,7 @@
         <pre><code>&lt;span data-opaline-unresolved="Title"&gt;[[Title]]&lt;/span&gt;</code></pre>
 
         <h2>Four Relationship Types</h2>
-        <p>The data model and graph view now distinguish four relationship types. The ordinary-user context-menu flow for creating concept-level links from selected text is still not implemented.</p>
+        <p>The data model and graph view now distinguish four relationship types. The editor now exposes ordinary-user flows for copying the current block link and inserting links to headings or blocks in the current note. Concept-link creation from selected text is still a later step.</p>
         <ul>
           <li><strong>File-level:</strong> links to a note.</li>
           <li><strong>Heading-level:</strong> links to a heading inside a note.</li>
@@ -32,6 +32,7 @@
 &lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;intro block&lt;/a&gt;
 &lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
         <p>The graph renders these as different edge types: file, heading, block, and concept. This allows filtering by relationship type instead of treating every link as the same kind of edge.</p>
+        <p>The full graph view can focus on the active note's neighborhood and lets users click an edge to inspect its relationship type, source, target, and any heading, block, or concept metadata.</p>
 
         <h2>Ordinary <code>&lt;a&gt;</code> Links</h2>
         <ul>
@@ -45,7 +46,12 @@
         <h2>Block References</h2>
         <p>Block references are represented with URL hashes and Opaline metadata:</p>
         <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
-        <p>The current version resolves whether the target note exists. Verifying whether the exact block id exists can be added at the index layer later.</p>
+        <p>The editor preserves <code>data-opaline-block-id</code> in Tiptap state and can generate missing IDs before creating a block link. The current index resolves whether the target note exists; exact cross-note block-id verification remains an index-layer follow-up.</p>
+
+        <h2>Controlled Widgets</h2>
+        <p>Live components are represented as controlled, readable HTML instead of arbitrary scripts:</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;Opaline widget: Current note neighborhood&lt;/opaline-widget&gt;</code></pre>
+        <p>Opaline may render built-in widget types such as <code>query</code>, <code>chart</code>, and <code>local-graph</code>. If a widget is unsupported, missing, or opened outside Opaline, the saved fallback text remains readable and no note-authored JavaScript runs.</p>
 
         <h2>Broken Links</h2>
         <p>The following cases are marked as broken links:</p>
