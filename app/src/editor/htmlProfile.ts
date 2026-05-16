@@ -183,7 +183,11 @@ const compileWikiLinks = (articleHtml: string, notes: LinkableNote[]): string =>
         const link = document.createElement("a");
         link.href = blockId ? `${relativeHref(note.path)}#${blockId}` : relativeHref(note.path);
         link.setAttribute("data-opaline-link", note.id);
-        if (blockId) link.setAttribute("data-opaline-block-ref", blockId);
+        link.setAttribute("data-opaline-link-kind", blockId ? "block" : "note");
+        if (blockId) {
+          link.setAttribute("data-opaline-block-ref", blockId);
+          link.setAttribute("data-opaline-block-id", blockId);
+        }
         link.textContent = rawTitle;
         fragment.append(link);
       } else {

@@ -15,9 +15,23 @@
 
         <h2><code>[[note]]</code> 笔记链接</h2>
         <p>保存时，Opaline 会把 <code>[[标题]]</code> 编译成普通 HTML 链接。如果能按标题找到目标笔记，保存为：</p>
-        <pre><code>&lt;a href="target.html" data-opaline-link="note-id"&gt;标题&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;标题&lt;/a&gt;</code></pre>
         <p>如果找不到目标笔记，保存为 unresolved span，并在索引中标记为断链：</p>
         <pre><code>&lt;span data-opaline-unresolved="标题"&gt;[[标题]]&lt;/span&gt;</code></pre>
+
+        <h2>四类关系</h2>
+        <p>当前数据模型和图谱已经区分四种关系，但普通用户通过右键创建“概念级关系”的交互还没做完。</p>
+        <ul>
+          <li><strong>文件级：</strong>链接到某篇笔记。</li>
+          <li><strong>标题级：</strong>链接到某篇笔记的某个标题。</li>
+          <li><strong>块级：</strong>链接到某个段落、卡片、表格、引用块等稳定块。</li>
+          <li><strong>概念级：</strong>链接到一个概念节点，当前标签会先进入图谱成为概念节点。</li>
+        </ul>
+        <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;目标笔记&lt;/a&gt;
+&lt;a href="target.html#研究问题" data-opaline-link="note-id" data-opaline-link-kind="heading"&gt;研究问题&lt;/a&gt;
+&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;某段内容&lt;/a&gt;
+&lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
+        <p>图谱会把这些关系渲染为不同类型的边：文件、标题、块、概念。这样后续可以按关系类型过滤，而不是把所有链接都当作同一种边。</p>
 
         <h2>普通 <code>&lt;a&gt;</code> 链接</h2>
         <ul>
@@ -30,7 +44,7 @@
 
         <h2>Block Ref</h2>
         <p>块引用通过 URL hash 和 <code>data-opaline-block-ref</code> 表达：</p>
-        <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-block-ref="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
+        <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
         <p>当前版本先解析目标笔记是否存在；具体 block id 是否存在，后续可以在索引层继续校验。</p>
 
         <h2>Broken Link</h2>

@@ -115,7 +115,7 @@
           <li><a href="docs/html-format.zh.html">HTML 格式和多语言支持</a> · <a href="docs/html-format.html">HTML Format</a></li>
           <li><a href="docs/storage-architecture.zh.html">存储模型和架构</a> · <a href="docs/storage-architecture.html">Storage and Architecture</a></li>
           <li><a href="docs/search-ai-publish.zh.html">搜索、AI 和发布</a> · <a href="docs/search-ai-publish.html">Search, AI, and Publish</a></li>
-          <li><a href="docs/link-rules.zh.html">链接规则</a></li>
+          <li><a href="docs/link-rules.zh.html">链接规则</a> · <a href="docs/link-rules.html">Link Rules</a></li>
           <li><a href="docs/roadmap.zh.html">路线图和暂不做的事情</a> · <a href="docs/roadmap.html">Roadmap</a></li>
         </ul>
 
@@ -160,19 +160,21 @@
           <li>已有 Opaline HTML Profile 的基础清洗、解析和测试。</li>
           <li>SQLite 已开始参与搜索和元数据管理方向。</li>
           <li>已梳理普通 <code>&lt;a&gt;</code>、<code>[[note links]]</code>、block ref、反链、出链和 broken link 的规则。</li>
+          <li>关系数据模型和图谱已经区分文件级、标题级、块级、概念级关系。</li>
           <li>编辑器支持 callout、双栏、对照、旁注、折叠块、表格、任务列表、图片、嵌入、数学公式和 Mermaid 图表。</li>
           <li>编辑器右键菜单已经把常用格式、段落、H1-H6 标题、插入和剪贴板操作收进分层菜单。</li>
           <li>左侧文件区右键菜单支持打开、创建副本、收藏和复制路径。</li>
-          <li>“认真记记”开始走类 Obsidian 信息架构：左侧快捷栏、文件栏、主编辑器、右侧检查器、左右栏折叠和小型图谱预览。</li>
+          <li>“认真记记”开始走类 Obsidian 信息架构：左侧快捷栏、文件栏、主编辑器、右侧检查器、左右栏折叠、小型图谱预览和完整图谱视图。</li>
         </ul>
-        <p>仍然粗糙的地方：工作区迁移还没做，图谱还只是小预览，文件操作仍然有限，HTML 原生交互块还需要继续打磨。</p>
+        <p>仍然粗糙的地方：工作区迁移还没做，从选中文字创建概念级关系的普通用户交互还没做，文件操作仍然有限，HTML 原生交互块还需要继续打磨。</p>
 
         <h2>当前实施步骤</h2>
         <ol>
           <li>继续打磨“认真记记”的类 Obsidian 工作区，让文件栏、侧栏、编辑器和右侧信息区更统一。</li>
           <li>补工作区迁移：用户更改位置时，可选择复制或移动原工作区文件。</li>
           <li>扩展文件右键菜单：重命名、删除、移动、在系统资源管理器中显示、复制相对/绝对路径、打开历史版本。</li>
-          <li>把右侧小图谱升级成真正的图谱视图，支持过滤、点击跳转和定位当前笔记。</li>
+          <li>继续改进图谱视图：更好的布局、局部关系聚焦、边详情查看和关系类型过滤。</li>
+          <li>给普通用户补上从编辑器右键创建标题级、块级、概念级关系的交互。</li>
           <li>继续强化 HTML 原生交互块，让双栏、旁注、标注、嵌入、折叠块像界面能力，而不是隐藏标签。</li>
           <li>继续用可靠 parser 和测试加固 Opaline HTML Profile。</li>
           <li>深化 SQLite FTS 搜索、元数据扫描、反链和断链修复。</li>

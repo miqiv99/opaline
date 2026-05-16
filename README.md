@@ -49,15 +49,16 @@ The current app is no longer only a scaffold. It already has the first usable de
 - Clean Opaline HTML Profile helpers and tests.
 - SQLite-backed metadata/search direction, with FTS participation already introduced for search.
 - Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.
+- Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for the graph model.
 - Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.
 - Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.
 - File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.
-- Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, and graph preview.
+- Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters.
 
 Still rough:
 
 - Workspace migration is not implemented yet.
-- The graph is currently a compact preview, not a full graph workspace.
+- Ordinary-user UI for creating concept-level links from selected text is not implemented yet.
 - File operations are still limited; rename, delete, move, reveal in system explorer, and history should be added deliberately.
 - The editor UI still needs more polish so HTML-only advantages feel obvious without exposing raw HTML to users.
 
@@ -210,7 +211,10 @@ Early notes can use a structure like:
 Internal links can compile to normal browser-readable links with Opaline metadata:
 
 ```html
-<a href="../projects/opaline.html" data-opaline-link="note-id">Opaline</a>
+<a href="../projects/opaline.html" data-opaline-link="note-id" data-opaline-link-kind="note">Opaline</a>
+<a href="../projects/opaline.html#architecture" data-opaline-link="note-id" data-opaline-link-kind="heading">Architecture</a>
+<a href="../projects/opaline.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro">intro block</a>
+<a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG">RAG</a>
 ```
 
 Tags can remain readable while preserving meaning:
@@ -235,9 +239,11 @@ Opaline should distinguish identity from location.
 - Note IDs should be stable UUID-style identifiers.
 - Paths should be user-facing locations that may change.
 - Links should store both an `href` and a stable Opaline target ID when possible.
+- Links should also keep a relation kind: file, heading, block, or concept.
 - SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.
 
 This allows notes to be renamed or moved without losing graph meaning.
+It also allows the graph to show different kinds of knowledge relationships instead of treating every edge as the same.
 
 ## Storage Model
 
@@ -657,13 +663,14 @@ These may become possible later. They should not define the first working versio
 1. Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.
 2. Add workspace migration when users change locations.
 3. Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.
-4. Turn the graph preview into a real graph view with filtering and note navigation.
-5. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
-6. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
-7. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.
-8. Add AI retrieval over local notes with visible sources before generated answers.
-9. Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.
-10. Later: static publishing and reader-facing concept search over public notes.
+4. Improve the graph view now that it supports relation-type filters: better layout, focused neighborhoods, and clearer edge inspection.
+5. Add ordinary-user creation flows for heading, block, and concept links from the editor context menu.
+6. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
+7. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
+8. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.
+9. Add AI retrieval over local notes with visible sources before generated answers.
+10. Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.
+11. Later: static publishing and reader-facing concept search over public notes.
 
 ## License
 

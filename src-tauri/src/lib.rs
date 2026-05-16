@@ -24,6 +24,10 @@ struct LinkInfo {
     label: String,
     target_id: Option<String>,
     is_broken: bool,
+    kind: String,
+    target_heading: Option<String>,
+    target_block_id: Option<String>,
+    concept: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -71,6 +75,7 @@ struct GraphNode {
     id: String,
     title: String,
     path: String,
+    kind: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -78,6 +83,12 @@ struct GraphNode {
 struct GraphEdge {
     source: String,
     target: String,
+    kind: String,
+    label: String,
+    target_heading: Option<String>,
+    target_block_id: Option<String>,
+    concept: Option<String>,
+    count: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -336,36 +347,129 @@ fn graph_data(path: String) -> Result<GraphData, String> {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 path: row.get(2)?,
+                kind: "note".to_string(),
             })
         })
         .map_err(to_error)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(to_error)?;
+
+    let mut nodes = nodes;
+    let mut concept_nodes: BTreeSet<String> = BTreeSet::new();
+
+    let mut tag_node_statement = conn
+        .prepare("select distinct tag from note_tags order by tag")
+        .map_err(to_error)?;
+    let tags = tag_node_statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(to_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(to_error)?;
+
+    for tag in &tags {
+        let id = concept_node_id(tag);
+        if concept_nodes.insert(id.clone()) {
+            nodes.push(GraphNode {
+                id,
+                title: format!("#{tag}"),
+                path: String::new(),
+                kind: "concept".to_string(),
+            });
+        }
+    }
 
     let mut edge_statement = conn
-        .prepare("select note_id, target_id from note_links where target_id is not null")
+        .prepare("select note_id, target_id, href, label from note_links")
         .map_err(to_error)?;
-    let edges = edge_statement
+    let mut edges = edge_statement
         .query_map([], |row| {
+            let source: String = row.get(0)?;
+            let target_id: Option<String> = row.get(1)?;
+            let href: String = row.get(2)?;
+            let label: String = row.get(3)?;
+            let meta = link_metadata_from_parts(&href, None, None, None, None, &label);
+            let Some(target) =
+                target_id.or_else(|| meta.concept.as_ref().map(|c| concept_node_id(c)))
+            else {
+                return Ok(None);
+            };
+            Ok(Some(GraphEdge {
+                source,
+                target,
+                kind: meta.kind,
+                label,
+                target_heading: meta.target_heading,
+                target_block_id: meta.target_block_id,
+                concept: meta.concept,
+                count: 1,
+            }))
+        })
+        .map_err(to_error)?
+        .filter_map(|result| match result {
+            Ok(Some(edge)) => Some(Ok(edge)),
+            Ok(None) => None,
+            Err(error) => Some(Err(error)),
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(to_error)?;
+
+    let mut tag_edge_statement = conn
+        .prepare("select note_id, tag from note_tags")
+        .map_err(to_error)?;
+    let tag_edges = tag_edge_statement
+        .query_map([], |row| {
+            let source: String = row.get(0)?;
+            let tag: String = row.get(1)?;
             Ok(GraphEdge {
-                source: row.get(0)?,
-                target: row.get(1)?,
+                source,
+                target: concept_node_id(&tag),
+                kind: "concept".to_string(),
+                label: tag.clone(),
+                target_heading: None,
+                target_block_id: None,
+                concept: Some(tag),
+                count: 1,
             })
         })
         .map_err(to_error)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(to_error)?;
+    edges.extend(tag_edges);
+
+    for edge in &edges {
+        if edge.kind == "concept" {
+            if let Some(concept) = &edge.concept {
+                let id = concept_node_id(concept);
+                if concept_nodes.insert(id.clone()) {
+                    nodes.push(GraphNode {
+                        id,
+                        title: format!("#{concept}"),
+                        path: String::new(),
+                        kind: "concept".to_string(),
+                    });
+                }
+            }
+        }
+    }
 
     let mut broken_statement = conn
-        .prepare("select href, label from note_links where is_broken = 1 order by href")
+        .prepare("select href, label, target_id from note_links where is_broken = 1 order by href")
         .map_err(to_error)?;
     let broken_links = broken_statement
         .query_map([], |row| {
+            let href: String = row.get(0)?;
+            let label: String = row.get(1)?;
+            let target_id: Option<String> = row.get(2)?;
+            let meta = link_metadata_from_parts(&href, None, None, None, None, &label);
             Ok(LinkInfo {
-                href: row.get(0)?,
-                label: row.get(1)?,
-                target_id: None,
+                href,
+                label,
+                target_id,
                 is_broken: true,
+                kind: meta.kind,
+                target_heading: meta.target_heading,
+                target_block_id: meta.target_block_id,
+                concept: meta.concept,
             })
         })
         .map_err(to_error)?
@@ -523,11 +627,22 @@ fn delete_note(path: String, note_id: String) -> Result<(), String> {
     let _ = fs::remove_file(&absolute);
     let _ = fs::remove_file(absolute.with_extension("html.bak"));
 
-    conn.execute("delete from notes where id = ?1", params![note_id]).map_err(to_error)?;
-    conn.execute("delete from notes_fts where note_id = ?1", params![note_id]).map_err(to_error)?;
-    conn.execute("delete from note_tags where note_id = ?1", params![note_id]).map_err(to_error)?;
-    conn.execute("delete from note_headings where note_id = ?1", params![note_id]).map_err(to_error)?;
-    conn.execute("delete from note_links where note_id = ?1", params![note_id]).map_err(to_error)?;
+    conn.execute("delete from notes where id = ?1", params![note_id])
+        .map_err(to_error)?;
+    conn.execute("delete from notes_fts where note_id = ?1", params![note_id])
+        .map_err(to_error)?;
+    conn.execute("delete from note_tags where note_id = ?1", params![note_id])
+        .map_err(to_error)?;
+    conn.execute(
+        "delete from note_headings where note_id = ?1",
+        params![note_id],
+    )
+    .map_err(to_error)?;
+    conn.execute(
+        "delete from note_links where note_id = ?1",
+        params![note_id],
+    )
+    .map_err(to_error)?;
 
     rebuild_index(&workspace)?;
     Ok(())
@@ -572,7 +687,11 @@ fn move_note(path: String, note_id: String, new_directory: String) -> Result<Not
 }
 
 #[tauri::command]
-fn reveal_in_explorer(path: String, note_path: String, app: tauri::AppHandle) -> Result<(), String> {
+fn reveal_in_explorer(
+    path: String,
+    note_path: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
     use tauri_plugin_shell::ShellExt;
 
     let workspace = workspace_path(&path)?;
@@ -1379,13 +1498,27 @@ fn extract_links(html: &str) -> Vec<LinkInfo> {
         };
         let href = attr_value(tag, "href").unwrap_or_default();
         if !href.is_empty() {
+            let label = unescape_text(&strip_tags(&content[..close]))
+                .trim()
+                .to_string();
+            let meta = link_metadata_from_parts(
+                &href,
+                attr_value(tag, "data-opaline-link-kind"),
+                attr_value(tag, "data-opaline-heading"),
+                attr_value(tag, "data-opaline-block-id")
+                    .or_else(|| attr_value(tag, "data-opaline-block-ref")),
+                attr_value(tag, "data-opaline-concept"),
+                &label,
+            );
             links.push(LinkInfo {
                 href,
-                label: unescape_text(&strip_tags(&content[..close]))
-                    .trim()
-                    .to_string(),
+                label,
                 target_id: attr_value(tag, "data-opaline-link"),
                 is_broken: false,
+                kind: meta.kind,
+                target_heading: meta.target_heading,
+                target_block_id: meta.target_block_id,
+                concept: meta.concept,
             });
         }
         rest = &content[close + "</a>".len()..];
@@ -1397,10 +1530,110 @@ fn extract_links(html: &str) -> Vec<LinkInfo> {
             label: unresolved,
             target_id: None,
             is_broken: true,
+            kind: "note".to_string(),
+            target_heading: None,
+            target_block_id: None,
+            concept: None,
         });
     }
 
     links
+}
+
+#[derive(Debug)]
+struct LinkMetadata {
+    kind: String,
+    target_heading: Option<String>,
+    target_block_id: Option<String>,
+    concept: Option<String>,
+}
+
+fn link_metadata_from_parts(
+    href: &str,
+    explicit_kind: Option<String>,
+    target_heading: Option<String>,
+    target_block_id: Option<String>,
+    concept: Option<String>,
+    label: &str,
+) -> LinkMetadata {
+    let kind = normalize_link_kind(explicit_kind.as_deref());
+    let fragment = href
+        .split_once('#')
+        .map(|(_, fragment)| fragment.trim())
+        .filter(|fragment| !fragment.is_empty());
+    let concept_from_href = href
+        .strip_prefix("opaline://concept/")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let concept = concept.or(concept_from_href);
+
+    if kind.as_deref() == Some("concept") || concept.is_some() {
+        let concept = concept.or_else(|| {
+            let trimmed = label.trim().trim_start_matches('#').trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        });
+        return LinkMetadata {
+            kind: "concept".to_string(),
+            target_heading: None,
+            target_block_id: None,
+            concept,
+        };
+    }
+
+    if kind.as_deref() == Some("block")
+        || target_block_id.is_some()
+        || fragment.is_some_and(is_block_fragment)
+    {
+        let block = target_block_id.or_else(|| fragment.map(normalize_fragment_value));
+        return LinkMetadata {
+            kind: "block".to_string(),
+            target_heading: None,
+            target_block_id: block,
+            concept: None,
+        };
+    }
+
+    if kind.as_deref() == Some("heading") || target_heading.is_some() || fragment.is_some() {
+        let heading = target_heading.or_else(|| fragment.map(normalize_fragment_value));
+        return LinkMetadata {
+            kind: "heading".to_string(),
+            target_heading: heading,
+            target_block_id: None,
+            concept: None,
+        };
+    }
+
+    LinkMetadata {
+        kind: "note".to_string(),
+        target_heading: None,
+        target_block_id: None,
+        concept: None,
+    }
+}
+
+fn normalize_link_kind(kind: Option<&str>) -> Option<String> {
+    match kind.map(|value| value.trim().to_lowercase()).as_deref() {
+        Some("note" | "file") => Some("note".to_string()),
+        Some("heading") => Some("heading".to_string()),
+        Some("block") => Some("block".to_string()),
+        Some("concept") => Some("concept".to_string()),
+        _ => None,
+    }
+}
+
+fn is_block_fragment(fragment: &str) -> bool {
+    fragment.starts_with('^')
+        || fragment.starts_with("b-")
+        || fragment.starts_with("block-")
+        || fragment.starts_with("opaline-block-")
+}
+
+fn normalize_fragment_value(fragment: &str) -> String {
+    fragment.trim_start_matches('^').replace('-', " ")
+}
+
+fn concept_node_id(concept: &str) -> String {
+    format!("concept:{}", concept.trim().to_lowercase())
 }
 
 fn extract_attr_values(html: &str, attr_name: &str) -> Vec<String> {
@@ -1711,30 +1944,50 @@ mod tests {
                     label: "external".to_string(),
                     target_id: None,
                     is_broken: false,
+                    kind: "note".to_string(),
+                    target_heading: None,
+                    target_block_id: None,
+                    concept: None,
                 },
                 LinkInfo {
                     href: "#local-block".to_string(),
                     label: "local".to_string(),
                     target_id: None,
                     is_broken: false,
+                    kind: "heading".to_string(),
+                    target_heading: Some("local block".to_string()),
+                    target_block_id: None,
+                    concept: None,
                 },
                 LinkInfo {
                     href: "../target.html#b-intro".to_string(),
                     label: "target".to_string(),
                     target_id: None,
                     is_broken: false,
+                    kind: "block".to_string(),
+                    target_heading: None,
+                    target_block_id: Some("b intro".to_string()),
+                    concept: None,
                 },
                 LinkInfo {
                     href: "missing.html".to_string(),
                     label: "missing".to_string(),
                     target_id: None,
                     is_broken: false,
+                    kind: "note".to_string(),
+                    target_heading: None,
+                    target_block_id: None,
+                    concept: None,
                 },
                 LinkInfo {
                     href: "stale.html".to_string(),
                     label: "stale".to_string(),
                     target_id: Some("deleted".to_string()),
                     is_broken: false,
+                    kind: "note".to_string(),
+                    target_heading: None,
+                    target_block_id: None,
+                    concept: None,
                 },
             ],
         };

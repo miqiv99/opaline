@@ -36,7 +36,7 @@ import { OpalineEditor } from "./editor/OpalineEditor";
 import { GraphView } from "./editor/GraphView";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
 import { markdownTitle } from "./editor/markdownImport";
-import type { GraphData, ImportedAsset, NewNoteInput, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
+import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
@@ -48,6 +48,12 @@ const initialState: WorkspaceState = {
 };
 
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
+const LINK_KIND_LABEL: Record<LinkKind, string> = {
+  note: "文件",
+  heading: "标题",
+  block: "块",
+  concept: "概念",
+};
 
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
 type AppView = "home" | "today" | "note" | "settings" | "graph";
@@ -601,24 +607,29 @@ export function App() {
     [workspace.path],
   );
 
-  const pickNote = useCallback(async (): Promise<NoteSuggestion | null> => {
-    if (!workspace.path) return null;
-    const title = window.prompt("输入要嵌入的笔记标题或路径")?.trim();
-    if (!title) return null;
+  const searchNoteSuggestions = useCallback(async (queryText: string): Promise<NoteSuggestion[]> => {
+    if (!workspace.path) return [];
+    const trimmed = queryText.trim();
+    const results = trimmed
+      ? await workspaceAdapter.searchNotes(workspace.path, trimmed)
+      : workspace.notes.slice(0, 8).map((note) => ({
+          id: note.id,
+          title: note.title,
+          path: note.path,
+          excerpt: note.headings.slice(0, 3).join(" · ") || note.tags.map((tag) => `#${tag}`).join(" ") || "最近笔记",
+          updatedAt: note.updatedAt,
+        }));
 
-    const results = await workspaceAdapter.searchNotes(workspace.path, title);
-    if (!results[0]) {
-      setStatus("找不到匹配的笔记");
-      return null;
-    }
-
-    return {
-      id: results[0].id,
-      title: results[0].title,
-      path: results[0].path,
-      excerpt: results[0].excerpt,
-    };
-  }, [workspace.path]);
+    return results
+      .filter((result) => result.id !== workspace.activeNote?.id)
+      .slice(0, 10)
+      .map((result) => ({
+        id: result.id,
+        title: result.title,
+        path: result.path,
+        excerpt: result.excerpt,
+      }));
+  }, [workspace.activeNote?.id, workspace.notes, workspace.path]);
 
   useEffect(() => {
     if (didLoadDefaultWorkspace) {
@@ -980,7 +991,7 @@ export function App() {
               onChange={setArticleHtml}
               onSave={saveNote}
               onImportAsset={importAsset}
-              onPickNote={pickNote}
+              onSearchNotes={searchNoteSuggestions}
             />
             <aside className="inspector">
               <Section title="大纲" icon={<FileText size={16} />}>
@@ -992,11 +1003,28 @@ export function App() {
               </Section>
               <Section title="出链" icon={<Link2 size={16} />}>
                 {workspace.activeNote.outgoingLinks.length ? (
-                  workspace.activeNote.outgoingLinks.map((link) => (
-                    <p key={link.href} className={link.isBroken ? "is-broken" : undefined}>
-                      {link.label || link.href}
-                    </p>
-                  ))
+                  workspace.activeNote.outgoingLinks.map((link) => {
+                    const target = link.targetId ? workspace.notes.find((note) => note.id === link.targetId) : null;
+                    return (
+                      <button
+                        key={`${link.href}-${link.label}`}
+                        className={`inspector-link relation-link ${link.isBroken ? "is-broken" : ""}`}
+                        type="button"
+                        disabled={!target}
+                        onClick={() => {
+                          if (target) void openNote(target);
+                        }}
+                      >
+                        <span className={`relation-kind is-${link.kind ?? "note"}`}>
+                          {LINK_KIND_LABEL[(link.kind ?? "note") as LinkKind]}
+                        </span>
+                        <span>{link.label || link.href}</span>
+                        {link.targetHeading ? <small>{link.targetHeading}</small> : null}
+                        {link.targetBlockId ? <small>#{link.targetBlockId}</small> : null}
+                        {link.concept ? <small>#{link.concept}</small> : null}
+                      </button>
+                    );
+                  })
                 ) : (
                   <p className="muted">还没有链接。</p>
                 )}
@@ -1255,6 +1283,7 @@ function GraphPreview({
               y1={source.y}
               x2={target.x}
               y2={target.y}
+              className={`is-${edge.kind ?? "note"}`}
             />
           );
         })}
@@ -1263,14 +1292,20 @@ function GraphPreview({
           if (!position) return null;
           const active = node.id === activeNoteId;
           return (
-            <g key={node.id} className={active ? "is-active" : undefined} onClick={() => onOpenNode(node.id)}>
+            <g
+              key={node.id}
+              className={`${active ? "is-active" : ""} ${node.kind === "concept" ? "is-concept" : ""}`}
+              onClick={() => {
+                if (node.kind !== "concept") onOpenNode(node.id);
+              }}
+            >
               <circle cx={position.x} cy={position.y} r={active ? 9 : 6} />
               <title>{node.title}</title>
             </g>
           );
         })}
       </svg>
-      <p>{graph.nodes.length} 篇笔记 · {graph.edges.length} 条链接</p>
+      <p>{graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {graph.edges.length} 条关系</p>
     </div>
   );
 }

@@ -120,11 +120,58 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
   },
 
   async graphData() {
+    const conceptNodes = new Map<string, { id: string; title: string; path: string; kind: "concept" }>();
+    const conceptEdges = notes.flatMap((note) =>
+      note.tags.map((tag) => {
+        const id = conceptNodeId(tag);
+        conceptNodes.set(id, { id, title: `#${tag}`, path: "", kind: "concept" });
+        return {
+          source: note.id,
+          target: id,
+          kind: "concept" as const,
+          label: tag,
+          targetHeading: null,
+          targetBlockId: null,
+          concept: tag,
+        };
+      }),
+    );
+    const outgoingEdges = notes.flatMap((note) =>
+      note.outgoingLinks.flatMap((link) => {
+        if (link.targetId) {
+          return [{
+            source: note.id,
+            target: link.targetId,
+            kind: link.kind ?? "note",
+            label: link.label || link.href,
+            targetHeading: link.targetHeading,
+            targetBlockId: link.targetBlockId,
+            concept: link.concept,
+          }];
+        }
+        if ((link.kind ?? "note") === "concept" && link.concept) {
+          const id = conceptNodeId(link.concept);
+          conceptNodes.set(id, { id, title: `#${link.concept}`, path: "", kind: "concept" });
+          return [{
+            source: note.id,
+            target: id,
+            kind: "concept" as const,
+            label: link.label || link.concept,
+            targetHeading: null,
+            targetBlockId: null,
+            concept: link.concept,
+          }];
+        }
+        return [];
+      }),
+    );
+
     return {
-      nodes: notes.map((note) => ({ id: note.id, title: note.title, path: note.path })),
-      edges: notes.flatMap((note) =>
-        note.outgoingLinks.flatMap((link) => (link.targetId ? [{ source: note.id, target: link.targetId }] : [])),
-      ),
+      nodes: [
+        ...notes.map((note) => ({ id: note.id, title: note.title, path: note.path, kind: "note" as const })),
+        ...conceptNodes.values(),
+      ],
+      edges: outgoingEdges.concat(conceptEdges),
       brokenLinks: notes.flatMap((note) => note.outgoingLinks.filter((link) => link.isBroken)),
     };
   },
@@ -251,3 +298,5 @@ const slugify = (title: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "untitled";
+
+const conceptNodeId = (concept: string) => `concept:${concept.trim().toLowerCase()}`;

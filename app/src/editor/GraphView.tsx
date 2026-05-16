@@ -1,6 +1,7 @@
 import { ArrowLeft, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GraphData } from "../domain/note";
+import type { CSSProperties } from "react";
+import type { GraphData, LinkKind } from "../domain/note";
 import { createForceSimulation } from "./graphForce";
 import type { SimEdge, SimNode } from "./graphForce";
 
@@ -14,10 +15,17 @@ interface GraphViewProps {
 
 const NODE_RADIUS = 10;
 const ACTIVE_RADIUS = 14;
-const EDGE_COLOR = "rgba(20, 122, 85, 0.22)";
 const NODE_COLOR = "rgba(20, 122, 85, 0.78)";
 const ACTIVE_COLOR = "var(--xz-green-deep)";
 const DIMMED_COLOR = "rgba(20, 122, 85, 0.22)";
+const CONCEPT_COLOR = "rgba(91, 103, 219, 0.76)";
+const LINK_KIND_META: Record<LinkKind, { label: string; color: string; dim: string; dash?: string }> = {
+  note: { label: "文件", color: "rgba(20, 122, 85, 0.38)", dim: "rgba(20, 122, 85, 0.07)" },
+  heading: { label: "标题", color: "rgba(31, 111, 235, 0.38)", dim: "rgba(31, 111, 235, 0.08)" },
+  block: { label: "块", color: "rgba(191, 125, 0, 0.42)", dim: "rgba(191, 125, 0, 0.08)", dash: "5 4" },
+  concept: { label: "概念", color: "rgba(91, 103, 219, 0.38)", dim: "rgba(91, 103, 219, 0.08)", dash: "2 4" },
+};
+const LINK_KINDS: LinkKind[] = ["note", "heading", "block", "concept"];
 
 export function GraphView({
   graph,
@@ -31,6 +39,7 @@ export function GraphView({
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 800, h: 600 });
   const [query, setQuery] = useState("");
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [activeKinds, setActiveKinds] = useState<Set<LinkKind>>(new Set(LINK_KINDS));
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const simRef = useRef<ReturnType<typeof createForceSimulation> | null>(null);
@@ -39,20 +48,29 @@ export function GraphView({
   const maxNodes = 200;
 
   const visibleGraph = useMemo(() => {
-    const filteredNodes = graph.nodes
+    const candidateNodes = graph.nodes
       .filter((node) => {
         if (activeTags.size === 0) return true;
         return true;
       })
       .slice(0, maxNodes);
 
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
+    const candidateNodeIds = new Set(candidateNodes.map((n) => n.id));
     const filteredEdges = graph.edges.filter(
-      (e) => nodeIds.has(e.source) && nodeIds.has(e.target),
+      (e) =>
+        candidateNodeIds.has(e.source) &&
+        candidateNodeIds.has(e.target) &&
+        activeKinds.has((e.kind ?? "note") as LinkKind),
+    );
+    const connectedConcepts = new Set(
+      filteredEdges.flatMap((edge) => [edge.source, edge.target]),
+    );
+    const filteredNodes = candidateNodes.filter(
+      (node) => node.kind !== "concept" || connectedConcepts.has(node.id),
     );
 
     return { nodes: filteredNodes, edges: filteredEdges };
-  }, [graph, activeTags]);
+  }, [graph, activeTags, activeKinds]);
 
   const simEdges: SimEdge[] = useMemo(
     () => visibleGraph.edges.map((e) => ({ source: e.source, target: e.target })),
@@ -86,6 +104,24 @@ export function GraphView({
       return next;
     });
   }, []);
+
+  const toggleKind = useCallback((kind: LinkKind) => {
+    setActiveKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind) && next.size > 1) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
+
+  const kindCounts = useMemo(() => {
+    const counts = new Map<LinkKind, number>();
+    for (const edge of graph.edges) {
+      const kind = (edge.kind ?? "note") as LinkKind;
+      counts.set(kind, (counts.get(kind) ?? 0) + (edge.count ?? 1));
+    }
+    return counts;
+  }, [graph.edges]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -175,7 +211,7 @@ export function GraphView({
   }, [viewBox, width]);
 
   const displayNodes = useMemo(() => {
-    const result: { id: string; title: string; path: string; x: number; y: number; r: number; dimmed: boolean }[] = [];
+    const result: { id: string; title: string; path: string; kind?: "note" | "concept"; x: number; y: number; r: number; dimmed: boolean }[] = [];
     if (!simNodes) return result;
 
     for (const node of visibleGraph.nodes) {
@@ -196,6 +232,7 @@ export function GraphView({
         id: node.id,
         title: node.title,
         path: node.path,
+        kind: node.kind,
         x: pos.x,
         y: pos.y,
         r,
@@ -259,11 +296,33 @@ export function GraphView({
           </div>
         ) : null}
         <div className="graph-summary">
-          {graph.nodes.length} 篇笔记 · {graph.edges.length} 条链接
+          {graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {graph.edges.length} 条关系
           {graph.brokenLinks.length ? ` · ${graph.brokenLinks.length} 条断链` : ""}
+        </div>
+        <div className="graph-kind-filters" aria-label="关系类型">
+          {LINK_KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className={activeKinds.has(kind) ? "is-active" : ""}
+              onClick={() => toggleKind(kind)}
+              style={{ "--kind-color": LINK_KIND_META[kind].color } as CSSProperties}
+            >
+              {LINK_KIND_META[kind].label}
+              <span>{kindCounts.get(kind) ?? 0}</span>
+            </button>
+          ))}
         </div>
       </div>
       <div className="graph-canvas" ref={containerRef}>
+        <div className="graph-legend" aria-hidden="true">
+          {LINK_KINDS.map((kind) => (
+            <span key={kind}>
+              <i style={{ background: LINK_KIND_META[kind].color }} />
+              {LINK_KIND_META[kind].label}
+            </span>
+          ))}
+        </div>
         <svg
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
           width={width}
@@ -277,6 +336,8 @@ export function GraphView({
             const source = displayNodes.find((n) => n.id === edge.source);
             const target = displayNodes.find((n) => n.id === edge.target);
             if (!source || !target) return null;
+            const kind = (edge.kind ?? "note") as LinkKind;
+            const meta = LINK_KIND_META[kind] ?? LINK_KIND_META.note;
             return (
               <line
                 key={`${edge.source}-${edge.target}-${edge.idx}`}
@@ -284,9 +345,12 @@ export function GraphView({
                 y1={source.y}
                 x2={target.x}
                 y2={target.y}
-                stroke={edge.dimmed ? "rgba(20, 122, 85, 0.06)" : EDGE_COLOR}
-                strokeWidth={1.2}
-              />
+                stroke={edge.dimmed ? meta.dim : meta.color}
+                strokeWidth={kind === "block" ? 1.5 : 1.25}
+                strokeDasharray={meta.dash}
+              >
+                <title>{`${LINK_KIND_META[kind].label}关系：${edge.label || ""}`}</title>
+              </line>
             );
           })}
           {displayNodes.map((node) => (
@@ -294,7 +358,10 @@ export function GraphView({
               key={node.id}
               className={node.id === activeNoteId ? "is-active" : ""}
               style={{ cursor: "pointer", opacity: node.dimmed ? 0.18 : 1 }}
-              onClick={() => onOpenNote(node.id)}
+              onClick={() => {
+                if (node.kind !== "concept") onOpenNote(node.id);
+                else setQuery(node.title.replace(/^#/, ""));
+              }}
               onPointerEnter={() => setHoveredNode(node.id)}
               onPointerLeave={() => setHoveredNode(null)}
             >
@@ -302,11 +369,11 @@ export function GraphView({
                 cx={node.x}
                 cy={node.y}
                 r={node.r}
-                fill={node.id === activeNoteId ? ACTIVE_COLOR : node.dimmed ? DIMMED_COLOR : NODE_COLOR}
+                fill={node.id === activeNoteId ? ACTIVE_COLOR : node.dimmed ? DIMMED_COLOR : node.kind === "concept" ? CONCEPT_COLOR : NODE_COLOR}
                 stroke="white"
                 strokeWidth={node.id === activeNoteId ? 3 : 2}
               />
-              <title>{node.title}</title>
+              <title>{node.kind === "concept" ? `概念：${node.title}` : node.title}</title>
               <text
                 x={node.x}
                 y={node.y + node.r + 12}

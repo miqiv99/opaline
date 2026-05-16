@@ -61,12 +61,13 @@ type OpalineEditorProps = {
   onChange: (html: string) => void;
   onSave: () => void;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
-  onPickNote?: () => Promise<NoteSuggestion | null>;
+  onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
 };
 
-export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onPickNote }: OpalineEditorProps) {
+export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onSearchNotes }: OpalineEditorProps) {
   const [dialog, setDialog] = useState<InsertDialogState | null>(null);
   const [aiResult, setAiResult] = useState<AiResultState | null>(null);
+  const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const editor = useEditor({
     extensions: [
@@ -172,8 +173,8 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         <IconButton label="插入图表" onClick={() => setDialog({ type: "mermaid", value: "graph TD\n  A[开始] --> B[完成]" })}>
           <GitBranch size={17} />
         </IconButton>
-        {onPickNote ? (
-          <IconButton label="嵌入笔记" onClick={() => insertEmbed(editor, onPickNote)}>
+        {onSearchNotes ? (
+          <IconButton label="嵌入笔记" onClick={() => setEmbedDialogOpen(true)}>
             <FileImage size={17} />
           </IconButton>
         ) : null}
@@ -182,7 +183,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
           <span>{isSaving ? "保存中" : "保存"}</span>
         </button>
       </div>
-      <EditorContent editor={editor} />
+      <EditorContent editor={editor} className="editor-scroll" />
       <EditorContextMenu
         editor={editor}
         state={contextMenu}
@@ -193,9 +194,16 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         onAiAction={(action) => {
           void runEditorAiAction(editor, action, setAiResult);
         }}
-        onPickNote={onPickNote}
+        onEmbedNote={() => setEmbedDialogOpen(true)}
+        canEmbedNote={Boolean(onSearchNotes)}
       />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
+      <EmbedNoteDialog
+        editor={editor}
+        open={embedDialogOpen}
+        onSearchNotes={onSearchNotes}
+        onClose={() => setEmbedDialogOpen(false)}
+      />
       <AiResultDialog editor={editor} state={aiResult} onClose={() => setAiResult(null)} />
     </section>
   );
@@ -330,12 +338,10 @@ const insertImage = async (
   editor.chain().focus().setImage({ src: asset.href, alt: asset.name }).run();
 };
 
-const insertEmbed = async (
+const insertEmbed = (
   editor: NonNullable<ReturnType<typeof useEditor>>,
-  onPickNote: () => Promise<{ id: string; title: string; excerpt: string } | null>,
+  note: NoteSuggestion,
 ) => {
-  const note = await onPickNote();
-  if (!note) return;
   editor.chain().focus().setNoteEmbed({ noteId: note.id, title: note.title, excerpt: note.excerpt }).run();
 };
 
@@ -432,7 +438,8 @@ function EditorContextMenu({
   onImage,
   onMathInline,
   onAiAction,
-  onPickNote,
+  onEmbedNote,
+  canEmbedNote,
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
   state: ContextMenuState | null;
@@ -441,7 +448,8 @@ function EditorContextMenu({
   onImage: () => void;
   onMathInline: () => void;
   onAiAction: (action: AiEditorAction) => void;
-  onPickNote?: () => Promise<NoteSuggestion | null>;
+  onEmbedNote: () => void;
+  canEmbedNote: boolean;
 }) {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const submenuCloseTimer = useRef<number | null>(null);
@@ -508,11 +516,11 @@ function EditorContextMenu({
           if (selectedText && findInPage) findInPage(selectedText);
         })}
       />
-      {onPickNote ? (
+      {canEmbedNote ? (
         <ContextMenuItem
           icon={<FileImage size={17} />}
           label="嵌入其他笔记"
-          onClick={() => run(() => insertEmbed(editor, onPickNote))}
+          onClick={() => run(onEmbedNote)}
         />
       ) : null}
       <ContextMenuSubmenu
@@ -651,6 +659,93 @@ function ContextMenuSubmenu({
 
 function ContextMenuSeparator() {
   return <span className="context-menu-separator" role="separator" />;
+}
+
+function EmbedNoteDialog({
+  editor,
+  open,
+  onSearchNotes,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  open: boolean;
+  onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NoteSuggestion[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "empty">("idle");
+
+  useEffect(() => {
+    if (!open || !onSearchNotes) {
+      return;
+    }
+
+    let cancelled = false;
+    setStatus("loading");
+    const timer = window.setTimeout(() => {
+      void onSearchNotes(query).then((notes) => {
+        if (cancelled) return;
+        setResults(notes);
+        setStatus(notes.length ? "idle" : "empty");
+      });
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [onSearchNotes, open, query]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+    }
+  }, [open]);
+
+  if (!open || !onSearchNotes) return null;
+
+  const pick = (note: NoteSuggestion) => {
+    insertEmbed(editor, note);
+    onClose();
+  };
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label="嵌入笔记">
+      <div className="insert-card embed-note-dialog">
+        <header>
+          <strong>嵌入笔记</strong>
+          <p>把另一篇笔记插入为引用卡片，适合在当前正文里预览相关材料。</p>
+        </header>
+        <label className="embed-search-box">
+          <Search size={16} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索标题或正文"
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key === "Escape") onClose();
+              if (event.key === "Enter" && results[0]) pick(results[0]);
+            }}
+          />
+        </label>
+        <div className="embed-result-list" aria-label="可嵌入笔记">
+          {results.map((note) => (
+            <button key={note.id} type="button" onClick={() => pick(note)}>
+              <strong>{note.title}</strong>
+              <span>{note.excerpt || "无摘要"}</span>
+            </button>
+          ))}
+          {status === "loading" ? <p className="muted">正在搜索...</p> : null}
+          {status === "empty" ? <p className="muted">没有找到匹配的笔记。</p> : null}
+        </div>
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AiResultDialog({

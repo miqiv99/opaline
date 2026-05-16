@@ -34,7 +34,13 @@ export type LinkInfo = {
   label: string;
   targetId: NoteId | null;
   isBroken: boolean;
+  kind?: LinkKind;
+  targetHeading?: string | null;
+  targetBlockId?: string | null;
+  concept?: string | null;
 };
+
+export type LinkKind = "note" | "heading" | "block" | "concept";
 
 export type SearchResult = {
   id: NoteId;
@@ -48,11 +54,18 @@ export type GraphNode = {
   id: NoteId;
   title: string;
   path: string;
+  kind?: "note" | "concept";
 };
 
 export type GraphEdge = {
   source: NoteId;
   target: NoteId;
+  kind?: LinkKind;
+  label?: string;
+  targetHeading?: string | null;
+  targetBlockId?: string | null;
+  concept?: string | null;
+  count?: number;
 };
 
 export type GraphData = {

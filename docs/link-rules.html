@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Link Rules</title>
+    <meta name="opaline:doc" content="link-rules">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <p><a href="../README.html">Back to README</a> · <a href="link-rules.zh.html">中文</a></p>
+        <h1>Link Rules</h1>
+
+        <h2><code>[[note]]</code> Links</h2>
+        <p>When saving, Opaline compiles <code>[[Title]]</code> into ordinary browser-readable HTML links. If the target note can be resolved by title, it is saved as:</p>
+        <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;Title&lt;/a&gt;</code></pre>
+        <p>If the target note cannot be found, Opaline saves an unresolved span and marks it as a broken link in the index:</p>
+        <pre><code>&lt;span data-opaline-unresolved="Title"&gt;[[Title]]&lt;/span&gt;</code></pre>
+
+        <h2>Four Relationship Types</h2>
+        <p>The data model and graph view now distinguish four relationship types. The ordinary-user context-menu flow for creating concept-level links from selected text is still not implemented.</p>
+        <ul>
+          <li><strong>File-level:</strong> links to a note.</li>
+          <li><strong>Heading-level:</strong> links to a heading inside a note.</li>
+          <li><strong>Block-level:</strong> links to a stable paragraph, card, table, quote block, or other block.</li>
+          <li><strong>Concept-level:</strong> links to a concept node. Tags are currently used as concept nodes in the graph.</li>
+        </ul>
+        <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;Target note&lt;/a&gt;
+&lt;a href="target.html#Research-Question" data-opaline-link="note-id" data-opaline-link-kind="heading"&gt;Research Question&lt;/a&gt;
+&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;intro block&lt;/a&gt;
+&lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
+        <p>The graph renders these as different edge types: file, heading, block, and concept. This allows filtering by relationship type instead of treating every link as the same kind of edge.</p>
+
+        <h2>Ordinary <code>&lt;a&gt;</code> Links</h2>
+        <ul>
+          <li><code>http:</code>, <code>https:</code>, <code>mailto:</code>, and <code>tel:</code> are external links and are not broken links.</li>
+          <li><code>#block-id</code> is treated as an internal anchor in the current note.</li>
+          <li>Relative paths that resolve to HTML notes inside the workspace <code>notes/</code> directory record the target note id.</li>
+          <li>Relative paths that cannot be resolved are marked as broken links.</li>
+          <li>If link text equals a note title, Opaline may use that title as a fallback target.</li>
+        </ul>
+
+        <h2>Block References</h2>
+        <p>Block references are represented with URL hashes and Opaline metadata:</p>
+        <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
+        <p>The current version resolves whether the target note exists. Verifying whether the exact block id exists can be added at the index layer later.</p>
+
+        <h2>Broken Links</h2>
+        <p>The following cases are marked as broken links:</p>
+        <ul>
+          <li><code>[[Title]]</code> cannot be resolved to a note.</li>
+          <li>A relative HTML link cannot find its target note.</li>
+          <li><code>data-opaline-link</code> points to a missing note id.</li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>

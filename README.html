@@ -121,6 +121,7 @@
             <li><a href="docs/html-format.html">HTML format and multilingual notes</a></li>
             <li><a href="docs/storage-architecture.html">Storage and architecture</a></li>
             <li><a href="docs/search-ai-publish.html">Search, AI, and publishing</a></li>
+            <li><a href="docs/link-rules.html">Link rules</a> · <a href="docs/link-rules.zh.html" lang="zh-Hans">链接规则</a></li>
             <li><a href="docs/roadmap.html">Roadmap and non-goals</a></li>
           </ul>
         </nav>
@@ -154,12 +155,13 @@
           <li>Clean Opaline HTML Profile helpers and tests.</li>
           <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
           <li>Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.</li>
+          <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for graph modeling.</li>
           <li>Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.</li>
           <li>Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.</li>
           <li>File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.</li>
-          <li>Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, and graph preview.</li>
+          <li>Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters.</li>
         </ul>
-        <p>Still rough: workspace migration is not implemented yet, the graph is only a compact preview, file operations are still limited, and the HTML-native editor interactions need more polish.</p>
+        <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations are still limited, and the HTML-native editor interactions need more polish.</p>
 
         <h2>Today Conversation</h2>
         <p>Today is a low-friction capture surface, not a disposable chat shell. The user's raw text is appended to today's HTML journal first. If AI is configured, the assistant reply is appended too. Search, links, summaries, and later note extraction can then build on that saved local record.</p>
@@ -183,7 +185,8 @@
           <li>Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.</li>
           <li>Add workspace migration when users change locations.</li>
           <li>Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.</li>
-          <li>Turn the graph preview into a real graph view with filtering and note navigation.</li>
+          <li>Improve the graph view now that it supports relation-type filters: better layout, focused neighborhoods, and clearer edge inspection.</li>
+          <li>Add ordinary-user creation flows for heading, block, and concept links from the editor context menu.</li>
           <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>
           <li>Continue hardening the Opaline HTML Profile with parser-based validation and tests.</li>
           <li>Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.</li>
