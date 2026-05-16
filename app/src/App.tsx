@@ -18,7 +18,6 @@ import {
   MessageCircle,
   Network,
   NotebookPen,
-  FlaskConical,
   RefreshCw,
   Search,
   Send,
@@ -31,14 +30,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
-import { AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
 import { GraphView } from "./editor/GraphView";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
 import {
-  BUILT_IN_WIDGETS,
   loadLiveComponentSettings,
   saveLiveComponentSettings,
   type LiveComponentSettings,
@@ -1695,23 +1692,25 @@ function SettingsView({
   onChangeWorkspace: () => void | Promise<void>;
 }) {
   return (
-    <section className="settings-view">
-      <section className="settings-card">
-        <div className="settings-card-header">
-          <FolderOpen size={18} />
-          <div>
-            <h2>工作区</h2>
-          </div>
-        </div>
-        <div className="workspace-settings-row">
-          <span title={workspacePath ?? undefined}>{workspacePath ?? "正在准备"}</span>
-          <button type="button" onClick={onChangeWorkspace}>
-            更改
-          </button>
-        </div>
-      </section>
-      <LiveComponentsSettingsPanel workspacePath={workspacePath} />
-      <AiSettingsPanel />
+    <section className="settings-view settings-panel-view">
+      <aside className="settings-sidebar" aria-label="设置分类">
+        <strong>选项</strong>
+        <button type="button"><Bot size={17} />关于</button>
+        <button type="button"><NotebookPen size={17} />编辑器</button>
+        <button type="button" onClick={onChangeWorkspace}><FolderOpen size={17} />文件与链接</button>
+        <button type="button"><Settings size={17} />外观</button>
+        <button type="button"><CommandIcon />快捷键</button>
+        <button type="button"><KeyIcon />钥匙串</button>
+        <button type="button"><Puzzle size={17} />核心插件</button>
+        <button type="button" className="is-active"><Puzzle size={17} />第三方插件</button>
+        <em>核心插件</em>
+        <button type="button"><BookOpen size={17} />白板</button>
+        <button type="button"><RefreshCw size={17} />同步</button>
+        <button type="button"><FileText size={17} />页面预览</button>
+      </aside>
+      <div className="settings-main-panel">
+        <LiveComponentsSettingsPanel workspacePath={workspacePath} />
+      </div>
     </section>
   );
 }
@@ -1738,7 +1737,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
 
     const plugins = await workspaceAdapter.listInstalledPlugins(workspacePath);
     setInstalledPlugins(plugins);
-    setPluginStatus(plugins.length ? `已刷新：${plugins.length} 个插件` : "还没有安装插件");
+    setPluginStatus(plugins.length ? `已刷新：${plugins.length} 个插件` : "");
   }, [workspacePath]);
 
   useEffect(() => {
@@ -1767,30 +1766,23 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
   }, [refreshInstalledPlugins, workspacePath]);
 
   return (
-    <section className="settings-card">
-      <div className="settings-card-header">
-        <Puzzle size={18} />
-        <div>
-          <h2>第三方插件</h2>
-          <p>从工作区的 <code>.opaline/plugins</code> 读取已安装插件。笔记只保存组件声明，脚本放在插件文件夹里。</p>
-        </div>
-      </div>
-
-      <div className="plugin-policy-list">
+    <section className="plugin-settings-content">
+      <div className="plugin-policy-list is-obsidian-like">
         <PluginPolicyRow
           icon={<ShieldCheck size={17} />}
           title="安全模式"
-          description={settings.trustedPluginWidgetsEnabled ? "第三方插件已允许运行。关闭后，插件组件只会以可读 HTML 降级显示。" : "安全模式已开启。开启以允许已安装插件渲染 opaline-widget。"}
+          description={settings.trustedPluginWidgetsEnabled ? "安全模式已关闭。第三方插件已允许运行。" : "安全模式已开启。开启以限制第三方插件运行。"}
           enabled={settings.trustedPluginWidgetsEnabled}
           onToggle={() => updateSettings({ trustedPluginWidgetsEnabled: !settings.trustedPluginWidgetsEnabled })}
+          buttonLabel={settings.trustedPluginWidgetsEnabled ? "关闭" : "开启"}
         />
         <div className="plugin-policy-row">
           <div className="plugin-policy-icon"><Puzzle size={17} /></div>
           <div>
             <strong>社区插件市场</strong>
-            <small>后续用于浏览和安装社区插件。当前先用文件夹导入本地插件。</small>
+            <small>浏览、安装社区成员制作的第三方插件。</small>
           </div>
-          <button type="button" className="secondary-action-button" disabled>浏览</button>
+          <button type="button" className="secondary-action-button is-purple" disabled>浏览</button>
         </div>
         <div className="plugin-policy-row">
           <div className="plugin-policy-icon"><FolderOpen size={17} /></div>
@@ -1798,46 +1790,18 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
             <strong>插件安装情况</strong>
             <small>你目前已经安装了 {installedPlugins.length} 个插件。</small>
           </div>
-          <button type="button" className="secondary-action-button" onClick={openPluginsFolder}>
-            打开文件夹
-          </button>
         </div>
         <PluginPolicyRow
-          icon={<FlaskConical size={17} />}
-          title="实验性脚本笔记"
-          description="允许 opaline-script 在笔记里直接运行 JS。脚本可以请求网络并更新卡片输出，只建议在你信任的工作区开启。"
-          enabled={settings.experimentalScriptsEnabled}
-          onToggle={() => updateSettings({ experimentalScriptsEnabled: !settings.experimentalScriptsEnabled })}
-          danger
-        />
-        <PluginPolicyRow
           title="自动检查插件更新"
-          description="为未来插件市场保留。当前不会联网检查。"
+          description="定期检查第三方插件的更新。"
           enabled={settings.autoCheckPluginUpdates}
           onToggle={() => updateSettings({ autoCheckPluginUpdates: !settings.autoCheckPluginUpdates })}
         />
       </div>
 
       <div className="plugin-market-card">
-        <div>
-          <h3>内置组件</h3>
-          <p>这些组件由 Opaline 自己解释，不依赖第三方代码。</p>
-        </div>
-        <div className="plugin-chip-grid">
-          {BUILT_IN_WIDGETS.map((widget) => (
-            <span key={widget.type} title={widget.description}>
-              {widget.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="plugin-market-card">
         <div className="installed-plugins-header">
-          <div>
-            <h3>已安装插件</h3>
-            <p>把插件文件夹放进工作区的 <code>.opaline/plugins</code>。每个插件需要一个 <code>manifest.json</code> 和对应脚本文件。</p>
-          </div>
+          <h3>已安装插件</h3>
           <div className="installed-plugins-actions">
             <button type="button" title="刷新插件" onClick={() => void refreshInstalledPlugins()}>
               <RefreshCw size={16} />
@@ -1848,11 +1812,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
           </div>
         </div>
         {pluginStatus ? <p className="plugin-status-text">{pluginStatus}</p> : null}
-        {installedPlugins.length === 0 ? (
-          <div className="empty-plugin-list">
-            还没有安装插件。点击文件夹按钮，把插件文件夹放进 <code>.opaline/plugins</code>，然后刷新。
-          </div>
-        ) : (
+        {installedPlugins.length > 0 ? (
           installedPlugins.map((plugin) => (
             <div className="plugin-example-row" key={plugin.id}>
               <div>
@@ -1863,22 +1823,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
               <span>{plugin.version}</span>
             </div>
           ))
-        )}
-      </div>
-
-      <div className="plugin-market-card">
-        <div>
-          <h3>插件文件结构</h3>
-          <p>示例：<code>.opaline/plugins/network-tools/manifest.json</code> 指向同目录里的 <code>network-status.js</code>。</p>
-        </div>
-        <div className="plugin-example-row">
-          <div>
-            <strong>manifest.json</strong>
-            <small>插件导入后，设置页刷新会读取 widgets，并让同 type 的 opaline-widget 运行对应脚本。</small>
-            <code>{`{"id":"network-tools","name":"Network Tools","version":"0.1.0","widgets":[{"type":"network-status","label":"网络设备状态","script":"network-status.js"}]}`}</code>
-          </div>
-          <span>本地</span>
-        </div>
+        ) : null}
       </div>
     </section>
   );
@@ -1890,6 +1835,7 @@ function PluginPolicyRow({
   description,
   enabled,
   onToggle,
+  buttonLabel,
   danger = false,
 }: {
   icon?: ReactNode;
@@ -1897,6 +1843,7 @@ function PluginPolicyRow({
   description: string;
   enabled: boolean;
   onToggle: () => void;
+  buttonLabel?: string;
   danger?: boolean;
 }) {
   return (
@@ -1906,11 +1853,23 @@ function PluginPolicyRow({
         <strong>{title}</strong>
         <small>{description}</small>
       </div>
-      <button type="button" className={enabled ? "switch-button is-on" : "switch-button"} onClick={onToggle} aria-pressed={enabled}>
-        <span />
-      </button>
+      {buttonLabel ? (
+        <button type="button" className="secondary-action-button" onClick={onToggle}>{buttonLabel}</button>
+      ) : (
+        <button type="button" className={enabled ? "switch-button is-on" : "switch-button"} onClick={onToggle} aria-pressed={enabled}>
+          <span />
+        </button>
+      )}
     </div>
   );
+}
+
+function CommandIcon() {
+  return <span className="settings-sidebar-symbol">⌘</span>;
+}
+
+function KeyIcon() {
+  return <span className="settings-sidebar-symbol">⌕</span>;
 }
 
 function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {

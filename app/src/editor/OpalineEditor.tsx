@@ -39,7 +39,7 @@ import {
   TextSearch,
   Undo2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
 import { SUMMARY_PROMPT, TAG_PROMPT, TITLE_PROMPT } from "../ai/adapter";
@@ -52,7 +52,8 @@ import { BlockId, assignBlockIds, listBlockIds } from "./extensions/blockId";
 import { DisclosureBlock, DisclosureContent, DisclosureSummary, LayoutColumn, OpalineLayout } from "./extensions/layout";
 import { OpalineWidget } from "./extensions/widget";
 import { OpalineScript } from "./extensions/liveScript";
-import { loadLiveComponentSettings } from "./liveComponentSettings";
+import { BUILT_IN_WIDGETS, loadLiveComponentSettings } from "./liveComponentSettings";
+import { loadInstalledPluginsFromCache, type InstalledPluginWidget } from "./pluginRegistry";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -130,6 +131,7 @@ export function OpalineEditor({
   const [noteLinkDialogOpen, setNoteLinkDialogOpen] = useState(false);
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [atomicLinkDialogOpen, setAtomicLinkDialogOpen] = useState(false);
+  const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const linkContextRef = useRef<InternalLinkContext>({
     currentNote,
@@ -272,22 +274,7 @@ export function OpalineEditor({
         <IconButton label="链接到本篇标题/段落" onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
           <LinkIcon size={17} />
         </IconButton>
-        <IconButton label="本地图谱组件" onClick={() => editor.chain().focus().insertOpalineWidget({ type: "local-graph", title: "当前笔记邻域" }).run()}>
-          <Network size={17} />
-        </IconButton>
-        <IconButton
-          label="网络状态组件"
-          onClick={() => editor.chain().focus().insertOpalineWidget({
-            type: "network-status",
-            title: "网络设备状态",
-            target: "192.168.1.1",
-            endpoint: "/status",
-            profile: "onu-readonly",
-            refresh: "5s",
-            plugin: "network-tools",
-          }).run()}
-          disabled={!liveComponentSettings.trustedPluginWidgetsEnabled}
-        >
+        <IconButton label="插入组件" onClick={() => setWidgetDialogOpen(true)}>
           <Network size={17} />
         </IconButton>
         <IconButton
@@ -335,6 +322,7 @@ export function OpalineEditor({
         canEmbedNote={Boolean(onSearchNotes)}
       />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
+      <WidgetInsertDialog editor={editor} open={widgetDialogOpen} onClose={() => setWidgetDialogOpen(false)} />
       <AtomicLinkDialog
         editor={editor}
         open={atomicLinkDialogOpen}
@@ -1031,6 +1019,147 @@ function InsertDialog({
         <div className="insert-actions">
           <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
           <button type="button" className="dialog-primary" onClick={apply}>插入</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type WidgetOption = {
+  type: string;
+  label: string;
+  description: string;
+  plugin?: string;
+};
+
+function WidgetInsertDialog({
+  editor,
+  open,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [selectedType, setSelectedType] = useState("local-graph");
+  const [title, setTitle] = useState("当前笔记邻域");
+  const [target, setTarget] = useState("192.168.31.1");
+  const [endpoint, setEndpoint] = useState("");
+  const [refresh, setRefresh] = useState("2s");
+  const [query, setQuery] = useState("");
+  const options: WidgetOption[] = useMemo(() => {
+    const installedPlugins = open ? loadInstalledPluginsFromCache() : [];
+    return [
+      ...BUILT_IN_WIDGETS.map((widget) => ({
+        type: widget.type,
+        label: widget.label,
+        description: widget.description,
+      })),
+      ...installedPlugins.flatMap((plugin) =>
+        plugin.widgets.map((widget: InstalledPluginWidget) => ({
+          type: widget.type,
+          label: widget.label || widget.type,
+          description: `${plugin.name} · ${widget.script}`,
+          plugin: plugin.id,
+        })),
+      ),
+    ];
+  }, [open]);
+  const selected = options.find((option) => option.type === selectedType) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const first = options[0];
+    if (first && !options.some((option) => option.type === selectedType)) {
+      setSelectedType(first.type);
+      setTitle(first.label);
+    }
+  }, [open, options, selectedType]);
+
+  if (!open) return null;
+
+  const pick = (option: WidgetOption) => {
+    setSelectedType(option.type);
+    setTitle(option.label);
+    if (option.type === "ping-monitor") {
+      setTarget("192.168.31.1");
+      setRefresh("2s");
+      setEndpoint("");
+    }
+    if (option.type === "tcp-check") {
+      setTarget("192.168.31.1");
+      setEndpoint("80");
+      setRefresh("5s");
+    }
+  };
+
+  const insert = () => {
+    const option = selected ?? { type: selectedType, label: title };
+    editor.chain().focus().insertOpalineWidget({
+      type: option.type,
+      title: title.trim() || option.label || option.type,
+      query: query.trim(),
+      target: target.trim(),
+      endpoint: endpoint.trim(),
+      refresh: refresh.trim(),
+      plugin: option.plugin || "",
+    }).run();
+    onClose();
+  };
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label="插入组件">
+      <div className="insert-card widget-insert-card">
+        <header>
+          <strong>插入组件</strong>
+          <p>从内置组件或 .opaline/plugins 里的插件选择一个组件，填参数后插入到当前笔记。</p>
+        </header>
+        <div className="widget-picker-grid">
+          <div className="widget-option-list">
+            {options.map((option) => (
+              <button
+                key={`${option.plugin || "builtin"}-${option.type}`}
+                type="button"
+                className={option.type === selectedType ? "is-active" : ""}
+                onClick={() => pick(option)}
+              >
+                <strong>{option.label}</strong>
+                <small>{option.type}</small>
+              </button>
+            ))}
+            {!options.length ? <p className="muted">还没有可插入组件。</p> : null}
+          </div>
+          <div className="widget-field-grid">
+            <label>
+              <span>标题</span>
+              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+            </label>
+            <label>
+              <span>类型</span>
+              <input value={selected?.type ?? selectedType} readOnly />
+            </label>
+            <label>
+              <span>目标 / target</span>
+              <input value={target} onChange={(event) => setTarget(event.target.value)} placeholder="192.168.31.1" />
+            </label>
+            <label>
+              <span>端口或路径 / endpoint</span>
+              <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="80 或 /status" />
+            </label>
+            <label>
+              <span>刷新间隔</span>
+              <input value={refresh} onChange={(event) => setRefresh(event.target.value)} placeholder="2s" />
+            </label>
+            <label>
+              <span>查询 / 命令</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="可选" />
+            </label>
+            <p>{selected?.description}</p>
+          </div>
+        </div>
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>取消</button>
+          <button type="button" className="dialog-primary" onClick={insert} disabled={!selected}>插入组件</button>
         </div>
       </div>
     </div>
