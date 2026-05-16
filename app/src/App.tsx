@@ -24,7 +24,6 @@ import {
   Settings,
   Star,
   ArrowDownAZ,
-  FileDown,
   FileUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -344,42 +343,35 @@ export function App() {
     }
   }, [refreshNotes, workspace.path]);
 
-  const exportMarkdown = useCallback(async () => {
+  const exportNoteMarkdown = useCallback(async (note: NoteSummary) => {
     if (!workspace.path) {
       setStatus("请先打开工作区");
       return;
     }
+
     const dir = await open({
       directory: true,
       multiple: false,
-      title: "选择导出目录",
+      title: `导出「${note.title}」为 Markdown`,
     });
     if (typeof dir !== "string") return;
+
     setIsBusy(true);
-    setStatus("正在导出...");
-    let exported = 0;
+    setStatus(`正在导出：${note.title}`);
     try {
       const { articleHtmlToMarkdown } = await import("./editor/markdownExport");
-      for (const note of workspace.notes) {
-        try {
-          const document = await workspaceAdapter.readNote(workspace.path, note.path);
-          const articleHtml = articleFromHtmlDocument(document.html);
-          const markdown = articleHtmlToMarkdown(articleHtml);
-          const filePath = `${dir}/${markdownExportPath(note.path, note.title)}`;
-          await workspaceAdapter.writeExportFile!(filePath, markdown);
-          exported++;
-          setStatus(`正在导出... ${exported} / ${workspace.notes.length}`);
-        } catch {
-          // continue with next note
-        }
-      }
-      setStatus(`已导出 ${exported} 篇笔记`);
+      const document = await workspaceAdapter.readNote(workspace.path, note.path);
+      const articleHtml = articleFromHtmlDocument(document.html);
+      const markdown = articleHtmlToMarkdown(articleHtml);
+      const filePath = `${dir}/${markdownExportPath(note.path, note.title)}`;
+      await workspaceAdapter.writeExportFile!(filePath, markdown);
+      setStatus(`已导出 Markdown：${note.title}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "导出失败");
     } finally {
       setIsBusy(false);
     }
-  }, [workspace.notes, workspace.path]);
+  }, [workspace.path]);
 
   const openNote = useCallback(
     async (note: NoteSummary) => {
@@ -829,7 +821,6 @@ export function App() {
           onGraph={() => setView("graph")}
           onSettings={() => setView("settings")}
           onImport={importMarkdown}
-          onExport={exportMarkdown}
         />
       ) : null}
       {view === "home" || ((view === "note" || view === "graph" || view === "settings") && leftPanelCollapsed) ? null : (
@@ -863,7 +854,7 @@ export function App() {
           </button>
           {(view !== "note" && view !== "graph" && view !== "settings") ? (
             <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip="导入 Markdown 文件" aria-label="导入 Markdown">
-              <FileDown size={17} />
+              <FileUp size={17} />
               <span>导入</span>
             </button>
           ) : null}
@@ -1139,6 +1130,7 @@ export function App() {
         onDuplicate={(note) => void duplicateNote(note)}
         onToggleFavorite={(note) => void toggleNoteFavorite(note)}
         onCopyPath={(note) => void copyNotePath(note)}
+        onExportMarkdown={(note) => void exportNoteMarkdown(note)}
         onRename={(note) => void renameNote(note)}
         onDelete={(note) => void deleteNote(note)}
         onMove={(note) => void moveNote(note)}
@@ -1193,7 +1185,6 @@ function NoteRibbon({
   onGraph,
   onSettings,
   onImport,
-  onExport,
 }: {
   leftCollapsed: boolean;
   onHome: () => void;
@@ -1202,7 +1193,6 @@ function NoteRibbon({
   onGraph: () => void;
   onSettings: () => void;
   onImport: () => void;
-  onExport: () => void;
 }) {
   return (
     <nav className="note-ribbon" aria-label="工作台">
@@ -1216,9 +1206,6 @@ function NoteRibbon({
         <BookOpen size={18} />
       </button>
       <button type="button" onClick={onImport} data-tooltip="导入 Markdown" aria-label="导入 Markdown">
-        <FileDown size={18} />
-      </button>
-      <button type="button" onClick={onExport} data-tooltip="导出 Markdown" aria-label="导出 Markdown">
         <FileUp size={18} />
       </button>
       <button type="button" onClick={onGraph} data-tooltip="图谱" aria-label="图谱">
@@ -1552,6 +1539,7 @@ function NoteContextMenu({
   onDuplicate,
   onToggleFavorite,
   onCopyPath,
+  onExportMarkdown,
   onRename,
   onDelete,
   onMove,
@@ -1563,6 +1551,7 @@ function NoteContextMenu({
   onDuplicate: (note: NoteSummary) => void;
   onToggleFavorite: (note: NoteSummary) => void;
   onCopyPath: (note: NoteSummary) => void;
+  onExportMarkdown: (note: NoteSummary) => void;
   onRename: (note: NoteSummary) => void;
   onDelete: (note: NoteSummary) => void;
   onMove: (note: NoteSummary) => void;
@@ -1625,6 +1614,7 @@ function NoteContextMenu({
       <button type="button" onClick={() => run(() => onMove(state.note))}>移动到...</button>
       <button type="button" onClick={() => run(() => onReveal(state.note))}>在文件管理器中显示</button>
       <button type="button" onClick={() => run(() => onCopyPath(state.note))}>复制路径</button>
+      <button type="button" onClick={() => run(() => onExportMarkdown(state.note))}>导出 Markdown</button>
       <span role="separator" />
       <button type="button" className="menu-danger" onClick={() => run(() => onDelete(state.note))}>删除</button>
     </div>
