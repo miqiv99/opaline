@@ -59,6 +59,10 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     return;
   },
 
+  async createFolder() {
+    return;
+  },
+
   async listNotes() {
     return notes.map(toSummary);
   },

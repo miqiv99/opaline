@@ -30,6 +30,10 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     await invoke("ensure_workspace", { path });
   },
 
+  async createFolder(path: string, directory: string) {
+    await invoke("create_folder", { path, directory });
+  },
+
   async listNotes(path: string) {
     return invoke<NoteSummary[]>("list_notes", { path });
   },

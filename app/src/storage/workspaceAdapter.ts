@@ -12,6 +12,7 @@ export interface WorkspaceAdapter {
   defaultWorkspacePath(): Promise<string>;
   chooseWorkspace(): Promise<string | null>;
   ensureWorkspace(path: string): Promise<void>;
+  createFolder(path: string, directory: string): Promise<void>;
   listNotes(path: string): Promise<NoteSummary[]>;
   createNote(path: string, input: NewNoteInput): Promise<NoteDocument>;
   createDailyNote(path: string): Promise<NoteDocument>;

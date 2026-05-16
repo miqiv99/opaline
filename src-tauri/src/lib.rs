@@ -137,6 +137,15 @@ fn ensure_workspace(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn create_folder(path: String, directory: String) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let directory = clean_note_directory(&directory)?;
+    fs::create_dir_all(workspace.join(directory)).map_err(to_error)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn list_notes(path: String) -> Result<Vec<NoteSummary>, String> {
     let workspace = workspace_path(&path)?;
     ensure_workspace(path.clone())?;
@@ -453,6 +462,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             default_workspace_path,
             ensure_workspace,
+            create_folder,
             list_notes,
             create_note,
             create_daily_note,
@@ -1115,7 +1125,7 @@ fn extract_tags(html: &str) -> Vec<String> {
 
 fn extract_headings(html: &str) -> Vec<String> {
     let mut headings = Vec::new();
-    for tag in ["h1", "h2", "h3"] {
+    for tag in ["h1", "h2", "h3", "h4", "h5", "h6"] {
         let mut rest = html;
         let start_tag = format!("<{tag}");
         let end_tag = format!("</{tag}>");

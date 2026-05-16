@@ -4,18 +4,29 @@ import {
   Bot,
   Bug,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsDown,
+  Clock3,
   FilePlus2,
+  FileText,
   FolderOpen,
+  FolderPlus,
   Home,
   Lightbulb,
+  Link2,
+  MessageCircle,
+  Network,
+  NotebookPen,
   RefreshCw,
   Search,
   Send,
   Settings,
   Star,
+  ArrowDownAZ,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { AiPanel, AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
@@ -34,7 +45,8 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
-type AppView = "today" | "note" | "settings";
+type AppView = "home" | "today" | "note" | "settings";
+type VaultSortMode = "updated" | "title";
 type TodayMessage = {
   id: string;
   role: "user" | "assistant";
@@ -92,17 +104,9 @@ const NOTE_TEMPLATES: Array<{
   },
 ];
 
-const TODAY_PROMPTS = [
-  "今天遇到了什么问题？",
-  "今天学到的一个概念是什么？",
-  "今天哪个决定以后可能需要回看？",
-  "今天读到/看到的哪句话值得留下？",
-  "这个项目现在最不确定的地方是什么？",
-];
-
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(initialState);
-  const [view, setView] = useState<AppView>("today");
+  const [view, setView] = useState<AppView>("home");
   const [articleHtml, setArticleHtml] = useState("");
   const [savedArticleHtml, setSavedArticleHtml] = useState("");
   const [status, setStatus] = useState("正在准备工作区");
@@ -120,9 +124,23 @@ export function App() {
   const [todayMessages, setTodayMessages] = useState<TodayMessage[]>([]);
   const [isTodayBusy, setIsTodayBusy] = useState(false);
   const [didLoadDefaultWorkspace, setDidLoadDefaultWorkspace] = useState(false);
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [vaultSortMode, setVaultSortMode] = useState<VaultSortMode>("updated");
+  const [allFoldersExpanded, setAllFoldersExpanded] = useState(true);
+  const [noteContextMenu, setNoteContextMenu] = useState<{ note: NoteSummary; x: number; y: number } | null>(null);
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
+  const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
+  const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
+  const currentTags = workspace.activeNote?.tags ?? [];
+  const cycleVaultSort = useCallback(() => {
+    setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
+  }, []);
 
   const activeTitle = useMemo(() => {
+    if (view === "home") {
+      return "Opaline";
+    }
     if (view === "settings") {
       return "设置";
     }
@@ -221,22 +239,6 @@ export function App() {
     );
   }, [createNoteFromInput, draftLang, draftTemplate, draftTitle]);
 
-  const createFromPrompt = useCallback(async (prompt: string) => {
-    setTodayText(prompt);
-    setView("today");
-  }, []);
-
-  const createPromptNote = useCallback(async (prompt: string) => {
-    await createNoteFromInput(
-      {
-        title: prompt.replace(/[？?]$/, ""),
-        lang: "zh-Hans",
-        body: `<p><span data-opaline-tag="prompt">#prompt</span></p><h2>${escapeHtml(prompt)}</h2><p></p><h2>背景</h2><p></p><h2>后续</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p></p></div></li></ul>`,
-      },
-      "已根据今日提示创建草稿",
-    );
-  }, [createNoteFromInput]);
-
   const createDailyNote = useCallback(async () => {
     setIsBusy(true);
     try {
@@ -254,6 +256,31 @@ export function App() {
       setIsBusy(false);
     }
   }, [refreshBacklinks, workspace.path]);
+
+  const createFolder = useCallback(async () => {
+    const raw = window.prompt("新建文件夹", "notes/");
+    if (!raw) {
+      return;
+    }
+    const directory = raw.trim().replace(/\\/g, "/");
+    if (!directory) {
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
+      await workspaceAdapter.ensureWorkspace(path);
+      await workspaceAdapter.createFolder(path, directory.startsWith("notes") ? directory : `notes/${directory}`);
+      await refreshNotes(path);
+      setStatus("文件夹已创建");
+      setAllFoldersExpanded(true);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "创建文件夹失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.path]);
 
   const openNote = useCallback(
     async (note: NoteSummary) => {
@@ -337,6 +364,45 @@ export function App() {
     }));
     setStatus(favorite ? "已收藏" : "已取消收藏");
   }, [refreshNotes, workspace.activeNote, workspace.path]);
+
+  const toggleNoteFavorite = useCallback(async (note: NoteSummary) => {
+    if (!workspace.path) return;
+    const favorite = await workspaceAdapter.toggleFavorite(workspace.path, note.id);
+    const notes = await refreshNotes(workspace.path);
+    setWorkspace((current) => ({
+      ...current,
+      notes,
+      activeNote: current.activeNote?.id === note.id ? { ...current.activeNote, favorite } : current.activeNote,
+    }));
+    setStatus(favorite ? "已收藏" : "已取消收藏");
+  }, [refreshNotes, workspace.path]);
+
+  const duplicateNote = useCallback(async (note: NoteSummary) => {
+    if (!workspace.path) return;
+    setIsBusy(true);
+    try {
+      const document = await workspaceAdapter.readNote(workspace.path, note.path);
+      const directory = note.path.split("/").slice(0, -1).join("/") || "notes";
+      const duplicate = await workspaceAdapter.createNote(workspace.path, {
+        title: `${note.title} 副本`,
+        lang: "zh-Hans",
+        directory,
+        body: articleFromHtmlDocument(document.html),
+      });
+      const notes = await workspaceAdapter.listNotes(workspace.path);
+      openNoteDocument(workspace.path, notes, duplicate);
+      setStatus("已创建副本");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "创建副本失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [workspace.path]);
+
+  const copyNotePath = useCallback(async (note: NoteSummary) => {
+    await navigator.clipboard?.writeText(note.path);
+    setStatus("已复制路径");
+  }, []);
 
   const importAsset = useCallback(
     async (kind: "image" | "file"): Promise<ImportedAsset | null> => {
@@ -528,8 +594,19 @@ export function App() {
   };
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
+    <main
+      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${view === "note" ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
+    >
+      {view === "note" ? (
+        <NoteRibbon
+          leftCollapsed={leftPanelCollapsed}
+          onHome={() => setView("home")}
+          onToggleLeft={() => setLeftPanelCollapsed((value) => !value)}
+        />
+      ) : null}
+      {view === "home" || (view === "note" && leftPanelCollapsed) ? null : (
+      <aside className={`sidebar ${view === "note" ? "is-vault-sidebar" : ""}`}>
+        {view === "note" ? null : (
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
             <img src={leafLogo} alt="" />
@@ -539,26 +616,46 @@ export function App() {
             <span>本地 HTML 笔记</span>
           </div>
         </div>
+        )}
 
         <div className="sidebar-actions">
-          <button type="button" onClick={() => setView("today")} disabled={isBusy}>
-            <Home size={17} />
-            <span>今天</span>
-          </button>
-          <button type="button" onClick={openWorkspace} disabled={isBusy}>
+          {view === "note" ? null : (
+            <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip="入口" aria-label="入口">
+              <Home size={17} />
+              <span>入口</span>
+            </button>
+          )}
+          <button type="button" onClick={openWorkspace} disabled={isBusy} data-tooltip="打开工作区" aria-label="打开工作区">
             <FolderOpen size={17} />
             <span>打开</span>
           </button>
-          <button type="button" onClick={requestCreateNote} disabled={isBusy}>
+          <button type="button" onClick={requestCreateNote} disabled={isBusy} data-tooltip="新建笔记" aria-label="新建笔记">
             <FilePlus2 size={17} />
             <span>新建</span>
           </button>
-          <button type="button" onClick={createDailyNote} disabled={isBusy}>
-            <CalendarDays size={17} />
-            <span>日记</span>
-          </button>
+          {view === "note" ? (
+            <>
+              <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip="新建文件夹" aria-label="新建文件夹">
+                <FolderPlus size={17} />
+                <span>新建文件夹</span>
+              </button>
+              <button type="button" onClick={() => setAllFoldersExpanded((value) => !value)} disabled={isBusy} data-tooltip={allFoldersExpanded ? "折叠全部" : "展开全部"} aria-label={allFoldersExpanded ? "折叠全部" : "展开全部"}>
+                <ChevronsDown size={17} />
+                <span>{allFoldersExpanded ? "折叠文件夹" : "展开文件夹"}</span>
+              </button>
+              <button type="button" onClick={cycleVaultSort} disabled={isBusy} data-tooltip={vaultSortMode === "updated" ? "按修改时间排序" : "按标题排序"} aria-label={vaultSortMode === "updated" ? "按修改时间排序" : "按标题排序"}>
+                <ArrowDownAZ size={17} />
+                <span>{vaultSortMode === "updated" ? "按时间" : "按标题"}</span>
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={createDailyNote} disabled={isBusy} data-tooltip="日记" aria-label="日记">
+              <CalendarDays size={17} />
+              <span>日记</span>
+            </button>
+          )}
           {workspace.path ? (
-            <button type="button" onClick={() => refreshNotes(workspace.path as string)} disabled={isBusy}>
+            <button type="button" onClick={() => refreshNotes(workspace.path as string)} disabled={isBusy} data-tooltip="刷新" aria-label="刷新">
               <RefreshCw size={17} />
               <span>刷新</span>
             </button>
@@ -585,48 +682,85 @@ export function App() {
           </div>
         ) : null}
 
-        <nav className="note-list" aria-label="笔记列表">
-          {workspace.notes.length === 0 ? (
-            <p className="empty-state">还没有笔记。</p>
-          ) : (
-            workspace.notes.map((note) => (
-              <button
-                key={note.path}
-                type="button"
-                className={workspace.activeNote?.path === note.path ? "note-item is-active" : "note-item"}
-                onClick={() => openNote(note)}
-              >
-                <span>{note.favorite ? "★ " : ""}{note.title}</span>
-                <small>{note.path}</small>
-                {note.tags.length ? <small>{note.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
-              </button>
-            ))
-          )}
-        </nav>
+        {view === "note" ? (
+          <VaultExplorer
+            notes={workspace.notes}
+            favorites={favoriteNotes}
+            activePath={workspace.activeNote?.path ?? null}
+            sortMode={vaultSortMode}
+            expanded={allFoldersExpanded}
+            onOpen={openNote}
+            onContextMenu={(note, event) => {
+              event.preventDefault();
+              setNoteContextMenu({ note, x: event.clientX, y: event.clientY });
+            }}
+          />
+        ) : (
+          <nav className="note-list" aria-label="笔记列表">
+            {workspace.notes.length === 0 ? (
+              <p className="empty-state">还没有笔记。</p>
+            ) : (
+              workspace.notes.map((note) => (
+                <NoteListItem
+                  key={note.path}
+                  note={note}
+                  active={workspace.activeNote?.path === note.path}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setNoteContextMenu({ note, x: event.clientX, y: event.clientY });
+                  }}
+                  onOpen={() => openNote(note)}
+                />
+              ))
+            )}
+          </nav>
+        )}
 
         <button type="button" className="settings-entry" onClick={() => setView("settings")}>
           <Settings size={18} />
           <span>设置</span>
         </button>
       </aside>
+      )}
 
       <section className="main-pane">
-        <header className="topbar">
-          <div>
-            <h1>{activeTitle}</h1>
-            <p>
-              {status}
-              {isDirty ? <span className="dirty-dot">未保存</span> : null}
-            </p>
-          </div>
-          {workspace.activeNote ? (
-            <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label="收藏">
-              <Star size={18} fill={workspace.activeNote.favorite ? "currentColor" : "none"} />
-            </button>
-          ) : null}
-        </header>
+        {view === "home" ? null : (
+          <header className="topbar">
+            <div>
+              <h1>{activeTitle}</h1>
+              <p>
+                {view === "note" && workspace.activeNote ? workspace.activeNote.path : status}
+                {isDirty ? <span className="dirty-dot">未保存</span> : null}
+                {currentTags.map((tag) => (
+                  <span key={tag} className="tag-pill">#{tag}</span>
+                ))}
+              </p>
+            </div>
+            {workspace.activeNote ? (
+              <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label="收藏">
+                <Star size={18} fill={workspace.activeNote.favorite ? "currentColor" : "none"} />
+              </button>
+            ) : null}
+            {view === "note" ? (
+              <button
+                className="right-panel-toggle"
+                type="button"
+                data-tooltip={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+                onClick={() => setRightPanelCollapsed((value) => !value)}
+                aria-label={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+              >
+                {rightPanelCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+              </button>
+            ) : null}
+          </header>
+        )}
 
-        {view === "settings" ? (
+        {view === "home" ? (
+          <EntryChoiceView
+            onSerious={() => setView("note")}
+            onCasual={() => setView("today")}
+          />
+        ) : view === "settings" ? (
           <SettingsView
             workspacePath={workspace.path}
             onChangeWorkspace={async () => {
@@ -646,15 +780,31 @@ export function App() {
               onPickNote={pickNote}
             />
             <aside className="inspector">
+              <Section title="操作" icon={<CalendarDays size={16} />}>
+                <div className="inspector-actions">
+                  <button type="button" onClick={requestCreateNote} disabled={isBusy}>
+                    <FilePlus2 size={16} />
+                    <span>新建笔记</span>
+                  </button>
+                  <button type="button" onClick={createDailyNote} disabled={isBusy}>
+                    <CalendarDays size={16} />
+                    <span>今日日记</span>
+                  </button>
+                  <button type="button" onClick={() => workspace.path && refreshNotes(workspace.path)} disabled={isBusy || !workspace.path}>
+                    <RefreshCw size={16} />
+                    <span>刷新</span>
+                  </button>
+                </div>
+              </Section>
               <AiPanel />
-              <Section title="标题">
+              <Section title="大纲" icon={<FileText size={16} />}>
                 {workspace.activeNote.headings.length ? (
                   workspace.activeNote.headings.map((heading) => <p key={heading}>{heading}</p>)
                 ) : (
                   <p className="muted">还没有标题。</p>
                 )}
               </Section>
-              <Section title="出链">
+              <Section title="出链" icon={<Link2 size={16} />}>
                 {workspace.activeNote.outgoingLinks.length ? (
                   workspace.activeNote.outgoingLinks.map((link) => (
                     <p key={link.href} className={link.isBroken ? "is-broken" : undefined}>
@@ -665,7 +815,7 @@ export function App() {
                   <p className="muted">还没有链接。</p>
                 )}
               </Section>
-              <Section title="反链">
+              <Section title="反链" icon={<Clock3 size={16} />}>
                 {backlinks.length ? (
                   backlinks.map((link) => (
                     <button key={link.id} className="inspector-link" type="button" onClick={() => openSearchResult(link)}>
@@ -676,13 +826,27 @@ export function App() {
                   <p className="muted">还没有反链。</p>
                 )}
               </Section>
-              <Section title="图谱">
-                <p>{graph.nodes.length} 篇笔记</p>
-                <p>{graph.edges.length} 条链接</p>
+              <Section title="图谱" icon={<Network size={16} />}>
+                <GraphPreview
+                  graph={graph}
+                  activeNoteId={workspace.activeNote.id}
+                  onOpenNode={(nodeId) => {
+                    const note = workspace.notes.find((item) => item.id === nodeId);
+                    if (note) void openNote(note);
+                  }}
+                />
                 {graph.brokenLinks.length ? <p className="is-broken">{graph.brokenLinks.length} 条断链</p> : null}
               </Section>
             </aside>
           </div>
+        ) : view === "note" ? (
+          <SeriousEmptyView
+            recentNotes={recentNotes}
+            onCreate={requestCreateNote}
+            onDaily={createDailyNote}
+            onOpen={openNote}
+            busy={isBusy}
+          />
         ) : (
           <TodayView
             text={todayText}
@@ -709,7 +873,336 @@ export function App() {
         onCancel={() => setCreateDialogOpen(false)}
         onSubmit={createNote}
       />
+      <NoteContextMenu
+        state={noteContextMenu}
+        onClose={() => setNoteContextMenu(null)}
+        onOpen={(note) => void openNote(note)}
+        onDuplicate={(note) => void duplicateNote(note)}
+        onToggleFavorite={(note) => void toggleNoteFavorite(note)}
+        onCopyPath={(note) => void copyNotePath(note)}
+      />
     </main>
+  );
+}
+
+function EntryChoiceView({
+  onSerious,
+  onCasual,
+}: {
+  onSerious: () => void;
+  onCasual: () => void;
+}) {
+  return (
+    <section className="entry-choice" aria-label="选择记录方式">
+      <button type="button" className="entry-choice-card" onClick={onSerious}>
+        <NotebookPen size={82} strokeWidth={1.7} />
+        <span>认真记记</span>
+      </button>
+      <button type="button" className="entry-choice-card" onClick={onCasual}>
+        <MessageCircle size={82} strokeWidth={1.7} />
+        <span>随便记记</span>
+      </button>
+    </section>
+  );
+}
+
+function NoteRibbon({
+  leftCollapsed,
+  onHome,
+  onToggleLeft,
+}: {
+  leftCollapsed: boolean;
+  onHome: () => void;
+  onToggleLeft: () => void;
+}) {
+  return (
+    <nav className="note-ribbon" aria-label="工作台">
+      <button type="button" onClick={onHome} data-tooltip="返回入口页" aria-label="返回入口页">
+        <Home size={18} />
+      </button>
+      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"} aria-label={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"}>
+        {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
+    </nav>
+  );
+}
+
+function SeriousEmptyView({
+  recentNotes,
+  onCreate,
+  onDaily,
+  onOpen,
+  busy,
+}: {
+  recentNotes: NoteSummary[];
+  onCreate: () => void;
+  onDaily: () => void;
+  onOpen: (note: NoteSummary) => void;
+  busy: boolean;
+}) {
+  return (
+    <section className="serious-empty">
+      <div className="serious-empty-actions" aria-label="开始认真记录">
+        <button type="button" onClick={onCreate} disabled={busy}>
+          <FilePlus2 size={24} />
+          <span>新建</span>
+        </button>
+        <button type="button" onClick={onDaily} disabled={busy}>
+          <CalendarDays size={24} />
+          <span>日记</span>
+        </button>
+      </div>
+
+      <section className="serious-start-panel">
+        <div className="vault-section-title">
+          <Clock3 size={15} />
+          <span>最近</span>
+        </div>
+        {recentNotes.length ? (
+          <div className="recent-note-grid">
+            {recentNotes.map((note) => (
+              <button key={note.path} type="button" onClick={() => onOpen(note)}>
+                <strong>{note.title}</strong>
+                <span>{note.path}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">认真记录从第一篇笔记开始。</p>
+        )}
+      </section>
+
+    </section>
+  );
+}
+
+function GraphPreview({
+  graph,
+  activeNoteId,
+  onOpenNode,
+}: {
+  graph: GraphData;
+  activeNoteId: string;
+  onOpenNode: (nodeId: string) => void;
+}) {
+  const nodes = graph.nodes.slice(0, 12);
+  const width = 238;
+  const height = 170;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = 58;
+  const positions = new Map(
+    nodes.map((node, index) => {
+      const angle = nodes.length <= 1 ? 0 : (Math.PI * 2 * index) / nodes.length - Math.PI / 2;
+      return [
+        node.id,
+        {
+          x: nodes.length <= 1 ? centerX : centerX + Math.cos(angle) * radius,
+          y: nodes.length <= 1 ? centerY : centerY + Math.sin(angle) * radius,
+        },
+      ] as const;
+    }),
+  );
+  const visibleIds = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 28);
+
+  if (!nodes.length) {
+    return <p className="muted">还没有可显示的图谱。</p>;
+  }
+
+  return (
+    <div className="graph-preview">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="笔记图谱">
+        {edges.map((edge, index) => {
+          const source = positions.get(edge.source);
+          const target = positions.get(edge.target);
+          if (!source || !target) return null;
+          return (
+            <line
+              key={`${edge.source}-${edge.target}-${index}`}
+              x1={source.x}
+              y1={source.y}
+              x2={target.x}
+              y2={target.y}
+            />
+          );
+        })}
+        {nodes.map((node) => {
+          const position = positions.get(node.id);
+          if (!position) return null;
+          const active = node.id === activeNoteId;
+          return (
+            <g key={node.id} className={active ? "is-active" : undefined} onClick={() => onOpenNode(node.id)}>
+              <circle cx={position.x} cy={position.y} r={active ? 8 : 6} />
+              <title>{node.title}</title>
+            </g>
+          );
+        })}
+      </svg>
+      <p>{graph.nodes.length} 篇笔记 · {graph.edges.length} 条链接</p>
+    </div>
+  );
+}
+
+function VaultExplorer({
+  notes,
+  favorites,
+  activePath,
+  sortMode,
+  expanded,
+  onOpen,
+  onContextMenu,
+}: {
+  notes: NoteSummary[];
+  favorites: NoteSummary[];
+  activePath: string | null;
+  sortMode: VaultSortMode;
+  expanded: boolean;
+  onOpen: (note: NoteSummary) => void;
+  onContextMenu: (note: NoteSummary, event: MouseEvent) => void;
+}) {
+  const sortedNotes = [...notes].sort((a, b) => {
+    if (sortMode === "title") {
+      return a.title.localeCompare(b.title, "zh-Hans");
+    }
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+  const grouped = sortedNotes.reduce<Array<{ directory: string; notes: NoteSummary[] }>>((groups, note) => {
+    const directory = note.path.split("/").slice(0, -1).join("/") || "notes";
+    const existing = groups.find((group) => group.directory === directory);
+    if (existing) {
+      existing.notes.push(note);
+    } else {
+      groups.push({ directory, notes: [note] });
+    }
+    return groups;
+  }, []);
+
+  return (
+    <div className="vault-explorer">
+      {favorites.length ? (
+        <section className="vault-section">
+          <div className="vault-section-title">
+            <Star size={15} />
+            <span>收藏</span>
+          </div>
+          <nav className="note-list is-compact" aria-label="收藏笔记">
+            {favorites.map((note) => (
+              <NoteListItem
+                key={note.path}
+                note={note}
+                active={activePath === note.path}
+                showPath={false}
+                onContextMenu={(event) => onContextMenu(note, event)}
+                onOpen={() => onOpen(note)}
+              />
+            ))}
+          </nav>
+        </section>
+      ) : null}
+
+      <section className="vault-section is-files">
+        <div className="vault-section-title">
+          <FileText size={15} />
+          <span>文件</span>
+          <small>{sortMode === "updated" ? "时间" : "标题"}</small>
+        </div>
+        <nav className="note-list vault-tree" aria-label="所有笔记">
+          {notes.length === 0 ? (
+            <p className="empty-state">还没有笔记。</p>
+          ) : (
+            grouped.map((group) => (
+              <section key={group.directory} className="vault-folder">
+                <div className="vault-folder-title">
+                  <ChevronRight size={14} className={expanded ? "is-expanded" : undefined} />
+                  <span>{group.directory.replace(/^notes\/?/, "") || "根目录"}</span>
+                </div>
+                {expanded ? (
+                  <div className="vault-folder-notes">
+                    {group.notes.map((note) => (
+                      <NoteListItem
+                        key={note.path}
+                        note={note}
+                        active={activePath === note.path}
+                        showPath={false}
+                        onContextMenu={(event) => onContextMenu(note, event)}
+                        onOpen={() => onOpen(note)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ))
+          )}
+        </nav>
+      </section>
+    </div>
+  );
+}
+
+function NoteListItem({
+  note,
+  active,
+  showPath = true,
+  onContextMenu,
+  onOpen,
+}: {
+  note: NoteSummary;
+  active: boolean;
+  showPath?: boolean;
+  onContextMenu?: (event: MouseEvent) => void;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={active ? "note-item is-active" : "note-item"}
+      onContextMenu={onContextMenu}
+      onClick={onOpen}
+    >
+      <span>{note.favorite ? "★ " : ""}{note.title}</span>
+      {showPath ? <small>{note.path}</small> : null}
+      {note.tags.length ? <small>{note.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
+    </button>
+  );
+}
+
+function NoteContextMenu({
+  state,
+  onClose,
+  onOpen,
+  onDuplicate,
+  onToggleFavorite,
+  onCopyPath,
+}: {
+  state: { note: NoteSummary; x: number; y: number } | null;
+  onClose: () => void;
+  onOpen: (note: NoteSummary) => void;
+  onDuplicate: (note: NoteSummary) => void;
+  onToggleFavorite: (note: NoteSummary) => void;
+  onCopyPath: (note: NoteSummary) => void;
+}) {
+  if (!state) return null;
+
+  const run = (action: () => void) => {
+    action();
+    onClose();
+  };
+
+  return (
+    <div
+      className="file-context-menu"
+      style={{ left: state.x, top: state.y }}
+      role="menu"
+      onClick={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <button type="button" onClick={() => run(() => onOpen(state.note))}>打开</button>
+      <button type="button" onClick={() => run(() => onDuplicate(state.note))}>创建副本</button>
+      <button type="button" onClick={() => run(() => onToggleFavorite(state.note))}>{state.note.favorite ? "取消收藏" : "收藏"}</button>
+      <span role="separator" />
+      <button type="button" onClick={() => run(() => onCopyPath(state.note))}>复制路径</button>
+    </div>
   );
 }
 
@@ -791,10 +1284,10 @@ function SettingsView({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <section className="inspector-section">
-      <h2>{title}</h2>
+      <h2>{icon}{title}</h2>
       {children}
     </section>
   );

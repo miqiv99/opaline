@@ -27,6 +27,7 @@ import {
   Pi,
   Redo2,
   Save,
+  Search,
   Table2,
   TextCursorInput,
   Undo2,
@@ -59,11 +60,12 @@ type OpalineEditorProps = {
 
 export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onPickNote }: OpalineEditorProps) {
   const [dialog, setDialog] = useState<InsertDialogState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3],
+          levels: [1, 2, 3, 4, 5, 6],
         },
       }),
       Link.configure({
@@ -103,6 +105,13 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
       attributes: {
         class: "editor-surface",
       },
+      handleDOMEvents: {
+        contextmenu: (_view, event) => {
+          event.preventDefault();
+          setContextMenu({ x: event.clientX, y: event.clientY });
+          return true;
+        },
+      },
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -122,7 +131,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
   }
 
   return (
-    <section className="editor-shell">
+    <section className="editor-shell" onClick={() => setContextMenu(null)}>
       <div className="toolbar" aria-label="编辑工具栏">
         <IconButton label="撤销" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
           <Undo2 size={17} />
@@ -131,43 +140,9 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
           <Redo2 size={17} />
         </IconButton>
         <span className="toolbar-divider" />
-        <IconButton label="一级标题" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })}>
-          <Heading1 size={17} />
-        </IconButton>
-        <IconButton label="二级标题" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })}>
-          <Heading2 size={17} />
-        </IconButton>
-        <IconButton label="加粗" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")}>
-          <Bold size={17} />
-        </IconButton>
-        <IconButton label="斜体" onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")}>
-          <Italic size={17} />
-        </IconButton>
-        <IconButton label="无序列表" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")}>
-          <List size={17} />
-        </IconButton>
-        <IconButton label="有序列表" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")}>
-          <ListOrdered size={17} />
-        </IconButton>
-        <IconButton label="任务列表" onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")}>
-          <CheckSquare size={17} />
-        </IconButton>
-        <IconButton label="代码块" onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")}>
-          <Code2 size={17} />
-        </IconButton>
         <IconButton label="标注块" onClick={() => insertCallout(editor)}>
           <MessageSquareQuote size={17} />
         </IconButton>
-        <IconButton label="链接" onClick={() => openLinkDialog(editor, setDialog)} active={editor.isActive("link")}>
-          <LinkIcon size={17} />
-        </IconButton>
-        <IconButton label="插入图片" onClick={() => insertImage(editor, onImportAsset)}>
-          <FileImage size={17} />
-        </IconButton>
-        <IconButton label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
-          <Table2 size={17} />
-        </IconButton>
-        <span className="toolbar-divider" />
         <IconButton label="双栏布局" onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
           <Columns2 size={17} />
         </IconButton>
@@ -201,10 +176,24 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         </button>
       </div>
       <EditorContent editor={editor} />
+      <EditorContextMenu
+        editor={editor}
+        state={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onLink={() => openLinkDialog(editor, setDialog)}
+        onImage={() => insertImage(editor, onImportAsset)}
+        onMathInline={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}
+        onPickNote={onPickNote}
+      />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
     </section>
   );
 }
+
+type ContextMenuState = {
+  x: number;
+  y: number;
+};
 
 type InsertDialogState =
   | { type: "link"; value: string }
@@ -359,3 +348,161 @@ function InsertDialog({
     </div>
   );
 }
+
+function EditorContextMenu({
+  editor,
+  state,
+  onClose,
+  onLink,
+  onImage,
+  onMathInline,
+  onPickNote,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  state: ContextMenuState | null;
+  onClose: () => void;
+  onLink: () => void;
+  onImage: () => void;
+  onMathInline: () => void;
+  onPickNote?: () => Promise<NoteSuggestion | null>;
+}) {
+  if (!state) return null;
+
+  const run = (action: () => unknown | Promise<unknown>) => {
+    void Promise.resolve(action()).finally(onClose);
+  };
+
+  const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, " ");
+  const canPaste = typeof navigator !== "undefined" && Boolean(navigator.clipboard?.readText);
+
+  return (
+    <div
+      className="editor-context-menu"
+      style={{ left: state.x, top: state.y }}
+      role="menu"
+      onClick={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <ContextMenuItem icon={<LinkIcon size={17} />} label="新增链接" onClick={() => run(onLink)} />
+      <ContextMenuItem
+        icon={<LinkIcon size={17} />}
+        label="新增外部链接"
+        onClick={() => run(() => {
+          const href = window.prompt("输入外部链接")?.trim();
+          if (href) editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+        })}
+      />
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        icon={<Search size={17} />}
+        label={selectedText ? `查找“${truncateLabel(selectedText)}”` : "查找选中文本"}
+        disabled={!selectedText}
+        onClick={() => run(() => {
+          const findInPage = (window as Window & { find?: (query: string) => boolean }).find;
+          if (selectedText && findInPage) findInPage(selectedText);
+        })}
+      />
+      {onPickNote ? (
+        <ContextMenuItem
+          icon={<FileImage size={17} />}
+          label="嵌入其他笔记"
+          onClick={() => run(() => insertEmbed(editor, onPickNote))}
+        />
+      ) : null}
+      <ContextMenuSubmenu icon={<Bold size={17} />} label="文本格式">
+        <ContextMenuItem icon={<Bold size={17} />} label="加粗" active={editor.isActive("bold")} onClick={() => run(() => editor.chain().focus().toggleBold().run())} />
+        <ContextMenuItem icon={<Italic size={17} />} label="倾斜" active={editor.isActive("italic")} onClick={() => run(() => editor.chain().focus().toggleItalic().run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">S</span>} label="删除线" active={editor.isActive("strike")} onClick={() => run(() => editor.chain().focus().toggleStrike().run())} />
+        <ContextMenuItem icon={<Code2 size={17} />} label="代码" active={editor.isActive("code")} onClick={() => run(() => editor.chain().focus().toggleCode().run())} />
+        <ContextMenuItem icon={<Pi size={17} />} label="数学" onClick={() => run(onMathInline)} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">⌫</span>} label="清除格式" onClick={() => run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())} />
+      </ContextMenuSubmenu>
+      <ContextMenuSubmenu icon={<span className="context-menu-symbol">¶</span>} label="段落设置">
+        <ContextMenuItem icon={<List size={17} />} label="无序列表" active={editor.isActive("bulletList")} onClick={() => run(() => editor.chain().focus().toggleBulletList().run())} />
+        <ContextMenuItem icon={<ListOrdered size={17} />} label="有序列表" active={editor.isActive("orderedList")} onClick={() => run(() => editor.chain().focus().toggleOrderedList().run())} />
+        <ContextMenuItem icon={<CheckSquare size={17} />} label="任务列表" active={editor.isActive("taskList")} onClick={() => run(() => editor.chain().focus().toggleTaskList().run())} />
+        <ContextMenuSeparator />
+        <ContextMenuItem icon={<Heading1 size={17} />} label="1级标题" active={editor.isActive("heading", { level: 1 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
+        <ContextMenuItem icon={<Heading2 size={17} />} label="2级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H3</span>} label="3级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H4</span>} label="4级标题" active={editor.isActive("heading", { level: 4 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 4 }).run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H5</span>} label="5级标题" active={editor.isActive("heading", { level: 5 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 5 }).run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H6</span>} label="6级标题" active={editor.isActive("heading", { level: 6 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 6 }).run())} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">¶</span>} label="正文" active={editor.isActive("paragraph")} onClick={() => run(() => editor.chain().focus().setParagraph().run())} />
+        <ContextMenuSeparator />
+        <ContextMenuItem icon={<span className="context-menu-symbol">❝</span>} label="引用" active={editor.isActive("blockquote")} onClick={() => run(() => editor.chain().focus().toggleBlockquote().run())} />
+      </ContextMenuSubmenu>
+      <ContextMenuSubmenu icon={<TextCursorInput size={17} />} label="插入">
+        <ContextMenuItem icon={<FileImage size={17} />} label="图片" onClick={() => run(onImage)} />
+        <ContextMenuItem icon={<Table2 size={17} />} label="表格" onClick={() => run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+        <ContextMenuItem icon={<MessageSquareQuote size={17} />} label="标注块" onClick={() => run(() => insertCallout(editor))} />
+        <ContextMenuItem icon={<Columns2 size={17} />} label="双栏块" onClick={() => run(() => editor.chain().focus().insertTwoColumnLayout().run())} />
+      </ContextMenuSubmenu>
+      <ContextMenuSeparator />
+      <ContextMenuItem icon={<TextCursorInput size={17} />} label="剪切" onClick={() => run(() => document.execCommand("cut"))} />
+      <ContextMenuItem icon={<TextCursorInput size={17} />} label="复制" onClick={() => run(() => document.execCommand("copy"))} />
+      <ContextMenuItem icon={<TextCursorInput size={17} />} label="粘贴" disabled={!canPaste} onClick={() => run(async () => {
+        const text = await navigator.clipboard.readText();
+        editor.chain().focus().insertContent(text).run();
+      })} />
+      <ContextMenuItem icon={<TextCursorInput size={17} />} label="以纯文本形式粘贴" disabled={!canPaste} onClick={() => run(async () => {
+        const text = await navigator.clipboard.readText();
+        editor.chain().focus().insertContent(text).run();
+      })} />
+      <ContextMenuItem icon={<TextCursorInput size={17} />} label="全选" onClick={() => run(() => editor.chain().focus().selectAll().run())} />
+    </div>
+  );
+}
+
+function ContextMenuItem({
+  icon,
+  label,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" role="menuitem" className={active ? "context-menu-item is-active" : "context-menu-item"} disabled={disabled} onClick={onClick}>
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ContextMenuSubmenu({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="context-menu-submenu">
+      <button type="button" className="context-menu-item">
+        {icon}
+        <span>{label}</span>
+        <span className="context-menu-arrow">›</span>
+      </button>
+      <div className="context-submenu-panel">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ContextMenuSeparator() {
+  return <span className="context-menu-separator" role="separator" />;
+}
+
+const truncateLabel = (value: string) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > 18 ? `${normalized.slice(0, 18)}...` : normalized;
+};
