@@ -133,13 +133,33 @@
         <p>The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.</p>
 
         <h2>Current Product Loop</h2>
-        <p>The app should split users by action, not by asking them to choose a mode. People who do not want to write notes can simply say what happened on Today; people who know what they want can still create, search, edit, link, and publish later.</p>
+        <p>The current prototype splits users from the first screen. <strong>认真记记</strong> opens a more Obsidian-like workspace for deliberate note work. <strong>随便记记</strong> opens Today, where users can talk first and let Opaline turn the conversation into a durable daily HTML note.</p>
         <ul>
           <li>Opaline auto-initializes a default workspace in the user's documents folder under <code>Opaline</code>.</li>
           <li>The Today page is a minimal conversation surface: user turns are written to the daily HTML note before AI replies.</li>
+          <li>The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.</li>
+          <li>The right inspector contains note operations, outline, outgoing links, backlinks, and a compact graph preview.</li>
           <li>Settings owns workspace location, AI provider, custom API base URL, model, API key, model testing, and model fetching.</li>
           <li>Changing the workspace location is remembered; file migration from the previous workspace is the next needed step.</li>
         </ul>
+
+        <h2>Current Implementation Status</h2>
+        <p>The app is no longer only a scaffold. It already has the first usable desktop loop.</p>
+        <ul>
+          <li>Tauri + React + Tiptap app shell.</li>
+          <li>Automatic default workspace under the user's documents folder.</li>
+          <li>Local HTML note creation, loading, editing, saving, and auto-saving.</li>
+          <li>Today conversation capture that stores user and AI turns in the daily HTML note.</li>
+          <li>AI settings with provider selection, custom API base URL, model, API key, explicit save, model testing, and model fetching.</li>
+          <li>Clean Opaline HTML Profile helpers and tests.</li>
+          <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
+          <li>Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.</li>
+          <li>Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.</li>
+          <li>Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.</li>
+          <li>File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.</li>
+          <li>Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, and graph preview.</li>
+        </ul>
+        <p>Still rough: workspace migration is not implemented yet, the graph is only a compact preview, file operations are still limited, and the HTML-native editor interactions need more polish.</p>
 
         <h2>Today Conversation</h2>
         <p>Today is a low-friction capture surface, not a disposable chat shell. The user's raw text is appended to today's HTML journal first. If AI is configured, the assistant reply is appended too. Search, links, summaries, and later note extraction can then build on that saved local record.</p>
@@ -160,16 +180,16 @@
 
         <h2>Short-Term Roadmap</h2>
         <ol>
-          <li>Stabilize the bilingual Markdown and HTML documentation entry points.</li>
-          <li>Define the first Opaline HTML Profile.</li>
-          <li>Scaffold Tauri + React + Tiptap + SQLite.</li>
-          <li>Add default workspace initialization and Settings-based workspace selection.</li>
-          <li>Add the Today conversation entry and append turns to the daily HTML note.</li>
-          <li>Save, auto-save, and load clean HTML notes.</li>
-          <li>Add SQLite FTS search, metadata scanning, backlinks, and broken-link detection.</li>
-          <li>Add rich HTML blocks: columns, comparison, sidenotes, disclosure, math, diagrams, and embeds.</li>
-          <li>Add AI settings with custom base URLs, explicit save, model testing, and model fetching.</li>
-          <li>Next: add workspace migration when users change locations.</li>
+          <li>Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.</li>
+          <li>Add workspace migration when users change locations.</li>
+          <li>Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.</li>
+          <li>Turn the graph preview into a real graph view with filtering and note navigation.</li>
+          <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>
+          <li>Continue hardening the Opaline HTML Profile with parser-based validation and tests.</li>
+          <li>Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.</li>
+          <li>Add AI retrieval over local notes with visible sources before generated answers.</li>
+          <li>Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.</li>
+          <li>Later: static publishing and reader-facing concept search over public notes.</li>
         </ol>
 
         <h2>License</h2>

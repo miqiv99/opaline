@@ -1111,6 +1111,15 @@ button:disabled {
   position: relative;
 }
 
+.context-menu-submenu::after {
+  position: absolute;
+  top: -8px;
+  right: -14px;
+  bottom: -8px;
+  width: 18px;
+  content: "";
+}
+
 .context-menu-submenu > .context-menu-item {
   width: 100%;
 }
@@ -1118,7 +1127,7 @@ button:disabled {
 .context-submenu-panel {
   position: absolute;
   top: -6px;
-  left: calc(100% + 6px);
+  left: calc(100% - 1px);
   z-index: 81;
   display: none;
   min-width: 170px;
@@ -1129,7 +1138,8 @@ button:disabled {
   padding: 6px;
 }
 
-.context-menu-submenu:hover > .context-submenu-panel {
+.context-menu-submenu:hover > .context-submenu-panel,
+.context-menu-submenu.is-open > .context-submenu-panel {
   display: grid;
 }
 

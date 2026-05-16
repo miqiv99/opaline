@@ -32,7 +32,7 @@ import {
   TextCursorInput,
   Undo2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
 import { MathInline, MathBlock } from "./extensions/math";
@@ -484,14 +484,40 @@ function ContextMenuSubmenu({
   label: string;
   children: ReactNode;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+
+  const clearCloseTimer = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+
+  const open = () => {
+    clearCloseTimer();
+    setIsOpen(true);
+  };
+
+  const closeSoon = () => {
+    clearCloseTimer();
+    closeTimer.current = window.setTimeout(() => setIsOpen(false), 220);
+  };
+
+  useEffect(() => clearCloseTimer, []);
+
   return (
-    <div className="context-menu-submenu">
-      <button type="button" className="context-menu-item">
+    <div
+      className={isOpen ? "context-menu-submenu is-open" : "context-menu-submenu"}
+      onMouseEnter={open}
+      onMouseLeave={closeSoon}
+    >
+      <button type="button" className="context-menu-item" onFocus={open} onClick={() => setIsOpen((value) => !value)}>
         {icon}
         <span>{label}</span>
         <span className="context-menu-arrow">›</span>
       </button>
-      <div className="context-submenu-panel">
+      <div className="context-submenu-panel" onMouseEnter={open} onMouseLeave={closeSoon}>
         {children}
       </div>
     </div>

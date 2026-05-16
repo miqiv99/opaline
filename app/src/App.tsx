@@ -25,7 +25,7 @@ import {
   Star,
   ArrowDownAZ,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { AiPanel, AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
@@ -1182,6 +1182,38 @@ function NoteContextMenu({
   onToggleFavorite: (note: NoteSummary) => void;
   onCopyPath: (note: NoteSummary) => void;
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+
+    const closeWhenOutside = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      onClose();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("pointerdown", closeWhenOutside, true);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("blur", onClose);
+    window.addEventListener("scroll", onClose, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenOutside, true);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("blur", onClose);
+      window.removeEventListener("scroll", onClose, true);
+    };
+  }, [onClose, state]);
+
   if (!state) return null;
 
   const run = (action: () => void) => {
@@ -1191,6 +1223,7 @@ function NoteContextMenu({
 
   return (
     <div
+      ref={menuRef}
       className="file-context-menu"
       style={{ left: state.x, top: state.y }}
       role="menu"
