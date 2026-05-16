@@ -140,7 +140,7 @@
           <li>The Today page is a minimal conversation surface: user turns are written to the daily HTML note before AI replies.</li>
           <li>The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.</li>
           <li>The right inspector contains note operations, outline, outgoing links, backlinks, and a compact graph preview.</li>
-          <li>Settings owns workspace location, AI provider, custom API base URL, model, API key, model testing, and model fetching.</li>
+          <li>Settings owns workspace location, AI provider, custom API base URL, model, API key, model testing, model fetching, and the live-component/plugin policy.</li>
           <li>Changing the workspace location is remembered; file migration from the previous workspace is the next needed step.</li>
         </ul>
 
@@ -157,7 +157,9 @@
           <li>Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.</li>
           <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for graph modeling.</li>
           <li>The editor can copy the current block link and insert links to headings or blocks in the current note using stable block IDs.</li>
-          <li>A controlled built-in <code>&lt;opaline-widget&gt;</code> placeholder exists for future live components, starting with local graph widgets without arbitrary note scripts.</li>
+          <li>Settings now include an Obsidian-inspired third-party plugin panel with safe mode, install status, refresh, and an action to open <code>.opaline/plugins</code>.</li>
+          <li><code>&lt;opaline-widget&gt;</code> can store built-in widgets and installed plugin widgets such as <code>network-status</code>. Notes store parameters such as <code>type</code>, <code>target</code>, <code>endpoint</code>, and <code>refresh</code>; scripts live in the workspace plugin folder.</li>
+          <li><code>&lt;opaline-script&gt;</code> exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with <code>opaline.render()</code> or call HTTP/HTTPS APIs through <code>opaline.net.fetch()</code>.</li>
           <li>Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.</li>
           <li>Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.</li>
           <li>File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.</li>
@@ -168,7 +170,7 @@
 
         <h2>HTML-Native Differentiators</h2>
         <ul>
-          <li><strong>Controlled live components:</strong> known widget types such as <code>query</code>, <code>chart</code>, and <code>local-graph</code> can be stored as readable <code>&lt;opaline-widget&gt;</code> elements. Unsupported widgets degrade to text and do not run scripts.</li>
+          <li><strong>Live components / Web Components:</strong> Settings keep built-in widgets and experimental script notes separate, while third-party widgets are loaded from <code>.opaline/plugins/&lt;plugin-id&gt;/</code>. A plugin <code>manifest.json</code> maps component types such as <code>network-status</code> to script files; notes store parameter declarations such as <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code>.</li>
           <li><strong>DOM-level atomic links:</strong> blocks keep <code>data-opaline-block-id</code>, and the editor now exposes copy/insert flows for stable heading and block links.</li>
           <li><strong>Dynamic graph:</strong> the graph keeps file, heading, block, and concept relations separate, can focus on the active note neighborhood, and lets users inspect edge details.</li>
         </ul>

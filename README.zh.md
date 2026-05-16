@@ -50,7 +50,7 @@ MVP 应该优先解决：
 - SQLite 扫描并重建索引
 - 标题和正文搜索
 - 基础链接和反链
-- 设置页管理工作区位置和 AI provider
+- 设置页管理工作区位置、AI provider、第三方插件与活组件策略
 
 先把个人工具做好，再考虑发布和社区。
 
@@ -70,7 +70,9 @@ MVP 应该优先解决：
 - 已梳理普通 `<a>`、`[[note links]]`、block ref、反链、出链和 broken link 的规则。
 - 关系数据模型和图谱已经区分文件级、标题级、块级、概念级关系。
 - 编辑器可以复制当前块的稳定链接，也可以从当前笔记中选择标题或块并插入带关系类型的链接。
-- 已加入受控内置活组件占位：用可读的 `<opaline-widget>` 保存，先支持 local-graph 这类内置模型，不开放笔记任意脚本。
+- 已加入类似 Obsidian 的第三方插件设置：安全模式、插件安装情况、刷新按钮，以及打开 `.opaline/plugins` 插件文件夹的入口。
+- `<opaline-widget>` 可以保存内置组件，也可以声明已安装插件提供的组件，例如 `network-status`。笔记只保存 `type`、`target`、`endpoint`、`refresh` 等参数；脚本放在工作区插件文件夹里。
+- `<opaline-script>` 已作为实验性脚本笔记加入；在设置里启用后会在 Opaline 内运行 JS，并可通过 `opaline.render()` 更新卡片输出、通过 `opaline.net.fetch()` 请求 HTTP/HTTPS 接口。保存后的 HTML 会带轻量运行时，直接用浏览器打开也会尝试运行，但浏览器请求仍受 CORS 限制。
 - 编辑器支持 callout、双栏、对照、旁注、折叠块、表格、任务列表、图片、嵌入、数学公式和 Mermaid 图表。
 - 编辑器右键菜单已经把常用格式、段落、H1-H6 标题、插入和剪贴板操作收进分层菜单。
 - 左侧文件区右键菜单支持打开、创建副本、收藏和复制路径。
@@ -88,9 +90,23 @@ MVP 应该优先解决：
 
 ## 三个 HTML 原生差异点的当前落点
 
-- **受控活组件：**笔记可以保存 `<opaline-widget type="local-graph">` 这样的可读 HTML。Opaline 只渲染内置类型，未支持或未安装的组件显示为普通文本占位，不运行任意脚本。
+- **活组件 / Web Component：**设置页保留内置组件和实验性脚本笔记开关，第三方组件改为从 `.opaline/plugins/<plugin-id>/` 读取。用户把插件文件夹放进工作区，`manifest.json` 把 `network-status` 等组件类型映射到脚本文件；笔记只保存 `<opaline-widget type="network-status" target="192.168.1.1" endpoint="/status">` 这样的参数声明。
 - **DOM 级原子链接：**标题、段落、表格、引用块等 DOM 块会保留 `data-opaline-block-id`。用户可以复制当前块链接，或从编辑器选择“链接到标题/块”生成稳定 ID 链接。
 - **动态关系图谱：**图谱继续使用文件、标题、块、概念四类关系；现在可以切换当前笔记邻域，并点击边查看关系类型、来源、目标和具体标题/块/概念信息。
+
+已安装插件脚本现在拿到的是偏自由的桌面 API：
+
+- `opaline.render/log/every/timeout`
+- `opaline.net.fetch/ping/tcp`
+- `opaline.notes.list/read/create/save/update/search/current`
+- `opaline.links.backlinks/outgoing`
+- `opaline.graph.current/neighborhood`
+- `opaline.fs.readText/writeText/listDir`
+- `opaline.storage.get/set/remove`
+- `opaline.system.openExternal/openPath/notify`
+- `opaline.shell.exec`
+
+示例插件放在 `examples/plugins/network-tools/`，其中 `ping-monitor` 可以持续 ping `192.168.31.1` 这类内网地址。
 
 AI 不应该只是一个聊天框。它应该帮助用户把随手说出的话沉淀为本地记录，并在后续帮助用户找回、理解和重组自己的旧知识。
 

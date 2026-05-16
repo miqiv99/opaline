@@ -9,6 +9,7 @@ import type {
   NoteSummary,
   SearchResult,
 } from "../domain/note";
+import { saveInstalledPluginsToCache, type InstalledPlugin } from "../editor/pluginRegistry";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 export const tauriWorkspaceAdapter: WorkspaceAdapter = {
@@ -106,6 +107,16 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
 
   async writeSettings(path: string, settings: Record<string, unknown>) {
     await invoke("write_settings", { path, settings });
+  },
+
+  async openPluginsFolder(path: string) {
+    await invoke("open_plugins_folder", { path });
+  },
+
+  async listInstalledPlugins(path: string) {
+    const plugins = await invoke<InstalledPlugin[]>("list_installed_plugins", { path });
+    saveInstalledPluginsToCache(plugins);
+    return plugins;
   },
 
   async copyWorkspace(source: string, destination: string) {

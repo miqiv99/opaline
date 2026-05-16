@@ -48,10 +48,12 @@
         <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
         <p>编辑器会在 Tiptap 状态中保留 <code>data-opaline-block-id</code>，创建块链接前也会补齐缺失 ID。当前索引先解析目标笔记是否存在；跨笔记精确校验 block id 是否存在，仍留给后续索引层实现。</p>
 
-        <h2>受控活组件</h2>
-        <p>活组件使用受控、可读 HTML 表达，而不是让笔记运行任意脚本：</p>
-        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;Opaline widget: 当前笔记邻域&lt;/opaline-widget&gt;</code></pre>
-        <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。如果组件未支持、未安装，或在 Opaline 之外打开，保存的 fallback 文本仍然可读，也不会执行笔记作者写入的 JavaScript。</p>
+        <h2>活组件与插件</h2>
+        <p>活组件使用受控、可读 HTML 表达。设置页把内置组件、已安装插件组件和实验性脚本笔记分开。</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;Opaline widget: 当前笔记邻域&lt;/opaline-widget&gt;
+&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly"&gt;Opaline widget: 网络设备状态&lt;/opaline-widget&gt;
+&lt;opaline-script title="实验脚本" language="javascript"&gt;const status = await opaline.net.fetch("http://192.168.1.1/status");&lt;/opaline-script&gt;</code></pre>
+        <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。插件组件由 <code>.opaline/plugins</code> 里的脚本接管，<code>manifest.json</code> 把组件类型映射到脚本文件，笔记只保存参数。<code>&lt;opaline-script&gt;</code> 仍是单篇笔记里的实验性脚本入口。</p>
 
         <h2>Broken Link</h2>
         <p>以下情况会被标记为断链：</p>

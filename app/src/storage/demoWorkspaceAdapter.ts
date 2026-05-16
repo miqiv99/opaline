@@ -250,6 +250,14 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     localStorage.setItem("opaline-workspace-settings", JSON.stringify(settings));
   },
 
+  async openPluginsFolder() {
+    window.alert("演示模式不能打开本地插件文件夹。桌面版会打开 .opaline/plugins。");
+  },
+
+  async listInstalledPlugins() {
+    return [];
+  },
+
   async copyWorkspace() {},
 
   async moveWorkspace() {},

@@ -31,7 +31,7 @@ The current prototype now splits users naturally from the first screen:
 - Today writes the user's raw text into the daily note before AI replies, so casual conversation becomes local knowledge instead of disposable chat.
 - The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.
 - The right inspector now contains note operations, outline, outgoing links, backlinks, and a small graph preview.
-- Settings owns workspace location and AI configuration so the note/editor surface stays focused.
+- Settings owns workspace location, AI configuration, and the live-component/plugin policy so the note/editor surface stays focused.
 
 The immediate next product gap is workspace migration: changing the workspace location should offer to copy or move the previous workspace files with an explicit confirmation flow.
 
@@ -51,7 +51,9 @@ The current app is no longer only a scaffold. It already has the first usable de
 - Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.
 - Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for the graph model.
 - The editor can copy a stable link to the current block and insert links to headings or blocks in the current note using stored block IDs.
-- A controlled built-in widget placeholder exists for future live components through readable `<opaline-widget>` HTML, starting with a local-graph widget; it does not allow arbitrary note scripts.
+- Settings now include an Obsidian-inspired third-party plugin panel: safe-mode toggle, install status, refresh, and an "open plugins folder" action for `.opaline/plugins`.
+- `<opaline-widget>` can store built-in widgets and installed plugin widgets such as `network-status`. Notes only store parameters such as `type`, `target`, `endpoint`, and `refresh`; plugin scripts live in the workspace plugin folder.
+- `<opaline-script>` exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with `opaline.render()` or call HTTP/HTTPS APIs through `opaline.net.fetch()`. Saved HTML files include a small live runtime so they also try to run in a normal browser, where browser CORS rules still apply.
 - Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.
 - Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.
 - File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.
@@ -235,15 +237,48 @@ Blocks can later receive stable identifiers:
 </section>
 ```
 
-Controlled live components are stored as readable custom elements rather than arbitrary scripts:
+Live components are stored as readable custom elements rather than arbitrary scripts. Settings expose built-in widgets, installed plugin widgets, and the separate experimental script-note switch.
 
 ```html
 <opaline-widget type="local-graph" title="Current note neighborhood">
   Opaline widget: Current note neighborhood
 </opaline-widget>
+
+<opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly">
+  Opaline widget: Network status
+</opaline-widget>
+
+<opaline-script title="Experimental script" language="javascript">
+  const status = await opaline.net.fetch("http://192.168.1.1/status");
+</opaline-script>
 ```
 
-The first built-in model is intentionally narrow: Opaline may render known widget types such as `query`, `chart`, and `local-graph`, while an unsupported widget still degrades to readable text in a browser or another editor.
+The default model remains explicit: Opaline may render known widget types such as `query`, `chart`, and `local-graph`; plugin widgets run scripts from `.opaline/plugins/<plugin-id>/`; script notes are still a separate per-note escape hatch and are off by default. A plugin folder needs a `manifest.json` that maps widget `type` values to script files, for example:
+
+```json
+{
+  "id": "network-tools",
+  "name": "Network Tools",
+  "version": "0.1.0",
+  "widgets": [
+    { "type": "network-status", "label": "Network status", "script": "network-status.js" }
+  ]
+}
+```
+
+Installed plugin scripts now receive an intentionally broad desktop API:
+
+- `opaline.render(value)`, `opaline.log(...)`, `opaline.every(ms, fn)`, `opaline.timeout(ms, fn)`
+- `opaline.net.fetch(url)`, `opaline.net.ping(host)`, `opaline.net.tcp(host, port)`
+- `opaline.notes.list/read/create/save/update/search/current()`
+- `opaline.links.backlinks(noteId)`, `opaline.links.outgoing(notePath?)`
+- `opaline.graph.current()`, `opaline.graph.neighborhood(noteId?)`
+- `opaline.fs.readText(path)`, `opaline.fs.writeText(path, content)`, `opaline.fs.listDir(path)`
+- `opaline.storage.get/set/remove(key)` for per-plugin data
+- `opaline.system.openExternal(url)`, `opaline.system.openPath(path)`, `opaline.system.notify(title, body)`
+- `opaline.shell.exec(command, args, options)` for local command execution
+
+Example plugins live under `examples/plugins/network-tools/`, including `ping-monitor` for continuously pinging a LAN host such as `192.168.31.1`.
 
 ## Identity Model
 

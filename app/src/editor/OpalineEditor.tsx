@@ -51,6 +51,8 @@ import { NoteEmbed } from "./extensions/embed";
 import { BlockId, assignBlockIds, listBlockIds } from "./extensions/blockId";
 import { DisclosureBlock, DisclosureContent, DisclosureSummary, LayoutColumn, OpalineLayout } from "./extensions/layout";
 import { OpalineWidget } from "./extensions/widget";
+import { OpalineScript } from "./extensions/liveScript";
+import { loadLiveComponentSettings } from "./liveComponentSettings";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -135,6 +137,7 @@ export function OpalineEditor({
     getCurrentHtml: undefined,
     onOpenInternalLink,
   });
+  const liveComponentSettings = loadLiveComponentSettings();
 
   const editor = useEditor({
     extensions: [
@@ -169,6 +172,7 @@ export function OpalineEditor({
       MermaidBlock,
       NoteEmbed,
       OpalineWidget,
+      OpalineScript,
       BlockId,
       LayoutColumn,
       OpalineLayout,
@@ -270,6 +274,28 @@ export function OpalineEditor({
         </IconButton>
         <IconButton label="本地图谱组件" onClick={() => editor.chain().focus().insertOpalineWidget({ type: "local-graph", title: "当前笔记邻域" }).run()}>
           <Network size={17} />
+        </IconButton>
+        <IconButton
+          label="网络状态组件"
+          onClick={() => editor.chain().focus().insertOpalineWidget({
+            type: "network-status",
+            title: "网络设备状态",
+            target: "192.168.1.1",
+            endpoint: "/status",
+            profile: "onu-readonly",
+            refresh: "5s",
+            plugin: "network-tools",
+          }).run()}
+          disabled={!liveComponentSettings.trustedPluginWidgetsEnabled}
+        >
+          <Network size={17} />
+        </IconButton>
+        <IconButton
+          label="实验脚本笔记"
+          onClick={() => editor.chain().focus().insertOpalineScript().run()}
+          disabled={!liveComponentSettings.experimentalScriptsEnabled}
+        >
+          <Code2 size={17} />
         </IconButton>
         {onSearchNotes ? (
           <IconButton label="嵌入笔记" onClick={() => setEmbedDialogOpen(true)}>

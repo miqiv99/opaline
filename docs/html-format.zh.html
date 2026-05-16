@@ -139,12 +139,21 @@ This is English.
   &lt;p&gt;...&lt;/p&gt;
 &lt;/section&gt;</code></pre>
 
-        <h2>受控活组件</h2>
-        <p>Opaline 可以把未来的活组件保存为自定义元素，同时让笔记在应用之外仍然可读。当前模型刻意保持很小：<code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型可以由 Opaline 渲染，但笔记作者不能写入任意 JavaScript。</p>
+        <h2>活组件与插件策略</h2>
+        <p>Opaline 可以把活组件保存为自定义元素，同时让笔记在应用之外仍然可读。设置页把内置组件、已安装插件组件和实验性脚本笔记分开。</p>
+        <p>内置组件包括 <code>query</code>、<code>chart</code>、<code>local-graph</code>。第三方组件脚本放在工作区插件文件夹里，例如 <code>.opaline/plugins/network-tools/</code>；笔记文件只保存参数声明。</p>
         <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;
   Opaline widget: 当前笔记邻域
-&lt;/opaline-widget&gt;</code></pre>
-        <p>如果组件未支持，或用普通浏览器打开，fallback 文本仍可见。组件数据应放在属性或可读子内容中，而不是隐藏脚本块里。</p>
+&lt;/opaline-widget&gt;
+
+&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly" refresh="5s"&gt;
+  Opaline widget: 网络设备状态
+&lt;/opaline-widget&gt;
+
+&lt;opaline-script title="实验脚本" language="javascript"&gt;
+  const status = await opaline.net.fetch("http://192.168.1.1/status");
+&lt;/opaline-script&gt;</code></pre>
+        <p>如果组件类型没有对应的已安装插件脚本，fallback 文本仍可见。插件用 <code>manifest.json</code> 把组件类型映射到脚本文件；脚本可用 <code>widget</code> 读取参数，并用 <code>opaline.render()</code>、<code>opaline.net.fetch()</code>、<code>opaline.every()</code> 更新输出。保存后的 HTML 会嵌入当前已安装插件脚本副本，直接用浏览器打开也会尝试运行，但浏览器请求仍受 CORS 限制。</p>
       </article>
     </main>
   </body>

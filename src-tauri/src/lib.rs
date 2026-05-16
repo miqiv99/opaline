@@ -3,7 +3,11 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::net::{TcpStream, ToSocketAddrs};
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 use tauri::Manager;
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -113,6 +117,116 @@ struct ImportedAsset {
     name: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HttpTextResult {
+    url: String,
+    status: u16,
+    ok: bool,
+    content_type: Option<String>,
+    body: String,
+    elapsed_ms: u128,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginManifest {
+    id: Option<String>,
+    name: Option<String>,
+    version: Option<String>,
+    description: Option<String>,
+    permissions: Option<Vec<String>>,
+    widgets: Option<Vec<PluginManifestWidget>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginManifestWidget {
+    #[serde(rename = "type")]
+    widget_type: String,
+    label: Option<String>,
+    script: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstalledPlugin {
+    id: String,
+    name: String,
+    version: String,
+    description: String,
+    permissions: Vec<String>,
+    enabled: bool,
+    widgets: Vec<InstalledPluginWidget>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstalledPluginWidget {
+    #[serde(rename = "type")]
+    widget_type: String,
+    label: String,
+    script: String,
+    code: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginPingResult {
+    host: String,
+    ok: bool,
+    code: Option<i32>,
+    stdout: String,
+    stderr: String,
+    elapsed_ms: u128,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginTcpResult {
+    host: String,
+    port: u16,
+    ok: bool,
+    error: Option<String>,
+    elapsed_ms: u128,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginFsEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    is_file: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginStorageInput {
+    plugin_id: String,
+    key: String,
+    value: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginShellExecInput {
+    command: String,
+    args: Option<Vec<String>>,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginShellExecResult {
+    code: Option<i32>,
+    stdout: String,
+    stderr: String,
+    elapsed_ms: u128,
+    timed_out: bool,
+}
+
 #[tauri::command]
 fn default_workspace_path(app: tauri::AppHandle) -> Result<String, String> {
     let base = app
@@ -121,6 +235,112 @@ fn default_workspace_path(app: tauri::AppHandle) -> Result<String, String> {
         .or_else(|_| app.path().home_dir())
         .map_err(to_error)?;
     Ok(base.join("Opaline").to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn http_get_text(url: String) -> Result<HttpTextResult, String> {
+    let parsed = reqwest::Url::parse(url.trim()).map_err(to_error)?;
+    match parsed.scheme() {
+        "http" | "https" => {}
+        _ => return Err("Only http:// and https:// URLs are allowed for live components.".to_string()),
+    }
+
+    let started = Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(8))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .map_err(to_error)?;
+    let response = client.get(parsed.clone()).send().await.map_err(to_error)?;
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_string());
+    let body = response.text().await.map_err(to_error)?;
+    let body = truncate_chars(&body, 12000);
+
+    Ok(HttpTextResult {
+        url: parsed.to_string(),
+        status: status.as_u16(),
+        ok: status.is_success(),
+        content_type,
+        body,
+        elapsed_ms: started.elapsed().as_millis(),
+    })
+}
+
+#[tauri::command]
+fn plugin_ping(host: String, timeout_ms: Option<u64>) -> Result<PluginPingResult, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("ping host cannot be empty".to_string());
+    }
+
+    let timeout = timeout_ms.unwrap_or(2000).clamp(500, 30_000);
+    #[cfg(target_os = "windows")]
+    let (command, args) = (
+        "ping".to_string(),
+        vec!["-n".to_string(), "1".to_string(), "-w".to_string(), timeout.to_string(), host.clone()],
+    );
+    #[cfg(not(target_os = "windows"))]
+    let (command, args) = (
+        "ping".to_string(),
+        vec![
+            "-c".to_string(),
+            "1".to_string(),
+            "-W".to_string(),
+            ((timeout + 999) / 1000).to_string(),
+            host.clone(),
+        ],
+    );
+
+    let result = run_command_capture(&command, &args, None, timeout + 1000)?;
+    Ok(PluginPingResult {
+        host,
+        ok: result.code == Some(0),
+        code: result.code,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        elapsed_ms: result.elapsed_ms,
+    })
+}
+
+#[tauri::command]
+fn plugin_tcp_connect(host: String, port: u16, timeout_ms: Option<u64>) -> Result<PluginTcpResult, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("tcp host cannot be empty".to_string());
+    }
+
+    let started = Instant::now();
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(2000).clamp(200, 30_000));
+    let addresses = (host.as_str(), port).to_socket_addrs().map_err(to_error)?;
+    let mut last_error = None;
+
+    for address in addresses {
+        match TcpStream::connect_timeout(&address, timeout) {
+            Ok(_) => {
+                return Ok(PluginTcpResult {
+                    host,
+                    port,
+                    ok: true,
+                    error: None,
+                    elapsed_ms: started.elapsed().as_millis(),
+                });
+            }
+            Err(error) => last_error = Some(error.to_string()),
+        }
+    }
+
+    Ok(PluginTcpResult {
+        host,
+        port,
+        ok: false,
+        error: last_error,
+        elapsed_ms: started.elapsed().as_millis(),
+    })
 }
 
 #[tauri::command]
@@ -728,6 +948,156 @@ fn reveal_in_explorer(
 }
 
 #[tauri::command]
+fn open_plugins_folder(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
+    let workspace = workspace_path(&path)?;
+    let plugins = plugins_dir(&workspace);
+    fs::create_dir_all(&plugins).map_err(to_error)?;
+    let path_str = plugins.to_string_lossy().to_string();
+
+    #[cfg(target_os = "windows")]
+    {
+        app.shell()
+            .command("explorer")
+            .arg(&path_str)
+            .spawn()
+            .map_err(to_error)?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        app.shell()
+            .command("open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(to_error)?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        app.shell()
+            .command("xdg-open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(to_error)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn list_installed_plugins(path: String) -> Result<Vec<InstalledPlugin>, String> {
+    let workspace = workspace_path(&path)?;
+    let plugins = plugins_dir(&workspace);
+    if !plugins.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut installed = Vec::new();
+    for entry in fs::read_dir(&plugins).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let plugin_path = entry.path();
+        if !plugin_path.is_dir() {
+            continue;
+        }
+
+        if let Some(plugin) = read_installed_plugin(&plugin_path)? {
+            installed.push(plugin);
+        }
+    }
+
+    installed.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(installed)
+}
+
+#[tauri::command]
+fn plugin_fs_read_text(path: String, file_path: String) -> Result<String, String> {
+    let workspace = workspace_path(&path)?;
+    fs::read_to_string(resolve_plugin_path(&workspace, &file_path)).map_err(to_error)
+}
+
+#[tauri::command]
+fn plugin_fs_write_text(path: String, file_path: String, content: String) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    let target = resolve_plugin_path(&workspace, &file_path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(to_error)?;
+    }
+    fs::write(target, content).map_err(to_error)
+}
+
+#[tauri::command]
+fn plugin_fs_list_dir(path: String, directory: String) -> Result<Vec<PluginFsEntry>, String> {
+    let workspace = workspace_path(&path)?;
+    let directory = resolve_plugin_path(&workspace, &directory);
+    let mut entries = Vec::new();
+
+    for entry in fs::read_dir(&directory).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let file_type = entry.file_type().map_err(to_error)?;
+        entries.push(PluginFsEntry {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().to_string_lossy().to_string(),
+            is_dir: file_type.is_dir(),
+            is_file: file_type.is_file(),
+        });
+    }
+
+    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(entries)
+}
+
+#[tauri::command]
+fn plugin_storage_get(path: String, input: PluginStorageInput) -> Result<Option<serde_json::Value>, String> {
+    let storage = read_plugin_storage(&workspace_path(&path)?, &input.plugin_id)?;
+    Ok(storage.get(input.key.trim()).cloned())
+}
+
+#[tauri::command]
+fn plugin_storage_set(path: String, input: PluginStorageInput) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    let mut storage = read_plugin_storage(&workspace, &input.plugin_id)?;
+    storage.insert(input.key.trim().to_string(), input.value.unwrap_or(serde_json::Value::Null));
+    write_plugin_storage(&workspace, &input.plugin_id, &storage)
+}
+
+#[tauri::command]
+fn plugin_storage_remove(path: String, input: PluginStorageInput) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    let mut storage = read_plugin_storage(&workspace, &input.plugin_id)?;
+    storage.remove(input.key.trim());
+    write_plugin_storage(&workspace, &input.plugin_id, &storage)
+}
+
+#[tauri::command]
+fn plugin_system_open_external(target: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
+    app.shell().open(target, None).map_err(to_error)
+}
+
+#[tauri::command]
+fn plugin_system_open_path(path: String, target: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
+    let workspace = workspace_path(&path)?;
+    let target = resolve_plugin_path(&workspace, &target);
+    app.shell()
+        .open(target.to_string_lossy().to_string(), None)
+        .map_err(to_error)
+}
+
+#[tauri::command]
+fn plugin_shell_exec(input: PluginShellExecInput) -> Result<PluginShellExecResult, String> {
+    let command = input.command.trim();
+    if command.is_empty() {
+        return Err("shell command cannot be empty".to_string());
+    }
+    let args = input.args.unwrap_or_default();
+    let cwd = input.cwd.as_deref().map(PathBuf::from);
+    run_command_capture(command, &args, cwd.as_deref(), input.timeout_ms.unwrap_or(10_000).clamp(500, 120_000))
+}
+
+#[tauri::command]
 fn copy_workspace(source: String, destination: String) -> Result<(), String> {
     let src = PathBuf::from(&source);
     let dst = PathBuf::from(&destination);
@@ -786,6 +1156,9 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             default_workspace_path,
+            http_get_text,
+            plugin_ping,
+            plugin_tcp_connect,
             ensure_workspace,
             create_folder,
             list_notes,
@@ -805,6 +1178,17 @@ pub fn run() {
             delete_note,
             move_note,
             reveal_in_explorer,
+            open_plugins_folder,
+            list_installed_plugins,
+            plugin_fs_read_text,
+            plugin_fs_write_text,
+            plugin_fs_list_dir,
+            plugin_storage_get,
+            plugin_storage_set,
+            plugin_storage_remove,
+            plugin_system_open_external,
+            plugin_system_open_path,
+            plugin_shell_exec,
             copy_workspace,
             move_workspace,
             write_export_file
@@ -846,6 +1230,176 @@ fn workspace_path(path: &str) -> Result<PathBuf, String> {
         return Err("工作区路径不能为空".to_string());
     }
     Ok(workspace)
+}
+
+fn plugins_dir(workspace: &Path) -> PathBuf {
+    workspace.join(".opaline").join("plugins")
+}
+
+fn plugin_data_dir(workspace: &Path, plugin_id: &str) -> Result<PathBuf, String> {
+    let plugin_id = plugin_id.trim();
+    if plugin_id.is_empty() {
+        return Err("plugin id cannot be empty".to_string());
+    }
+    if plugin_id
+        .chars()
+        .any(|ch| !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.'))
+    {
+        return Err("plugin id can only contain letters, numbers, dash, underscore, and dot".to_string());
+    }
+    Ok(workspace.join(".opaline").join("plugin-data").join(plugin_id))
+}
+
+fn resolve_plugin_path(workspace: &Path, value: &str) -> PathBuf {
+    let raw = PathBuf::from(value.trim());
+    if raw.is_absolute() {
+        raw
+    } else {
+        workspace.join(raw)
+    }
+}
+
+fn read_plugin_storage(
+    workspace: &Path,
+    plugin_id: &str,
+) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    let path = plugin_data_dir(workspace, plugin_id)?.join("storage.json");
+    if !path.is_file() {
+        return Ok(serde_json::Map::new());
+    }
+    let value: serde_json::Value = serde_json::from_str(&fs::read_to_string(path).map_err(to_error)?)
+        .map_err(to_error)?;
+    Ok(value.as_object().cloned().unwrap_or_default())
+}
+
+fn write_plugin_storage(
+    workspace: &Path,
+    plugin_id: &str,
+    storage: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), String> {
+    let path = plugin_data_dir(workspace, plugin_id)?.join("storage.json");
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(to_error)?;
+    }
+    let raw = serde_json::to_string_pretty(storage).map_err(to_error)?;
+    fs::write(path, raw).map_err(to_error)
+}
+
+fn run_command_capture(
+    command: &str,
+    args: &[String],
+    cwd: Option<&Path>,
+    timeout_ms: u64,
+) -> Result<PluginShellExecResult, String> {
+    let started = Instant::now();
+    let mut builder = Command::new(command);
+    builder.args(args);
+    if let Some(cwd) = cwd {
+        builder.current_dir(cwd);
+    }
+    let mut child = builder
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(to_error)?;
+    let timeout = Duration::from_millis(timeout_ms);
+    let mut timed_out = false;
+
+    loop {
+        if child.try_wait().map_err(to_error)?.is_some() {
+            break;
+        }
+        if started.elapsed() >= timeout {
+            timed_out = true;
+            let _ = child.kill();
+            break;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+
+    let output = child.wait_with_output().map_err(to_error)?;
+    Ok(PluginShellExecResult {
+        code: output.status.code(),
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        elapsed_ms: started.elapsed().as_millis(),
+        timed_out,
+    })
+}
+
+fn read_installed_plugin(plugin_path: &Path) -> Result<Option<InstalledPlugin>, String> {
+    let manifest_path = plugin_path.join("manifest.json");
+    if !manifest_path.is_file() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(&manifest_path).map_err(to_error)?;
+    let manifest: PluginManifest = serde_json::from_str(&raw).map_err(to_error)?;
+    let fallback_id = plugin_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("plugin")
+        .to_string();
+    let id = clean_manifest_text(manifest.id).unwrap_or(fallback_id);
+    let name = clean_manifest_text(manifest.name).unwrap_or_else(|| id.clone());
+    let version = clean_manifest_text(manifest.version).unwrap_or_else(|| "0.0.0".to_string());
+    let description = clean_manifest_text(manifest.description).unwrap_or_default();
+    let mut widgets = Vec::new();
+
+    for widget in manifest.widgets.unwrap_or_default() {
+        let widget_type = widget.widget_type.trim().to_string();
+        if widget_type.is_empty() {
+            continue;
+        }
+
+        let Some(script) = clean_manifest_text(widget.script) else {
+            continue;
+        };
+        if is_unsafe_plugin_relative_path(&script) {
+            continue;
+        }
+
+        let script_path = plugin_path.join(&script);
+        if !script_path.is_file() {
+            continue;
+        }
+
+        let code = fs::read_to_string(&script_path).map_err(to_error)?;
+        widgets.push(InstalledPluginWidget {
+            widget_type: widget_type.clone(),
+            label: clean_manifest_text(widget.label).unwrap_or(widget_type),
+            script,
+            code,
+        });
+    }
+
+    Ok(Some(InstalledPlugin {
+        id,
+        name,
+        version,
+        description,
+        permissions: manifest.permissions.unwrap_or_default(),
+        enabled: true,
+        widgets,
+    }))
+}
+
+fn clean_manifest_text(value: Option<String>) -> Option<String> {
+    let value = value?.trim().to_string();
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn is_unsafe_plugin_relative_path(value: &str) -> bool {
+    Path::new(value).components().any(|component| {
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    })
 }
 
 fn open_index(workspace: &Path) -> Result<Connection, String> {
@@ -1795,6 +2349,18 @@ fn unescape_text(value: &str) -> String {
 
 fn to_error(error: impl std::fmt::Display) -> String {
     error.to_string()
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    let mut output = String::new();
+    for (index, ch) in value.chars().enumerate() {
+        if index >= max_chars {
+            output.push_str("\n…");
+            break;
+        }
+        output.push(ch);
+    }
+    output
 }
 
 #[cfg(test)]

@@ -145,7 +145,7 @@
           <li>“认真记记”进入类 Obsidian 的三栏知识工作台。</li>
           <li>“随便记记”进入 Today 对话入口，用户输入会先写入当天 HTML 日记，再触发 AI 回应。</li>
           <li>认真工作台包含左侧快捷栏、可折叠文件栏、主 HTML 编辑器、可折叠右侧信息栏和小型图谱预览。</li>
-          <li>设置页集中管理工作区位置、AI provider、API 地址、模型、API Key、模型测试和模型抓取。</li>
+          <li>设置页集中管理工作区位置、AI provider、API 地址、模型、API Key、模型测试、模型抓取，以及第三方插件与活组件策略。</li>
           <li>更改工作区位置会被记住；后续需要补“迁移原工作区文件”的确认流程。</li>
         </ul>
 
@@ -162,7 +162,9 @@
           <li>已梳理普通 <code>&lt;a&gt;</code>、<code>[[note links]]</code>、block ref、反链、出链和 broken link 的规则。</li>
           <li>关系数据模型和图谱已经区分文件级、标题级、块级、概念级关系。</li>
           <li>编辑器可以复制当前块链接，也可以从当前笔记中选择标题或块并插入稳定 ID 链接。</li>
-          <li>已加入受控内置 <code>&lt;opaline-widget&gt;</code> 占位，为后续活组件做准备；当前先从 local graph 组件开始，不开放笔记任意脚本。</li>
+          <li>已加入类似 Obsidian 的第三方插件设置：安全模式、插件安装情况、刷新按钮，以及打开 <code>.opaline/plugins</code> 插件文件夹的入口。</li>
+          <li><code>&lt;opaline-widget&gt;</code> 可以保存内置组件，也可以声明已安装插件提供的组件，例如 <code>network-status</code>。笔记只保存 <code>type</code>、<code>target</code>、<code>endpoint</code>、<code>refresh</code> 等参数；脚本放在工作区插件文件夹里。</li>
+          <li><code>&lt;opaline-script&gt;</code> 已作为实验性脚本笔记加入；在设置里启用后会在 Opaline 内运行 JS，并可通过 <code>opaline.render()</code> 更新卡片输出、通过 <code>opaline.net.fetch()</code> 请求 HTTP/HTTPS 接口。</li>
           <li>编辑器支持 callout、双栏、对照、旁注、折叠块、表格、任务列表、图片、嵌入、数学公式和 Mermaid 图表。</li>
           <li>编辑器右键菜单已经把常用格式、段落、H1-H6 标题、插入和剪贴板操作收进分层菜单。</li>
           <li>左侧文件区右键菜单支持打开、创建副本、收藏和复制路径。</li>
@@ -173,7 +175,7 @@
 
         <h2>HTML 原生差异点</h2>
         <ul>
-          <li><strong>受控活组件：</strong>用可读的 <code>&lt;opaline-widget&gt;</code> 保存 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。未知组件降级成文本占位，不运行任意脚本。</li>
+          <li><strong>活组件 / Web Component：</strong>设置页保留内置组件和实验性脚本笔记开关，第三方组件改为从 <code>.opaline/plugins/&lt;plugin-id&gt;/</code> 读取。插件 <code>manifest.json</code> 把 <code>network-status</code> 等组件类型映射到脚本文件；笔记只保存 <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code> 这样的参数声明。</li>
           <li><strong>DOM 级原子链接：</strong>标题、段落、表格、引用块等保留 <code>data-opaline-block-id</code>，编辑器提供复制当前块链接和插入标题/块链接的入口。</li>
           <li><strong>动态关系图谱：</strong>图谱区分文件、标题、块、概念关系，可以聚焦当前笔记邻域，并点击边查看关系详情。</li>
         </ul>

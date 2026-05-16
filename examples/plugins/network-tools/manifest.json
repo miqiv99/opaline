@@ -1,0 +1,38 @@
+{
+  "id": "network-tools",
+  "name": "Network Tools",
+  "version": "0.1.0",
+  "description": "Local network diagnostics widgets for Opaline.",
+  "permissions": [
+    "widget:render",
+    "timer",
+    "net:fetch",
+    "net:ping",
+    "net:tcp",
+    "notes:read",
+    "notes:write",
+    "graph:read",
+    "fs:read",
+    "fs:write",
+    "storage:plugin",
+    "system:open",
+    "shell:exec"
+  ],
+  "widgets": [
+    {
+      "type": "ping-monitor",
+      "label": "Ping Monitor",
+      "script": "ping-monitor.js"
+    },
+    {
+      "type": "tcp-check",
+      "label": "TCP Port Check",
+      "script": "tcp-check.js"
+    },
+    {
+      "type": "shell-command",
+      "label": "Shell Command",
+      "script": "shell-command.js"
+    }
+  ]
+}

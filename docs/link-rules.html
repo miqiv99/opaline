@@ -48,10 +48,12 @@
         <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
         <p>The editor preserves <code>data-opaline-block-id</code> in Tiptap state and can generate missing IDs before creating a block link. The current index resolves whether the target note exists; exact cross-note block-id verification remains an index-layer follow-up.</p>
 
-        <h2>Controlled Widgets</h2>
-        <p>Live components are represented as controlled, readable HTML instead of arbitrary scripts:</p>
-        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;Opaline widget: Current note neighborhood&lt;/opaline-widget&gt;</code></pre>
-        <p>Opaline may render built-in widget types such as <code>query</code>, <code>chart</code>, and <code>local-graph</code>. If a widget is unsupported, missing, or opened outside Opaline, the saved fallback text remains readable and no note-authored JavaScript runs.</p>
+        <h2>Live Components and Plugins</h2>
+        <p>Live components are represented as controlled, readable HTML. Settings separate built-in widgets, installed plugin widgets, and experimental script notes.</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;Opaline widget: Current note neighborhood&lt;/opaline-widget&gt;
+&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly"&gt;Opaline widget: Network status&lt;/opaline-widget&gt;
+&lt;opaline-script title="Experimental script" language="javascript"&gt;const status = await opaline.net.fetch("http://192.168.1.1/status");&lt;/opaline-script&gt;</code></pre>
+        <p>Opaline may render built-in widget types such as <code>query</code>, <code>chart</code>, and <code>local-graph</code>. Plugin widgets are handled by scripts installed under <code>.opaline/plugins</code>, with <code>manifest.json</code> mapping widget types to script files while notes store only parameters. <code>&lt;opaline-script&gt;</code> remains the per-note experimental script escape hatch.</p>
 
         <h2>Broken Links</h2>
         <p>The following cases are marked as broken links:</p>

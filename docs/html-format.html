@@ -144,12 +144,21 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
   &lt;p&gt;...&lt;/p&gt;
 &lt;/section&gt;</code></pre>
 
-        <h2>Controlled Widgets</h2>
-        <p>Opaline can store future live components as custom elements while keeping the note readable outside the app. The current allowed model is deliberately small: known built-ins such as <code>query</code>, <code>chart</code>, and <code>local-graph</code> may be rendered by Opaline, but note-authored JavaScript is not allowed.</p>
+        <h2>Live Component and Plugin Policy</h2>
+        <p>Opaline can store live components as custom elements while keeping the note readable outside the app. Settings separate built-in widgets, installed plugin widgets, and experimental script notes.</p>
+        <p>Built-ins include <code>query</code>, <code>chart</code>, and <code>local-graph</code>. Third-party widget scripts live in workspace plugin folders such as <code>.opaline/plugins/network-tools/</code>, while notes store only widget parameters.</p>
         <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;
   Opaline widget: Current note neighborhood
-&lt;/opaline-widget&gt;</code></pre>
-        <p>If the widget is unsupported or opened in a normal browser, the fallback text remains visible. Data should live in attributes or readable child content, not hidden script blocks.</p>
+&lt;/opaline-widget&gt;
+
+&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly" refresh="5s"&gt;
+  Opaline widget: Network status
+&lt;/opaline-widget&gt;
+
+&lt;opaline-script title="Experimental script" language="javascript"&gt;
+  const status = await opaline.net.fetch("http://192.168.1.1/status");
+&lt;/opaline-script&gt;</code></pre>
+        <p>If a widget type has no installed plugin script, fallback text remains visible. A plugin uses <code>manifest.json</code> to map widget types to script files, and scripts can read parameters from <code>widget</code> and update output with <code>opaline.render()</code>, <code>opaline.net.fetch()</code>, and <code>opaline.every()</code>. Saved HTML files embed the currently installed plugin script copy so they also try to run in a normal browser, where browser CORS rules still apply.</p>
       </article>
     </main>
   </body>

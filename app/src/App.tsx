@@ -18,10 +18,13 @@ import {
   MessageCircle,
   Network,
   NotebookPen,
+  FlaskConical,
   RefreshCw,
   Search,
   Send,
   Settings,
+  ShieldCheck,
+  Puzzle,
   Star,
   ArrowDownAZ,
   FileUp,
@@ -34,6 +37,17 @@ import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
 import { GraphView } from "./editor/GraphView";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
+import {
+  BUILT_IN_WIDGETS,
+  loadLiveComponentSettings,
+  saveLiveComponentSettings,
+  type LiveComponentSettings,
+} from "./editor/liveComponentSettings";
+import {
+  loadInstalledPluginsFromCache,
+  saveInstalledPluginsToCache,
+  type InstalledPlugin,
+} from "./editor/pluginRegistry";
 import { markdownTitle } from "./editor/markdownImport";
 import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-gradient.svg";
@@ -48,6 +62,7 @@ const initialState: WorkspaceState = {
 };
 
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
+const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
 const LINK_KIND_LABEL: Record<LinkKind, string> = {
   note: "文件",
   heading: "标题",
@@ -802,6 +817,7 @@ export function App() {
 
   const openNoteDocument = (path: string, notes: NoteSummary[], note: NoteDocument) => {
     const nextArticleHtml = articleFromHtmlDocument(note.html);
+    localStorage.setItem(ACTIVE_NOTE_STORAGE_KEY, JSON.stringify({ id: note.id, path: note.path, title: note.title }));
     setWorkspace({ path, notes, activeNote: note });
     setArticleHtml(nextArticleHtml);
     setSavedArticleHtml(nextArticleHtml);
@@ -1694,8 +1710,206 @@ function SettingsView({
           </button>
         </div>
       </section>
+      <LiveComponentsSettingsPanel workspacePath={workspacePath} />
       <AiSettingsPanel />
     </section>
+  );
+}
+
+function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string | null }) {
+  const [settings, setSettings] = useState<LiveComponentSettings>(() => loadLiveComponentSettings());
+  const [installedPlugins, setInstalledPlugins] = useState<InstalledPlugin[]>(() => loadInstalledPluginsFromCache());
+  const [pluginStatus, setPluginStatus] = useState("");
+
+  const updateSettings = useCallback((patch: Partial<LiveComponentSettings>) => {
+    setSettings((current) => {
+      const next = { ...current, ...patch };
+      saveLiveComponentSettings(next);
+      return next;
+    });
+  }, []);
+
+  const refreshInstalledPlugins = useCallback(async () => {
+    if (!workspacePath || !workspaceAdapter.listInstalledPlugins) {
+      setInstalledPlugins([]);
+      saveInstalledPluginsToCache([]);
+      return;
+    }
+
+    const plugins = await workspaceAdapter.listInstalledPlugins(workspacePath);
+    setInstalledPlugins(plugins);
+    setPluginStatus(plugins.length ? `已刷新：${plugins.length} 个插件` : "还没有安装插件");
+  }, [workspacePath]);
+
+  useEffect(() => {
+    void refreshInstalledPlugins().catch((error) => {
+      setPluginStatus(error instanceof Error ? error.message : "读取插件失败");
+    });
+  }, [refreshInstalledPlugins]);
+
+  const openPluginsFolder = useCallback(async () => {
+    if (!workspacePath) {
+      setPluginStatus("工作区还没有准备好");
+      return;
+    }
+    if (!workspaceAdapter.openPluginsFolder) {
+      setPluginStatus("当前环境不能打开本地插件文件夹");
+      return;
+    }
+
+    try {
+      await workspaceAdapter.openPluginsFolder(workspacePath);
+      setPluginStatus("已打开 .opaline/plugins，放入插件文件夹后点刷新");
+      await refreshInstalledPlugins();
+    } catch (error) {
+      setPluginStatus(error instanceof Error ? error.message : "打开插件文件夹失败");
+    }
+  }, [refreshInstalledPlugins, workspacePath]);
+
+  return (
+    <section className="settings-card">
+      <div className="settings-card-header">
+        <Puzzle size={18} />
+        <div>
+          <h2>第三方插件</h2>
+          <p>从工作区的 <code>.opaline/plugins</code> 读取已安装插件。笔记只保存组件声明，脚本放在插件文件夹里。</p>
+        </div>
+      </div>
+
+      <div className="plugin-policy-list">
+        <PluginPolicyRow
+          icon={<ShieldCheck size={17} />}
+          title="安全模式"
+          description={settings.trustedPluginWidgetsEnabled ? "第三方插件已允许运行。关闭后，插件组件只会以可读 HTML 降级显示。" : "安全模式已开启。开启以允许已安装插件渲染 opaline-widget。"}
+          enabled={settings.trustedPluginWidgetsEnabled}
+          onToggle={() => updateSettings({ trustedPluginWidgetsEnabled: !settings.trustedPluginWidgetsEnabled })}
+        />
+        <div className="plugin-policy-row">
+          <div className="plugin-policy-icon"><Puzzle size={17} /></div>
+          <div>
+            <strong>社区插件市场</strong>
+            <small>后续用于浏览和安装社区插件。当前先用文件夹导入本地插件。</small>
+          </div>
+          <button type="button" className="secondary-action-button" disabled>浏览</button>
+        </div>
+        <div className="plugin-policy-row">
+          <div className="plugin-policy-icon"><FolderOpen size={17} /></div>
+          <div>
+            <strong>插件安装情况</strong>
+            <small>你目前已经安装了 {installedPlugins.length} 个插件。</small>
+          </div>
+          <button type="button" className="secondary-action-button" onClick={openPluginsFolder}>
+            打开文件夹
+          </button>
+        </div>
+        <PluginPolicyRow
+          icon={<FlaskConical size={17} />}
+          title="实验性脚本笔记"
+          description="允许 opaline-script 在笔记里直接运行 JS。脚本可以请求网络并更新卡片输出，只建议在你信任的工作区开启。"
+          enabled={settings.experimentalScriptsEnabled}
+          onToggle={() => updateSettings({ experimentalScriptsEnabled: !settings.experimentalScriptsEnabled })}
+          danger
+        />
+        <PluginPolicyRow
+          title="自动检查插件更新"
+          description="为未来插件市场保留。当前不会联网检查。"
+          enabled={settings.autoCheckPluginUpdates}
+          onToggle={() => updateSettings({ autoCheckPluginUpdates: !settings.autoCheckPluginUpdates })}
+        />
+      </div>
+
+      <div className="plugin-market-card">
+        <div>
+          <h3>内置组件</h3>
+          <p>这些组件由 Opaline 自己解释，不依赖第三方代码。</p>
+        </div>
+        <div className="plugin-chip-grid">
+          {BUILT_IN_WIDGETS.map((widget) => (
+            <span key={widget.type} title={widget.description}>
+              {widget.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="plugin-market-card">
+        <div className="installed-plugins-header">
+          <div>
+            <h3>已安装插件</h3>
+            <p>把插件文件夹放进工作区的 <code>.opaline/plugins</code>。每个插件需要一个 <code>manifest.json</code> 和对应脚本文件。</p>
+          </div>
+          <div className="installed-plugins-actions">
+            <button type="button" title="刷新插件" onClick={() => void refreshInstalledPlugins()}>
+              <RefreshCw size={16} />
+            </button>
+            <button type="button" title="打开插件文件夹" onClick={openPluginsFolder}>
+              <FolderOpen size={16} />
+            </button>
+          </div>
+        </div>
+        {pluginStatus ? <p className="plugin-status-text">{pluginStatus}</p> : null}
+        {installedPlugins.length === 0 ? (
+          <div className="empty-plugin-list">
+            还没有安装插件。点击文件夹按钮，把插件文件夹放进 <code>.opaline/plugins</code>，然后刷新。
+          </div>
+        ) : (
+          installedPlugins.map((plugin) => (
+            <div className="plugin-example-row" key={plugin.id}>
+              <div>
+                <strong>{plugin.name}</strong>
+                <small>{plugin.description || plugin.id}</small>
+                <code>{plugin.widgets.length ? plugin.widgets.map((widget) => widget.type).join(" / ") : "没有声明 widget"}</code>
+              </div>
+              <span>{plugin.version}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="plugin-market-card">
+        <div>
+          <h3>插件文件结构</h3>
+          <p>示例：<code>.opaline/plugins/network-tools/manifest.json</code> 指向同目录里的 <code>network-status.js</code>。</p>
+        </div>
+        <div className="plugin-example-row">
+          <div>
+            <strong>manifest.json</strong>
+            <small>插件导入后，设置页刷新会读取 widgets，并让同 type 的 opaline-widget 运行对应脚本。</small>
+            <code>{`{"id":"network-tools","name":"Network Tools","version":"0.1.0","widgets":[{"type":"network-status","label":"网络设备状态","script":"network-status.js"}]}`}</code>
+          </div>
+          <span>本地</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PluginPolicyRow({
+  icon,
+  title,
+  description,
+  enabled,
+  onToggle,
+  danger = false,
+}: {
+  icon?: ReactNode;
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <div className={danger ? "plugin-policy-row is-danger" : "plugin-policy-row"}>
+      <div className="plugin-policy-icon">{icon}</div>
+      <div>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </div>
+      <button type="button" className={enabled ? "switch-button is-on" : "switch-button"} onClick={onToggle} aria-pressed={enabled}>
+        <span />
+      </button>
+    </div>
   );
 }
 
