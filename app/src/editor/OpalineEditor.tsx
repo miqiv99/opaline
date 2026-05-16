@@ -366,6 +366,35 @@ function EditorContextMenu({
   onMathInline: () => void;
   onPickNote?: () => Promise<NoteSuggestion | null>;
 }) {
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const submenuCloseTimer = useRef<number | null>(null);
+
+  const clearSubmenuCloseTimer = () => {
+    if (submenuCloseTimer.current !== null) {
+      window.clearTimeout(submenuCloseTimer.current);
+      submenuCloseTimer.current = null;
+    }
+  };
+
+  const openSubmenu = (id: string) => {
+    clearSubmenuCloseTimer();
+    setActiveSubmenu(id);
+  };
+
+  const closeSubmenuSoon = (id: string) => {
+    clearSubmenuCloseTimer();
+    submenuCloseTimer.current = window.setTimeout(() => {
+      setActiveSubmenu((current) => (current === id ? null : current));
+    }, 180);
+  };
+
+  useEffect(() => {
+    if (!state) {
+      setActiveSubmenu(null);
+    }
+    return clearSubmenuCloseTimer;
+  }, [state]);
+
   if (!state) return null;
 
   const run = (action: () => unknown | Promise<unknown>) => {
@@ -409,7 +438,14 @@ function EditorContextMenu({
           onClick={() => run(() => insertEmbed(editor, onPickNote))}
         />
       ) : null}
-      <ContextMenuSubmenu icon={<Bold size={17} />} label="文本格式">
+      <ContextMenuSubmenu
+        id="format"
+        icon={<Bold size={17} />}
+        label="文本格式"
+        active={activeSubmenu === "format"}
+        onOpen={openSubmenu}
+        onCloseSoon={closeSubmenuSoon}
+      >
         <ContextMenuItem icon={<Bold size={17} />} label="加粗" active={editor.isActive("bold")} onClick={() => run(() => editor.chain().focus().toggleBold().run())} />
         <ContextMenuItem icon={<Italic size={17} />} label="倾斜" active={editor.isActive("italic")} onClick={() => run(() => editor.chain().focus().toggleItalic().run())} />
         <ContextMenuItem icon={<span className="context-menu-symbol">S</span>} label="删除线" active={editor.isActive("strike")} onClick={() => run(() => editor.chain().focus().toggleStrike().run())} />
@@ -417,7 +453,14 @@ function EditorContextMenu({
         <ContextMenuItem icon={<Pi size={17} />} label="数学" onClick={() => run(onMathInline)} />
         <ContextMenuItem icon={<span className="context-menu-symbol">⌫</span>} label="清除格式" onClick={() => run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())} />
       </ContextMenuSubmenu>
-      <ContextMenuSubmenu icon={<span className="context-menu-symbol">¶</span>} label="段落设置">
+      <ContextMenuSubmenu
+        id="paragraph"
+        icon={<span className="context-menu-symbol">¶</span>}
+        label="段落设置"
+        active={activeSubmenu === "paragraph"}
+        onOpen={openSubmenu}
+        onCloseSoon={closeSubmenuSoon}
+      >
         <ContextMenuItem icon={<List size={17} />} label="无序列表" active={editor.isActive("bulletList")} onClick={() => run(() => editor.chain().focus().toggleBulletList().run())} />
         <ContextMenuItem icon={<ListOrdered size={17} />} label="有序列表" active={editor.isActive("orderedList")} onClick={() => run(() => editor.chain().focus().toggleOrderedList().run())} />
         <ContextMenuItem icon={<CheckSquare size={17} />} label="任务列表" active={editor.isActive("taskList")} onClick={() => run(() => editor.chain().focus().toggleTaskList().run())} />
@@ -432,7 +475,14 @@ function EditorContextMenu({
         <ContextMenuSeparator />
         <ContextMenuItem icon={<span className="context-menu-symbol">❝</span>} label="引用" active={editor.isActive("blockquote")} onClick={() => run(() => editor.chain().focus().toggleBlockquote().run())} />
       </ContextMenuSubmenu>
-      <ContextMenuSubmenu icon={<TextCursorInput size={17} />} label="插入">
+      <ContextMenuSubmenu
+        id="insert"
+        icon={<TextCursorInput size={17} />}
+        label="插入"
+        active={activeSubmenu === "insert"}
+        onOpen={openSubmenu}
+        onCloseSoon={closeSubmenuSoon}
+      >
         <ContextMenuItem icon={<FileImage size={17} />} label="图片" onClick={() => run(onImage)} />
         <ContextMenuItem icon={<Table2 size={17} />} label="表格" onClick={() => run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
         <ContextMenuItem icon={<MessageSquareQuote size={17} />} label="标注块" onClick={() => run(() => insertCallout(editor))} />
@@ -476,48 +526,34 @@ function ContextMenuItem({
 }
 
 function ContextMenuSubmenu({
+  id,
   icon,
   label,
+  active,
+  onOpen,
+  onCloseSoon,
   children,
 }: {
+  id: string;
   icon: ReactNode;
   label: string;
+  active: boolean;
+  onOpen: (id: string) => void;
+  onCloseSoon: (id: string) => void;
   children: ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const closeTimer = useRef<number | null>(null);
-
-  const clearCloseTimer = () => {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  };
-
-  const open = () => {
-    clearCloseTimer();
-    setIsOpen(true);
-  };
-
-  const closeSoon = () => {
-    clearCloseTimer();
-    closeTimer.current = window.setTimeout(() => setIsOpen(false), 220);
-  };
-
-  useEffect(() => clearCloseTimer, []);
-
   return (
     <div
-      className={isOpen ? "context-menu-submenu is-open" : "context-menu-submenu"}
-      onMouseEnter={open}
-      onMouseLeave={closeSoon}
+      className={active ? "context-menu-submenu is-open" : "context-menu-submenu"}
+      onMouseEnter={() => onOpen(id)}
+      onMouseLeave={() => onCloseSoon(id)}
     >
-      <button type="button" className="context-menu-item" onFocus={open} onClick={() => setIsOpen((value) => !value)}>
+      <button type="button" className="context-menu-item" onFocus={() => onOpen(id)} onClick={() => onOpen(id)}>
         {icon}
         <span>{label}</span>
         <span className="context-menu-arrow">›</span>
       </button>
-      <div className="context-submenu-panel" onMouseEnter={open} onMouseLeave={closeSoon}>
+      <div className="context-submenu-panel" onMouseEnter={() => onOpen(id)} onMouseLeave={() => onCloseSoon(id)}>
         {children}
       </div>
     </div>

@@ -448,6 +448,211 @@ fn read_settings(path: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
+fn read_file_text(file_path: String) -> Result<String, String> {
+    fs::read_to_string(&file_path).map_err(to_error)
+}
+
+#[tauri::command]
+fn rename_note(path: String, note_id: String, new_title: String) -> Result<NoteSummary, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+
+    let old_path: String = conn
+        .query_row(
+            "select path from notes where id = ?1",
+            params![note_id],
+            |row| row.get(0),
+        )
+        .map_err(to_error)?;
+
+    let absolute = note_absolute_path(&workspace, &old_path)?;
+    let mut html = fs::read_to_string(&absolute).map_err(to_error)?;
+
+    let old_title = title_content(&html).unwrap_or_default();
+    html = html.replace(
+        &format!("<title>{old_title}</title>"),
+        &format!("<title>{}</title>", escape_text(&new_title)),
+    );
+
+    if let Some(ref old_h1) = first_heading_content(&html) {
+        if old_h1.trim() == old_title.trim() {
+            html = html.replacen(
+                &format!("<h1>{old_h1}</h1>"),
+                &format!("<h1>{}</h1>", escape_text(&new_title)),
+                1,
+            );
+        }
+    }
+
+    let directory = Path::new(&old_path).parent().unwrap_or(Path::new("notes"));
+    let directory_str = directory.to_string_lossy().replace('\\', "/");
+    let new_file_name = unique_note_file(&workspace.join(&directory_str), &new_title);
+    let new_note_path = directory.join(&new_file_name);
+    let new_relative = new_note_path.to_string_lossy().replace('\\', "/");
+
+    write_file_atomically(&workspace.join(&new_relative), &html)?;
+    if old_path != new_relative {
+        let _ = fs::remove_file(&absolute);
+        let _ = fs::remove_file(absolute.with_extension("html.bak"));
+    }
+
+    let summary = summary_from_html(&conn, &workspace, &workspace.join(&new_relative), &html)?;
+    upsert_note_index(&conn, &summary, &html)?;
+    rebuild_index(&workspace)?;
+
+    Ok(summary)
+}
+
+#[tauri::command]
+fn delete_note(path: String, note_id: String) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+
+    let note_path: String = conn
+        .query_row(
+            "select path from notes where id = ?1",
+            params![note_id],
+            |row| row.get(0),
+        )
+        .map_err(to_error)?;
+
+    let absolute = note_absolute_path(&workspace, &note_path)?;
+
+    let _ = fs::remove_file(&absolute);
+    let _ = fs::remove_file(absolute.with_extension("html.bak"));
+
+    conn.execute("delete from notes where id = ?1", params![note_id]).map_err(to_error)?;
+    conn.execute("delete from notes_fts where note_id = ?1", params![note_id]).map_err(to_error)?;
+    conn.execute("delete from note_tags where note_id = ?1", params![note_id]).map_err(to_error)?;
+    conn.execute("delete from note_headings where note_id = ?1", params![note_id]).map_err(to_error)?;
+    conn.execute("delete from note_links where note_id = ?1", params![note_id]).map_err(to_error)?;
+
+    rebuild_index(&workspace)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn move_note(path: String, note_id: String, new_directory: String) -> Result<NoteSummary, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+    let directory = clean_note_directory(&new_directory)?;
+
+    let old_path: String = conn
+        .query_row(
+            "select path from notes where id = ?1",
+            params![note_id],
+            |row| row.get(0),
+        )
+        .map_err(to_error)?;
+
+    let absolute = note_absolute_path(&workspace, &old_path)?;
+    let html = fs::read_to_string(&absolute).map_err(to_error)?;
+
+    let file_name = absolute
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("note.html");
+    let new_relative = format!("{directory}/{file_name}");
+    let new_absolute = workspace.join(&new_relative);
+
+    if let Some(parent) = new_absolute.parent() {
+        fs::create_dir_all(parent).map_err(to_error)?;
+    }
+    fs::rename(&absolute, &new_absolute).map_err(to_error)?;
+    let _ = fs::remove_file(absolute.with_extension("html.bak"));
+
+    let summary = summary_from_html(&conn, &workspace, &new_absolute, &html)?;
+    upsert_note_index(&conn, &summary, &html)?;
+    rebuild_index(&workspace)?;
+
+    Ok(summary)
+}
+
+#[tauri::command]
+fn reveal_in_explorer(path: String, note_path: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
+    let workspace = workspace_path(&path)?;
+    let absolute = note_absolute_path(&workspace, &note_path)?;
+    let path_str = absolute.to_string_lossy().to_string();
+
+    #[cfg(target_os = "windows")]
+    {
+        app.shell()
+            .command("explorer")
+            .args(["/select,", &path_str])
+            .spawn()
+            .map_err(to_error)?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        app.shell()
+            .command("open")
+            .args(["-R", &path_str])
+            .spawn()
+            .map_err(to_error)?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(parent) = absolute.parent() {
+            app.shell()
+                .command("xdg-open")
+                .arg(parent.to_string_lossy().to_string())
+                .spawn()
+                .map_err(to_error)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn copy_workspace(source: String, destination: String) -> Result<(), String> {
+    let src = PathBuf::from(&source);
+    let dst = PathBuf::from(&destination);
+
+    if !src.exists() {
+        return Err("源工作区不存在".to_string());
+    }
+
+    fs::create_dir_all(&dst).map_err(to_error)?;
+
+    for entry in WalkDir::new(&src).into_iter().filter_map(Result::ok) {
+        let relative = entry.path().strip_prefix(&src).map_err(to_error)?;
+        let target = dst.join(relative);
+
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&target).map_err(to_error)?;
+        } else {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(to_error)?;
+            }
+            fs::copy(entry.path(), &target).map_err(to_error)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn move_workspace(source: String, destination: String) -> Result<(), String> {
+    copy_workspace(source.clone(), destination)?;
+    fs::remove_dir_all(&source).map_err(to_error)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn write_export_file(file_path: String, content: String) -> Result<(), String> {
+    let path = PathBuf::from(&file_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(to_error)?;
+    }
+    fs::write(&path, &content).map_err(to_error)
+}
+
+#[tauri::command]
 fn write_settings(path: String, settings: serde_json::Value) -> Result<(), String> {
     let workspace = workspace_path(&path)?;
     let settings_path = workspace.join(".opaline/settings.json");
@@ -459,6 +664,7 @@ fn write_settings(path: String, settings: serde_json::Value) -> Result<(), Strin
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             default_workspace_path,
             ensure_workspace,
@@ -474,7 +680,15 @@ pub fn run() {
             toggle_favorite,
             import_asset,
             read_settings,
-            write_settings
+            write_settings,
+            read_file_text,
+            rename_note,
+            delete_note,
+            move_note,
+            reveal_in_explorer,
+            copy_workspace,
+            move_workspace,
+            write_export_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

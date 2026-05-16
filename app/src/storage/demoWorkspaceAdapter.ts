@@ -154,9 +154,60 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     return { profileVersion: 1, noteFormat: "opaline-html" };
   },
 
+  async importMarkdown(_path: string, markdown: string, title: string) {
+    const { markdownToOpalineArticle } = await import("../editor/markdownImport");
+    const body = markdownToOpalineArticle(markdown);
+    return createDemoNote({ title, body, lang: "zh-Hans" });
+  },
+
+  async readFileText() {
+    throw new Error("浏览器演示模式不支持读取本地文件");
+  },
+
+  async renameNote(_path: string, noteId: string, newTitle: string) {
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) throw new Error("找不到笔记");
+    const updated: NoteDocument = {
+      ...note,
+      title: newTitle,
+      path: `${note.path.split("/").slice(0, -1).join("/")}/${slugify(newTitle)}.html`,
+      html: note.html.replace(/<title>.*?<\/title>/, `<title>${newTitle}</title>`)
+        .replace(/<h1>.*?<\/h1>/, `<h1>${newTitle}</h1>`),
+    };
+    notes = notes.map((n) => (n.id === noteId ? updated : n));
+    return toSummary(updated);
+  },
+
+  async deleteNote(_path: string, noteId: string) {
+    notes = notes.filter((n) => n.id !== noteId);
+    notes = notes.map((n) => ({
+      ...n,
+      outgoingLinks: n.outgoingLinks.filter((l) => l.targetId !== noteId),
+    }));
+  },
+
+  async moveNote(_path: string, noteId: string, newDirectory: string) {
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) throw new Error("找不到笔记");
+    const dir = newDirectory.replace(/^\/+|\/+$/g, "") || "notes";
+    const updated: NoteDocument = { ...note, path: `${dir}/${note.path.split("/").pop()}` };
+    notes = notes.map((n) => (n.id === noteId ? updated : n));
+    return toSummary(updated);
+  },
+
+  async revealInExplorer(_path: string, notePath: string) {
+    window.alert(`演示模式：文件路径 ${notePath}`);
+  },
+
   async writeSettings(_path: string, settings: Record<string, unknown>) {
     localStorage.setItem("opaline-workspace-settings", JSON.stringify(settings));
   },
+
+  async copyWorkspace() {},
+
+  async moveWorkspace() {},
+
+  async writeExportFile(_filePath: string, _content: string) {},
 };
 
 const createDemoNote = (input: NewNoteInput) => {

@@ -24,6 +24,8 @@ import {
   Settings,
   Star,
   ArrowDownAZ,
+  FileDown,
+  FileUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
@@ -31,10 +33,13 @@ import { AiPanel, AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
+import { GraphView } from "./editor/GraphView";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
+import { markdownTitle } from "./editor/markdownImport";
 import type { GraphData, ImportedAsset, NewNoteInput, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
+import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
 
 const initialState: WorkspaceState = {
   path: null,
@@ -45,7 +50,7 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
-type AppView = "home" | "today" | "note" | "settings";
+type AppView = "home" | "today" | "note" | "settings" | "graph";
 type VaultSortMode = "updated" | "title";
 type TodayMessage = {
   id: string;
@@ -129,10 +134,18 @@ export function App() {
   const [vaultSortMode, setVaultSortMode] = useState<VaultSortMode>("updated");
   const [allFoldersExpanded, setAllFoldersExpanded] = useState(true);
   const [noteContextMenu, setNoteContextMenu] = useState<{ note: NoteSummary; x: number; y: number } | null>(null);
+  const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
   const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
   const currentTags = workspace.activeNote?.tags ?? [];
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const note of workspace.notes) {
+      for (const tag of note.tags) tags.add(tag);
+    }
+    return Array.from(tags).sort();
+  }, [workspace.notes]);
   const cycleVaultSort = useCallback(() => {
     setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
   }, []);
@@ -146,6 +159,9 @@ export function App() {
     }
     if (view === "today") {
       return "今天";
+    }
+    if (view === "graph") {
+      return "图谱";
     }
     if (!workspace.activeNote) {
       return "没有打开的笔记";
@@ -282,6 +298,75 @@ export function App() {
     }
   }, [refreshNotes, workspace.path]);
 
+  const importMarkdown = useCallback(async () => {
+    const selected = await open({
+      multiple: true,
+      directory: false,
+      title: "选择 Markdown 文件",
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (!selected) return;
+
+    const paths = Array.isArray(selected) ? selected : [selected];
+    if (!paths.length) return;
+
+    setIsBusy(true);
+    try {
+      const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
+      await workspaceAdapter.ensureWorkspace(path);
+
+      for (const filePath of paths) {
+        const content = await workspaceAdapter.readFileText!(filePath);
+        const title = markdownTitle(content);
+        await workspaceAdapter.importMarkdown!(path, content, title);
+      }
+
+      await refreshNotes(path);
+      setStatus(`已导入 ${paths.length} 篇笔记`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "导入失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.path]);
+
+  const exportMarkdown = useCallback(async () => {
+    if (!workspace.path) {
+      setStatus("请先打开工作区");
+      return;
+    }
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      title: "选择导出目录",
+    });
+    if (typeof dir !== "string") return;
+    setIsBusy(true);
+    setStatus("正在导出...");
+    let exported = 0;
+    try {
+      const { articleHtmlToMarkdown } = await import("./editor/markdownExport");
+      for (const note of workspace.notes) {
+        try {
+          const document = await workspaceAdapter.readNote(workspace.path, note.path);
+          const articleHtml = articleFromHtmlDocument(document.html);
+          const markdown = articleHtmlToMarkdown(articleHtml);
+          const filePath = `${dir}/${markdownExportPath(note.path, note.title)}`;
+          await workspaceAdapter.writeExportFile!(filePath, markdown);
+          exported++;
+          setStatus(`正在导出... ${exported} / ${workspace.notes.length}`);
+        } catch {
+          // continue with next note
+        }
+      }
+      setStatus(`已导出 ${exported} 篇笔记`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "导出失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [workspace.notes, workspace.path]);
+
   const openNote = useCallback(
     async (note: NoteSummary) => {
       if (!workspace.path) {
@@ -403,6 +488,96 @@ export function App() {
     await navigator.clipboard?.writeText(note.path);
     setStatus("已复制路径");
   }, []);
+
+  const renameNote = useCallback(async (note: NoteSummary) => {
+    const newTitle = window.prompt("新标题", note.title)?.trim();
+    if (!newTitle || newTitle === note.title) return;
+    setIsBusy(true);
+    try {
+      const updated = await workspaceAdapter.renameNote(workspace.path!, note.id, newTitle);
+      const notesList = await refreshNotes(workspace.path!);
+      if (workspace.activeNote?.id === note.id) {
+        const doc = await workspaceAdapter.readNote(workspace.path!, updated.path);
+        openNoteDocument(workspace.path!, notesList, doc);
+      } else {
+        setWorkspace((current) => ({ ...current, notes: notesList }));
+      }
+      setStatus("已重命名");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "重命名失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.activeNote, workspace.path]);
+
+  const deleteNote = useCallback(async (note: NoteSummary) => {
+    if (!window.confirm(`确定要删除「${note.title}」吗？此操作不可撤销。`)) return;
+    setIsBusy(true);
+    try {
+      await workspaceAdapter.deleteNote(workspace.path!, note.id);
+      if (workspace.activeNote?.id === note.id) {
+        setWorkspace((current) => ({ ...current, activeNote: null }));
+        setView("home");
+      }
+      await refreshNotes(workspace.path!);
+      setStatus("已删除");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "删除失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.activeNote, workspace.path]);
+
+  const moveNote = useCallback(async (note: NoteSummary) => {
+    const dir = window.prompt("移动到文件夹 (e.g. notes/archive)", "notes/")?.trim();
+    if (!dir) return;
+    setIsBusy(true);
+    try {
+      const updated = await workspaceAdapter.moveNote(workspace.path!, note.id, dir);
+      const notesList = await refreshNotes(workspace.path!);
+      if (workspace.activeNote?.id === note.id) {
+        const doc = await workspaceAdapter.readNote(workspace.path!, updated.path);
+        openNoteDocument(workspace.path!, notesList, doc);
+      } else {
+        setWorkspace((current) => ({ ...current, notes: notesList }));
+      }
+      setStatus("已移动");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "移动失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.activeNote, workspace.path]);
+
+  const revealNoteInExplorer = useCallback(async (note: NoteSummary) => {
+    try {
+      await workspaceAdapter.revealInExplorer(workspace.path!, note.path);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "打开文件管理器失败");
+    }
+  }, [workspace.path]);
+
+  const moveNoteTo = useCallback(async (note: NoteSummary, targetDir: string) => {
+    if (!workspace.path) return;
+    const currentDir = note.path.split("/").slice(0, -1).join("/") || "notes";
+    if (currentDir === targetDir) return;
+    setIsBusy(true);
+    try {
+      const updated = await workspaceAdapter.moveNote(workspace.path, note.id, targetDir);
+      const notesList = await refreshNotes(workspace.path);
+      if (workspace.activeNote?.id === note.id) {
+        const doc = await workspaceAdapter.readNote(workspace.path, updated.path);
+        openNoteDocument(workspace.path, notesList, doc);
+      } else {
+        setWorkspace((current) => ({ ...current, notes: notesList }));
+      }
+      setStatus(`已移动到 ${targetDir}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "移动失败");
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshNotes, workspace.activeNote, workspace.path]);
 
   const importAsset = useCallback(
     async (kind: "image" | "file"): Promise<ImportedAsset | null> => {
@@ -595,18 +770,21 @@ export function App() {
 
   return (
     <main
-      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${view === "note" ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
+      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${(view === "note" || view === "graph") ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
     >
-      {view === "note" ? (
+      {(view === "note" || view === "graph") ? (
         <NoteRibbon
           leftCollapsed={leftPanelCollapsed}
           onHome={() => setView("home")}
           onToggleLeft={() => setLeftPanelCollapsed((value) => !value)}
+          onGraph={() => setView("graph")}
+          onImport={importMarkdown}
+          onExport={exportMarkdown}
         />
       ) : null}
-      {view === "home" || (view === "note" && leftPanelCollapsed) ? null : (
-      <aside className={`sidebar ${view === "note" ? "is-vault-sidebar" : ""}`}>
-        {view === "note" ? null : (
+      {view === "home" || ((view === "note" || view === "graph") && leftPanelCollapsed) ? null : (
+      <aside className={`sidebar ${(view === "note" || view === "graph") ? "is-vault-sidebar" : ""}`}>
+        {(view === "note" || view === "graph") ? null : (
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
             <img src={leafLogo} alt="" />
@@ -619,7 +797,7 @@ export function App() {
         )}
 
         <div className="sidebar-actions">
-          {view === "note" ? null : (
+          {(view === "note" || view === "graph") ? null : (
             <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip="入口" aria-label="入口">
               <Home size={17} />
               <span>入口</span>
@@ -633,7 +811,13 @@ export function App() {
             <FilePlus2 size={17} />
             <span>新建</span>
           </button>
-          {view === "note" ? (
+          {(view !== "note" && view !== "graph") ? (
+            <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip="导入 Markdown 文件" aria-label="导入 Markdown">
+              <FileDown size={17} />
+              <span>导入</span>
+            </button>
+          ) : null}
+          {(view === "note" || view === "graph") ? (
             <>
               <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip="新建文件夹" aria-label="新建文件夹">
                 <FolderPlus size={17} />
@@ -682,7 +866,7 @@ export function App() {
           </div>
         ) : null}
 
-        {view === "note" ? (
+        {(view === "note" || view === "graph") ? (
           <VaultExplorer
             notes={workspace.notes}
             favorites={favoriteNotes}
@@ -690,6 +874,7 @@ export function App() {
             sortMode={vaultSortMode}
             expanded={allFoldersExpanded}
             onOpen={openNote}
+            onMoveTo={moveNoteTo}
             onContextMenu={(note, event) => {
               event.preventDefault();
               setNoteContextMenu({ note, x: event.clientX, y: event.clientY });
@@ -760,13 +945,29 @@ export function App() {
             onSerious={() => setView("note")}
             onCasual={() => setView("today")}
           />
+        ) : view === "graph" ? (
+          <GraphView
+            graph={graph}
+            activeNoteId={workspace.activeNote?.id ?? null}
+            allTags={allTags}
+            onOpenNote={(nodeId) => {
+              const note = workspace.notes.find((n) => n.id === nodeId);
+              if (note) { void openNote(note); setView("note"); }
+            }}
+            onBack={() => setView(workspace.activeNote ? "note" : "home")}
+          />
         ) : view === "settings" ? (
           <SettingsView
             workspacePath={workspace.path}
             onChangeWorkspace={async () => {
-              const path = await workspaceAdapter.chooseWorkspace();
-              if (!path) return;
-              await openWorkspacePath(path);
+              const newPath = await workspaceAdapter.chooseWorkspace();
+              if (!newPath) return;
+              const oldPath = workspace.path;
+              if (oldPath && oldPath !== newPath) {
+                setMigrationDialog({ oldPath, newPath });
+                return;
+              }
+              await openWorkspacePath(newPath);
             }}
           />
         ) : view === "note" && workspace.activeNote ? (
@@ -880,6 +1081,26 @@ export function App() {
         onDuplicate={(note) => void duplicateNote(note)}
         onToggleFavorite={(note) => void toggleNoteFavorite(note)}
         onCopyPath={(note) => void copyNotePath(note)}
+        onRename={(note) => void renameNote(note)}
+        onDelete={(note) => void deleteNote(note)}
+        onMove={(note) => void moveNote(note)}
+        onReveal={(note) => void revealNoteInExplorer(note)}
+      />
+      <WorkspaceMigrationDialog
+        open={migrationDialog !== null}
+        oldPath={migrationDialog?.oldPath ?? ""}
+        newPath={migrationDialog?.newPath ?? ""}
+        onCopy={async () => {
+          await workspaceAdapter.copyWorkspace!(migrationDialog!.oldPath, migrationDialog!.newPath);
+          await openWorkspacePath(migrationDialog!.newPath);
+          setMigrationDialog(null);
+        }}
+        onMove={async () => {
+          await workspaceAdapter.moveWorkspace!(migrationDialog!.oldPath, migrationDialog!.newPath);
+          await openWorkspacePath(migrationDialog!.newPath);
+          setMigrationDialog(null);
+        }}
+        onCancel={() => setMigrationDialog(null)}
       />
     </main>
   );
@@ -910,10 +1131,16 @@ function NoteRibbon({
   leftCollapsed,
   onHome,
   onToggleLeft,
+  onGraph,
+  onImport,
+  onExport,
 }: {
   leftCollapsed: boolean;
   onHome: () => void;
   onToggleLeft: () => void;
+  onGraph: () => void;
+  onImport: () => void;
+  onExport: () => void;
 }) {
   return (
     <nav className="note-ribbon" aria-label="工作台">
@@ -922,6 +1149,15 @@ function NoteRibbon({
       </button>
       <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"} aria-label={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"}>
         {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
+      <button type="button" onClick={onImport} data-tooltip="导入 Markdown" aria-label="导入 Markdown">
+        <FileDown size={18} />
+      </button>
+      <button type="button" onClick={onExport} data-tooltip="导出 Markdown" aria-label="导出 Markdown">
+        <FileUp size={18} />
+      </button>
+      <button type="button" onClick={onGraph} data-tooltip="图谱" aria-label="图谱">
+        <Network size={18} />
       </button>
     </nav>
   );
@@ -985,12 +1221,12 @@ function GraphPreview({
   activeNoteId: string;
   onOpenNode: (nodeId: string) => void;
 }) {
-  const nodes = graph.nodes.slice(0, 12);
-  const width = 238;
-  const height = 170;
+  const nodes = graph.nodes.slice(0, 20);
+  const width = 260;
+  const height = 200;
   const centerX = width / 2;
   const centerY = height / 2;
-  const radius = 58;
+  const radius = Math.max(60, nodes.length <= 1 ? 0 : Math.min(80, nodes.length * 8));
   const positions = new Map(
     nodes.map((node, index) => {
       const angle = nodes.length <= 1 ? 0 : (Math.PI * 2 * index) / nodes.length - Math.PI / 2;
@@ -1004,7 +1240,7 @@ function GraphPreview({
     }),
   );
   const visibleIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 28);
+  const edges = graph.edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 36);
 
   if (!nodes.length) {
     return <p className="muted">还没有可显示的图谱。</p>;
@@ -1033,7 +1269,7 @@ function GraphPreview({
           const active = node.id === activeNoteId;
           return (
             <g key={node.id} className={active ? "is-active" : undefined} onClick={() => onOpenNode(node.id)}>
-              <circle cx={position.x} cy={position.y} r={active ? 8 : 6} />
+              <circle cx={position.x} cy={position.y} r={active ? 9 : 6} />
               <title>{node.title}</title>
             </g>
           );
@@ -1052,6 +1288,7 @@ function VaultExplorer({
   expanded,
   onOpen,
   onContextMenu,
+  onMoveTo,
 }: {
   notes: NoteSummary[];
   favorites: NoteSummary[];
@@ -1060,7 +1297,11 @@ function VaultExplorer({
   expanded: boolean;
   onOpen: (note: NoteSummary) => void;
   onContextMenu: (note: NoteSummary, event: MouseEvent) => void;
+  onMoveTo: (note: NoteSummary, targetDir: string) => void;
 }) {
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [draggingNote, setDraggingNote] = useState<NoteSummary | null>(null);
+
   const sortedNotes = [...notes].sort((a, b) => {
     if (sortMode === "title") {
       return a.title.localeCompare(b.title, "zh-Hans");
@@ -1077,6 +1318,39 @@ function VaultExplorer({
     }
     return groups;
   }, []);
+
+  const makeFolderDropHandlers = (directory: string) => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverFolder(directory);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      const relatedTarget = e.relatedTarget as Node | null;
+      if (!e.currentTarget.contains(relatedTarget)) {
+        setDragOverFolder(null);
+      }
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOverFolder(null);
+      if (draggingNote) {
+        onMoveTo(draggingNote, directory);
+      }
+    },
+  });
+
+  const makeDraggableProps = (note: NoteSummary) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", note.id);
+      setDraggingNote(note);
+    },
+    onDragEnd: () => {
+      setDraggingNote(null);
+    },
+  });
 
   return (
     <div className="vault-explorer">
@@ -1112,8 +1386,8 @@ function VaultExplorer({
             <p className="empty-state">还没有笔记。</p>
           ) : (
             grouped.map((group) => (
-              <section key={group.directory} className="vault-folder">
-                <div className="vault-folder-title">
+              <section key={group.directory} className={`vault-folder ${dragOverFolder === group.directory ? "is-drag-over" : ""}`}>
+                <div className="vault-folder-title" {...makeFolderDropHandlers(group.directory)}>
                   <ChevronRight size={14} className={expanded ? "is-expanded" : undefined} />
                   <span>{group.directory.replace(/^notes\/?/, "") || "根目录"}</span>
                 </div>
@@ -1125,6 +1399,7 @@ function VaultExplorer({
                         note={note}
                         active={activePath === note.path}
                         showPath={false}
+                        {...makeDraggableProps(note)}
                         onContextMenu={(event) => onContextMenu(note, event)}
                         onOpen={() => onOpen(note)}
                       />
@@ -1144,12 +1419,18 @@ function NoteListItem({
   note,
   active,
   showPath = true,
+  draggable,
+  onDragStart,
+  onDragEnd,
   onContextMenu,
   onOpen,
 }: {
   note: NoteSummary;
   active: boolean;
   showPath?: boolean;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
   onContextMenu?: (event: MouseEvent) => void;
   onOpen: () => void;
 }) {
@@ -1157,6 +1438,9 @@ function NoteListItem({
     <button
       type="button"
       className={active ? "note-item is-active" : "note-item"}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onContextMenu={onContextMenu}
       onClick={onOpen}
     >
@@ -1174,6 +1458,10 @@ function NoteContextMenu({
   onDuplicate,
   onToggleFavorite,
   onCopyPath,
+  onRename,
+  onDelete,
+  onMove,
+  onReveal,
 }: {
   state: { note: NoteSummary; x: number; y: number } | null;
   onClose: () => void;
@@ -1181,6 +1469,10 @@ function NoteContextMenu({
   onDuplicate: (note: NoteSummary) => void;
   onToggleFavorite: (note: NoteSummary) => void;
   onCopyPath: (note: NoteSummary) => void;
+  onRename: (note: NoteSummary) => void;
+  onDelete: (note: NoteSummary) => void;
+  onMove: (note: NoteSummary) => void;
+  onReveal: (note: NoteSummary) => void;
 }) {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -1231,10 +1523,15 @@ function NoteContextMenu({
       onContextMenu={(event) => event.preventDefault()}
     >
       <button type="button" onClick={() => run(() => onOpen(state.note))}>打开</button>
+      <button type="button" onClick={() => run(() => onRename(state.note))}>重命名</button>
       <button type="button" onClick={() => run(() => onDuplicate(state.note))}>创建副本</button>
       <button type="button" onClick={() => run(() => onToggleFavorite(state.note))}>{state.note.favorite ? "取消收藏" : "收藏"}</button>
       <span role="separator" />
+      <button type="button" onClick={() => run(() => onMove(state.note))}>移动到...</button>
+      <button type="button" onClick={() => run(() => onReveal(state.note))}>在文件管理器中显示</button>
       <button type="button" onClick={() => run(() => onCopyPath(state.note))}>复制路径</button>
+      <span role="separator" />
+      <button type="button" className="menu-danger" onClick={() => run(() => onDelete(state.note))}>删除</button>
     </div>
   );
 }
@@ -1431,6 +1728,19 @@ const paragraphsFromPlainText = (value: string) =>
     .filter(Boolean)
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
     .join("");
+
+const markdownExportPath = (notePath: string, fallbackTitle: string) => {
+  const normalized = notePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const withoutNotesPrefix = normalized.replace(/^notes\//, "");
+  const withoutHtml = withoutNotesPrefix.replace(/\.html?$/i, "");
+  const candidate = withoutHtml.trim() || fallbackTitle.trim() || "untitled";
+  const safeParts = candidate
+    .split("/")
+    .filter(Boolean)
+    .map((part) => part.replace(/[\\:*?"<>|]/g, "-").trim() || "untitled");
+
+  return `${safeParts.join("/")}.md`;
+};
 
 const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
   const document = new DOMParser().parseFromString(`<article>${articleHtml}</article>`, "text/html");

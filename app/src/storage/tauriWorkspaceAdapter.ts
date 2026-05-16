@@ -78,7 +78,45 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     return invoke<Record<string, unknown>>("read_settings", { path });
   },
 
+  async importMarkdown(path: string, markdown: string, title: string) {
+    const { markdownToOpalineArticle } = await import("../editor/markdownImport");
+    const body = markdownToOpalineArticle(markdown);
+    return invoke<NoteDocument>("create_note", { path, input: { title, body, lang: undefined, directory: undefined } });
+  },
+
+  async readFileText(filePath: string) {
+    return invoke<string>("read_file_text", { filePath });
+  },
+
+  async renameNote(path: string, noteId: string, newTitle: string) {
+    return invoke<NoteSummary>("rename_note", { path, noteId, newTitle });
+  },
+
+  async deleteNote(path: string, noteId: string) {
+    await invoke("delete_note", { path, noteId });
+  },
+
+  async moveNote(path: string, noteId: string, newDirectory: string) {
+    return invoke<NoteSummary>("move_note", { path, noteId, newDirectory });
+  },
+
+  async revealInExplorer(path: string, notePath: string) {
+    await invoke("reveal_in_explorer", { path, notePath });
+  },
+
   async writeSettings(path: string, settings: Record<string, unknown>) {
     await invoke("write_settings", { path, settings });
+  },
+
+  async copyWorkspace(source: string, destination: string) {
+    await invoke("copy_workspace", { source, destination });
+  },
+
+  async moveWorkspace(source: string, destination: string) {
+    await invoke("move_workspace", { source, destination });
+  },
+
+  async writeExportFile(filePath: string, content: string) {
+    await invoke("write_export_file", { filePath, content });
   },
 };

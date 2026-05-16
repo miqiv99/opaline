@@ -23,6 +23,15 @@ export interface WorkspaceAdapter {
   graphData(path: string): Promise<GraphData>;
   toggleFavorite(path: string, noteId: string): Promise<boolean>;
   importAsset(path: string, input: AssetImport): Promise<ImportedAsset>;
+  importMarkdown?(path: string, markdown: string, title: string): Promise<NoteDocument>;
+  readFileText?(filePath: string): Promise<string>;
+  renameNote(path: string, noteId: string, newTitle: string): Promise<NoteSummary>;
+  deleteNote(path: string, noteId: string): Promise<void>;
+  moveNote(path: string, noteId: string, newDirectory: string): Promise<NoteSummary>;
+  revealInExplorer(path: string, notePath: string): Promise<void>;
   readSettings(path: string): Promise<Record<string, unknown>>;
   writeSettings(path: string, settings: Record<string, unknown>): Promise<void>;
+  copyWorkspace?(source: string, destination: string): Promise<void>;
+  moveWorkspace?(source: string, destination: string): Promise<void>;
+  writeExportFile?(filePath: string, content: string): Promise<void>;
 }
