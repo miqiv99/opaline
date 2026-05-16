@@ -188,7 +188,6 @@ const compileWikiLinks = (articleHtml: string, notes: LinkableNote[]): string =>
         link.setAttribute("data-opaline-link-kind", blockId ? "block" : "note");
         if (blockId) {
           link.setAttribute("data-opaline-block-ref", blockId);
-          link.setAttribute("data-opaline-block-id", blockId);
         }
         link.textContent = rawTitle;
         fragment.append(link);
@@ -236,6 +235,10 @@ const relativeHref = (notePath: string) => notePath.replace(/^notes\//, "");
 
 const isSafeUrl = (value: string): boolean => {
   if (value.startsWith("#") || value.startsWith("./") || value.startsWith("../") || value.startsWith("/")) {
+    return true;
+  }
+
+  if (!/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value)) {
     return true;
   }
 

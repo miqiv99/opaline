@@ -403,28 +403,6 @@ export function App() {
     [refreshBacklinks, workspace.notes, workspace.path],
   );
 
-  const openInternalLink = useCallback(
-    async (target: { noteId?: string; notePath?: string; blockId?: string | null }) => {
-      const normalizedTargetPath = target.notePath ? normalizeInternalNotePath(target.notePath) : null;
-      const note = workspace.notes.find((item) => {
-        if (target.noteId && item.id === target.noteId) return true;
-        return normalizedTargetPath !== null && normalizeInternalNotePath(item.path) === normalizedTargetPath;
-      });
-
-      if (!note) {
-        setStatus("找不到这个内部链接指向的笔记");
-        return;
-      }
-
-      if (target.blockId) {
-        setPendingBlockTarget({ blockId: target.blockId, requestId: Date.now() });
-      }
-
-      await openNote(note);
-    },
-    [openNote, workspace.notes],
-  );
-
   const openSearchResult = useCallback(
     async (result: SearchResult) => {
       if (!workspace.path) {
@@ -439,13 +417,15 @@ export function App() {
     [refreshBacklinks, workspace.notes, workspace.path],
   );
 
-  const saveNote = useCallback(async (options: { silent?: boolean } = {}) => {
+  const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string } = {}) => {
     if (!workspace.path || !workspace.activeNote) {
       setStatus("没有可保存的笔记");
       return;
     }
 
-    if (articleHtml === savedArticleHtml) {
+    const nextArticleHtml = options.articleHtml ?? articleHtml;
+
+    if (nextArticleHtml === savedArticleHtml) {
       if (!options.silent) {
         setStatus("没有未保存的更改");
       }
@@ -454,10 +434,10 @@ export function App() {
 
     setIsSaving(true);
     try {
-      const html = replaceArticleInDocument(workspace.activeNote.html, articleHtml, workspace.notes);
+      const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes);
       const saved = await workspaceAdapter.saveNote(workspace.path, {
         ...workspace.activeNote,
-        title: titleFromArticleHtml(articleHtml, workspace.activeNote.title),
+        title: titleFromArticleHtml(nextArticleHtml, workspace.activeNote.title),
         html,
       });
       const notes = await refreshNotes(workspace.path);
@@ -470,6 +450,33 @@ export function App() {
       setIsSaving(false);
     }
   }, [articleHtml, refreshBacklinks, refreshNotes, savedArticleHtml, workspace.activeNote, workspace.notes, workspace.path]);
+
+  const openInternalLink = useCallback(
+    async (target: { noteId?: string; notePath?: string; blockId?: string | null; sourceHtml?: string }) => {
+      const normalizedTargetPath = target.notePath ? normalizeInternalNotePath(target.notePath) : null;
+      const note = workspace.notes.find((item) => {
+        if (target.noteId && item.id === target.noteId) return true;
+        return normalizedTargetPath !== null && normalizeInternalNotePath(item.path) === normalizedTargetPath;
+      });
+
+      if (!note) {
+        setStatus("找不到这个内部链接指向的笔记");
+        return;
+      }
+
+      const sourceHtml = target.sourceHtml ?? articleHtml;
+      if (sourceHtml !== savedArticleHtml) {
+        await saveNote({ silent: true, articleHtml: sourceHtml });
+      }
+
+      if (target.blockId) {
+        setPendingBlockTarget({ blockId: target.blockId, requestId: Date.now() });
+      }
+
+      await openNote(note);
+    },
+    [articleHtml, openNote, saveNote, savedArticleHtml, workspace.notes],
+  );
 
   const toggleFavorite = useCallback(async () => {
     if (!workspace.path || !workspace.activeNote) {
@@ -1022,7 +1029,7 @@ export function App() {
               linkableNotes={workspace.notes}
               scrollToBlockTarget={pendingBlockTarget}
               onChange={setArticleHtml}
-              onSave={saveNote}
+              onSave={(html) => saveNote({ articleHtml: html })}
               onImportAsset={importAsset}
               onSearchNotes={searchNoteSuggestions}
               onOpenInternalLink={openInternalLink}

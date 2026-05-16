@@ -63,6 +63,7 @@ Still rough:
 - Ordinary-user UI for creating concept-level links from selected text is not implemented yet.
 - File operations are still limited; rename, delete, move, reveal in system explorer, and history should be added deliberately.
 - The editor UI still needs more polish so HTML-only advantages feel obvious without exposing raw HTML to users.
+- Known residual issue: block links can open the target note and scroll to the target block, but the visible target highlight is still unreliable in the desktop editor and may not appear. This should be fixed in a focused follow-up.
 
 ## Positioning
 
@@ -676,13 +677,14 @@ These may become possible later. They should not define the first working versio
 2. Add workspace migration when users change locations.
 3. Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.
 4. Improve the graph view beyond the first neighborhood and edge-detail pass: better layout, saved graph presets, and clearer navigation from edges back to exact targets.
-5. Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.
-6. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
-7. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
-8. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.
-9. Add AI retrieval over local notes with visible sources before generated answers.
-10. Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.
-11. Later: static publishing and reader-facing concept search over public notes.
+5. Fix block-link target highlighting so opening a target note, scrolling to the block, and showing a visible highlight become a stable flow.
+6. Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.
+7. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
+8. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
+9. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.
+10. Add AI retrieval over local notes with visible sources before generated answers.
+11. Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.
+12. Later: static publishing and reader-facing concept search over public notes.
 
 ## License
 

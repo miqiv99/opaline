@@ -9,6 +9,7 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
+import { TextSelection } from "@tiptap/pm/state";
 import {
   Bold,
   Brain,
@@ -65,6 +66,38 @@ type EditorNoteReference = {
   path: string;
 };
 
+const OpalineLink = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      opalineLink: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-opaline-link"),
+        renderHTML: (attributes) =>
+          attributes.opalineLink ? { "data-opaline-link": attributes.opalineLink as string } : {},
+      },
+      opalineLinkKind: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-opaline-link-kind"),
+        renderHTML: (attributes) =>
+          attributes.opalineLinkKind ? { "data-opaline-link-kind": attributes.opalineLinkKind as string } : {},
+      },
+      opalineBlockRef: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-opaline-block-ref"),
+        renderHTML: (attributes) =>
+          attributes.opalineBlockRef ? { "data-opaline-block-ref": attributes.opalineBlockRef as string } : {},
+      },
+      opalineHeading: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-opaline-heading"),
+        renderHTML: (attributes) =>
+          attributes.opalineHeading ? { "data-opaline-heading": attributes.opalineHeading as string } : {},
+      },
+    };
+  },
+});
+
 type OpalineEditorProps = {
   content: string;
   isSaving: boolean;
@@ -72,7 +105,7 @@ type OpalineEditorProps = {
   linkableNotes?: EditorNoteReference[];
   scrollToBlockTarget?: { blockId: string; requestId: number } | null;
   onChange: (html: string) => void;
-  onSave: () => void;
+  onSave: (html: string) => void | Promise<void>;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
   onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
   onOpenInternalLink?: (target: InternalLinkTarget) => void;
@@ -99,16 +132,9 @@ export function OpalineEditor({
   const linkContextRef = useRef<InternalLinkContext>({
     currentNote,
     notes: linkableNotes,
+    getCurrentHtml: undefined,
     onOpenInternalLink,
   });
-
-  useEffect(() => {
-    linkContextRef.current = {
-      currentNote,
-      notes: linkableNotes,
-      onOpenInternalLink,
-    };
-  }, [currentNote, linkableNotes, onOpenInternalLink]);
 
   const editor = useEditor({
     extensions: [
@@ -117,7 +143,7 @@ export function OpalineEditor({
           levels: [1, 2, 3, 4, 5, 6],
         },
       }),
-      Link.configure({
+      OpalineLink.configure({
         openOnClick: false,
         autolink: true,
         HTMLAttributes: {
@@ -170,6 +196,15 @@ export function OpalineEditor({
       onChange(editor.getHTML());
     },
   });
+
+  useEffect(() => {
+    linkContextRef.current = {
+      currentNote,
+      notes: linkableNotes,
+      getCurrentHtml: editor ? () => editor.getHTML() : undefined,
+      onOpenInternalLink,
+    };
+  }, [currentNote, editor, linkableNotes, onOpenInternalLink]);
 
   useEffect(() => {
     if (!editor || editor.getHTML() === content) {
@@ -241,7 +276,16 @@ export function OpalineEditor({
             <FileImage size={17} />
           </IconButton>
         ) : null}
-        <button className="save-button" data-tooltip={isSaving ? "保存中" : "保存"} onClick={onSave} disabled={isSaving}>
+        <button
+          className="save-button"
+          data-tooltip={isSaving ? "保存中" : "保存"}
+          onClick={() => {
+            const html = editor.getHTML();
+            onChange(html);
+            void onSave(html);
+          }}
+          disabled={isSaving}
+        >
           <Save size={17} />
           <span>{isSaving ? "保存中" : "保存"}</span>
         </button>
@@ -275,6 +319,7 @@ export function OpalineEditor({
       <NoteLinkDialog
         editor={editor}
         open={noteLinkDialogOpen}
+        onChange={onChange}
         onSearchNotes={onSearchNotes}
         onClose={() => setNoteLinkDialogOpen(false)}
       />
@@ -433,11 +478,40 @@ const insertNoteLink = (
   const selected = editor.state.doc.textBetween(from, to, " ").trim();
   const text = selected || note.title;
   const href = relativeNoteHref(note.path);
-  const linkHtml = `<a href="${escapeAttribute(href)}" data-opaline-link="${escapeAttribute(note.id)}" data-opaline-link-kind="note">${escapeHtml(text)}</a>`;
-  editor.chain().focus().insertContentAt({ from, to }, linkHtml).run();
+  insertMarkedLink(editor, { from, to }, text, {
+    href,
+    opalineLink: note.id,
+    opalineLinkKind: "note",
+  });
 };
 
 const relativeNoteHref = (notePath: string) => notePath.replace(/^notes\//, "");
+
+const insertMarkedLink = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  range: { from: number; to: number },
+  text: string,
+  attrs: Record<string, string | null>,
+) => {
+  const linkMark = editor.state.schema.marks.link;
+  const cleanAttrs = Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== null));
+
+  if (!linkMark) {
+    return;
+  }
+
+  let transaction = editor.state.tr;
+  if (range.from === range.to) {
+    transaction = transaction.insert(range.from, editor.state.schema.text(text, [linkMark.create(cleanAttrs)]));
+    transaction = transaction.setSelection(TextSelection.create(transaction.doc, range.from + text.length));
+  } else {
+    transaction = transaction.addMark(range.from, range.to, linkMark.create(cleanAttrs));
+    transaction = transaction.setSelection(TextSelection.create(transaction.doc, range.to));
+  }
+
+  editor.view.dispatch(transaction.scrollIntoView());
+  editor.commands.focus();
+};
 
 const cssEscape = (value: string) => {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -450,11 +524,13 @@ type InternalLinkTarget = {
   noteId?: string;
   notePath?: string;
   blockId?: string | null;
+  sourceHtml?: string;
 };
 
 type InternalLinkContext = {
   currentNote: EditorNoteReference | null;
   notes: EditorNoteReference[];
+  getCurrentHtml?: () => string;
   onOpenInternalLink?: (target: InternalLinkTarget) => void;
 };
 
@@ -484,14 +560,14 @@ const handleEditorLinkClick = (
         );
 
   if (!isCurrentNote && (internalTarget.noteId || internalTarget.notePath)) {
-    context.onOpenInternalLink?.(internalTarget);
+    context.onOpenInternalLink?.({ ...internalTarget, sourceHtml: context.getCurrentHtml?.() });
     return true;
   }
 
   if (internalTarget.blockId) {
     const didScroll = scrollEditorToBlockFromLink(link, internalTarget.blockId);
     if (!didScroll && (internalTarget.noteId || internalTarget.notePath)) {
-      context.onOpenInternalLink?.(internalTarget);
+      context.onOpenInternalLink?.({ ...internalTarget, sourceHtml: context.getCurrentHtml?.() });
     }
   }
 
@@ -545,20 +621,27 @@ const scrollEditorToBlock = (
   editor: NonNullable<ReturnType<typeof useEditor>>,
   blockId: string,
 ) => {
-  const targetBlock = editor.view.dom.querySelector<HTMLElement>(
-    `[data-opaline-block-id="${cssEscape(blockId)}"], #${cssEscape(blockId)}`,
-  );
-
-  return revealBlockTarget(targetBlock);
+  return revealBlockTarget(findBlockTarget(editor.view.dom, blockId));
 };
 
 const scrollEditorToBlockFromLink = (link: HTMLAnchorElement, blockId: string) => {
   const surface = link.closest(".editor-surface");
-  const targetBlock = surface?.querySelector<HTMLElement>(
-    `[data-opaline-block-id="${cssEscape(blockId)}"], #${cssEscape(blockId)}`,
+
+  return revealBlockTarget(surface ? findBlockTarget(surface, blockId, link) : null);
+};
+
+const findBlockTarget = (root: ParentNode, blockId: string, sourceLink?: HTMLAnchorElement) => {
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      `[data-opaline-block-id="${cssEscape(blockId)}"], #${cssEscape(blockId)}`,
+    ),
   );
 
-  return revealBlockTarget(targetBlock ?? null);
+  return (
+    candidates.find((element) => element !== sourceLink && element.tagName.toLowerCase() !== "a") ??
+    candidates.find((element) => element !== sourceLink) ??
+    null
+  );
 };
 
 const revealBlockTarget = (targetBlock: HTMLElement | null) => {
@@ -566,8 +649,56 @@ const revealBlockTarget = (targetBlock: HTMLElement | null) => {
 
   targetBlock.scrollIntoView({ block: "center", behavior: "smooth" });
   targetBlock.classList.add("is-block-link-target");
-  window.setTimeout(() => targetBlock.classList.remove("is-block-link-target"), 3200);
+  targetBlock.setAttribute("data-opaline-highlighted-block", "true");
+  window.setTimeout(() => showBlockTargetMarker(targetBlock), 180);
+  window.setTimeout(() => {
+    targetBlock.classList.remove("is-block-link-target");
+    targetBlock.removeAttribute("data-opaline-highlighted-block");
+  }, 3200);
   return true;
+};
+
+const showBlockTargetMarker = (targetBlock: HTMLElement) => {
+  const scrollBox = targetBlock.closest<HTMLElement>(".editor-scroll");
+  if (!scrollBox) return;
+
+  document
+    .querySelectorAll(".block-link-target-marker, .block-link-target-outline")
+    .forEach((marker) => marker.remove());
+
+  const outline = document.createElement("div");
+  outline.className = "block-link-target-outline";
+  const marker = document.createElement("div");
+  marker.className = "block-link-target-marker";
+  marker.textContent = "链接目标";
+  scrollBox.append(outline);
+  scrollBox.append(marker);
+
+  const updatePosition = () => {
+    const rect = targetBlock.getBoundingClientRect();
+    const scrollRect = scrollBox.getBoundingClientRect();
+    const left = rect.left - scrollRect.left + scrollBox.scrollLeft;
+    const top = rect.top - scrollRect.top + scrollBox.scrollTop;
+
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    outline.style.left = `${left - 8}px`;
+    outline.style.top = `${top - 6}px`;
+    outline.style.width = `${Math.max(28, rect.width + 16)}px`;
+    outline.style.height = `${Math.max(28, rect.height + 12)}px`;
+    marker.style.left = `${left + 8}px`;
+    marker.style.top = `${top - 8}px`;
+  };
+
+  updatePosition();
+  const interval = window.setInterval(updatePosition, 120);
+  window.setTimeout(() => {
+    window.clearInterval(interval);
+    outline.remove();
+    marker.remove();
+  }, 3200);
 };
 
 const normalizeNoteHrefPath = (value: string) =>
@@ -743,12 +874,14 @@ function AtomicLinkDialog({
     const { from, to } = editor.state.selection;
     const selected = editor.state.doc.textBetween(from, to, " ").trim();
     const text = selected || target.label || target.id;
-    const metadata =
-      target.kind === "heading"
-        ? `data-opaline-heading="${escapeAttribute(target.label)}"`
-        : `data-opaline-block-ref="${escapeAttribute(target.id)}"`;
-    const linkHtml = `<a href="#${escapeAttribute(target.id)}" data-opaline-link="${escapeAttribute(currentNote.id)}" data-opaline-link-kind="${target.kind}" ${metadata}>${escapeHtml(text)}</a>`;
-    editor.chain().focus().insertContentAt({ from, to }, linkHtml).run();
+    insertMarkedLink(editor, { from, to }, text, {
+      href: `#${target.id}`,
+      opalineLink: currentNote.id,
+      opalineLinkKind: target.kind,
+      opalineBlockRef: target.kind === "block" ? target.id : null,
+      opalineHeading: target.kind === "heading" ? target.label : null,
+    });
+    onChange(editor.getHTML());
     onClose();
   };
 
@@ -1122,11 +1255,13 @@ function ContextMenuSeparator() {
 function NoteLinkDialog({
   editor,
   open,
+  onChange,
   onSearchNotes,
   onClose,
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
   open: boolean;
+  onChange: (html: string) => void;
   onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
   onClose: () => void;
 }) {
@@ -1165,6 +1300,7 @@ function NoteLinkDialog({
 
   const pick = (note: NoteSuggestion) => {
     insertNoteLink(editor, note);
+    onChange(editor.getHTML());
     onClose();
   };
 
