@@ -40,6 +40,7 @@ import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, No
 import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
+import { useConstrainedMenuPosition } from "./components/useConstrainedMenuPosition";
 
 const initialState: WorkspaceState = {
   path: null,
@@ -1561,6 +1562,7 @@ function NoteContextMenu({
   onReveal: (note: NoteSummary) => void;
 }) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuStyle = useConstrainedMenuPosition(state, menuRef);
 
   useEffect(() => {
     if (!state) {
@@ -1603,7 +1605,7 @@ function NoteContextMenu({
     <div
       ref={menuRef}
       className="file-context-menu"
-      style={{ left: state.x, top: state.y }}
+      style={menuStyle}
       role="menu"
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}

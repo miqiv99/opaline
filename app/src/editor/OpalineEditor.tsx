@@ -43,6 +43,7 @@ import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
 import { SUMMARY_PROMPT, TAG_PROMPT, TITLE_PROMPT } from "../ai/adapter";
 import { getAiAdapter, loadAiSettings } from "../ai/settings";
+import { useConstrainedMenuPosition } from "../components/useConstrainedMenuPosition";
 import { MathInline, MathBlock } from "./extensions/math";
 import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
@@ -908,6 +909,8 @@ function EditorContextMenu({
 }) {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const submenuCloseTimer = useRef<number | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuStyle = useConstrainedMenuPosition(state, menuRef);
 
   const clearSubmenuCloseTimer = () => {
     if (submenuCloseTimer.current !== null) {
@@ -946,8 +949,9 @@ function EditorContextMenu({
 
   return (
     <div
+      ref={menuRef}
       className="editor-context-menu"
-      style={{ left: state.x, top: state.y }}
+      style={menuStyle}
       role="menu"
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}

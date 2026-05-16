@@ -1248,6 +1248,7 @@ button:disabled {
   z-index: 80;
   display: grid;
   min-width: 238px;
+  overscroll-behavior: contain;
   border: 1px solid rgba(60, 60, 67, 0.18);
   border-radius: 10px;
   background: rgba(252, 252, 252, 0.96);
@@ -1260,6 +1261,7 @@ button:disabled {
   z-index: 82;
   display: grid;
   min-width: 210px;
+  overscroll-behavior: contain;
   border: 1px solid rgba(60, 60, 67, 0.18);
   border-radius: 10px;
   background: rgba(252, 252, 252, 0.96);
