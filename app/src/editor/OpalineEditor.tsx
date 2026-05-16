@@ -11,6 +11,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import {
   Bold,
+  Brain,
   CheckSquare,
   Code2,
   Columns2,
@@ -28,13 +29,18 @@ import {
   Redo2,
   Save,
   Search,
+  Sparkles,
   Table2,
+  Tag,
   TextCursorInput,
+  TextSearch,
   Undo2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
+import { SUMMARY_PROMPT, TAG_PROMPT, TITLE_PROMPT } from "../ai/adapter";
+import { getAiAdapter, loadAiSettings } from "../ai/settings";
 import { MathInline, MathBlock } from "./extensions/math";
 import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
@@ -60,6 +66,7 @@ type OpalineEditorProps = {
 
 export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAsset, onPickNote }: OpalineEditorProps) {
   const [dialog, setDialog] = useState<InsertDialogState | null>(null);
+  const [aiResult, setAiResult] = useState<AiResultState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const editor = useEditor({
     extensions: [
@@ -170,7 +177,7 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
             <FileImage size={17} />
           </IconButton>
         ) : null}
-        <button className="save-button" onClick={onSave} disabled={isSaving}>
+        <button className="save-button" data-tooltip={isSaving ? "保存中" : "保存"} onClick={onSave} disabled={isSaving}>
           <Save size={17} />
           <span>{isSaving ? "保存中" : "保存"}</span>
         </button>
@@ -183,9 +190,13 @@ export function OpalineEditor({ content, isSaving, onChange, onSave, onImportAss
         onLink={() => openLinkDialog(editor, setDialog)}
         onImage={() => insertImage(editor, onImportAsset)}
         onMathInline={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}
+        onAiAction={(action) => {
+          void runEditorAiAction(editor, action, setAiResult);
+        }}
         onPickNote={onPickNote}
       />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
+      <AiResultDialog editor={editor} state={aiResult} onClose={() => setAiResult(null)} />
     </section>
   );
 }
@@ -201,6 +212,15 @@ type InsertDialogState =
   | { type: "math-block"; value: string }
   | { type: "mermaid"; value: string };
 
+type AiEditorAction = "summary" | "title" | "tags";
+
+type AiResultState = {
+  action: AiEditorAction;
+  title: string;
+  status: "loading" | "done" | "error";
+  result: string;
+};
+
 type IconButtonProps = {
   label: string;
   active?: boolean;
@@ -214,7 +234,7 @@ function IconButton({ label, active = false, disabled = false, children, onClick
     <button
       className={active ? "icon-button is-active" : "icon-button"}
       type="button"
-      title={label}
+      data-tooltip={label}
       aria-label={label}
       aria-pressed={active}
       disabled={disabled}
@@ -231,6 +251,61 @@ const openLinkDialog = (
 ) => {
   const current = editor.getAttributes("link").href as string | undefined;
   setDialog({ type: "link", value: current ?? "" });
+};
+
+const runEditorAiAction = async (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  action: AiEditorAction,
+  setAiResult: (state: AiResultState) => void,
+) => {
+  const titleMap: Record<AiEditorAction, string> = {
+    summary: "生成摘要",
+    title: "建议标题",
+    tags: "提取标签",
+  };
+  const promptMap: Record<AiEditorAction, string> = {
+    summary: SUMMARY_PROMPT,
+    title: TITLE_PROMPT,
+    tags: TAG_PROMPT,
+  };
+  const text = editor.getText().trim();
+
+  setAiResult({ action, title: titleMap[action], status: "loading", result: "正在读取当前笔记并请求模型..." });
+
+  if (!text) {
+    setAiResult({ action, title: titleMap[action], status: "error", result: "当前笔记没有可分析的正文。" });
+    return;
+  }
+
+  try {
+    const settings = loadAiSettings();
+    if (!settings.apiKey.trim()) {
+      setAiResult({ action, title: titleMap[action], status: "error", result: "请先在设置里填写 API Key。" });
+      return;
+    }
+
+    const adapter = getAiAdapter(settings.provider);
+    const result = await adapter.chat(
+      [
+        { role: "system", content: promptMap[action] },
+        { role: "user", content: editor.getHTML().slice(0, 24000) },
+      ],
+      {
+        model: settings.model || adapter.defaultModel,
+        apiKey: settings.apiKey,
+        baseUrl: settings.baseUrl,
+      },
+    );
+
+    setAiResult({ action, title: titleMap[action], status: "done", result });
+  } catch (error) {
+    setAiResult({
+      action,
+      title: titleMap[action],
+      status: "error",
+      result: error instanceof Error ? error.message : "AI 请求失败",
+    });
+  }
 };
 
 const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
@@ -356,6 +431,7 @@ function EditorContextMenu({
   onLink,
   onImage,
   onMathInline,
+  onAiAction,
   onPickNote,
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
@@ -364,6 +440,7 @@ function EditorContextMenu({
   onLink: () => void;
   onImage: () => void;
   onMathInline: () => void;
+  onAiAction: (action: AiEditorAction) => void;
   onPickNote?: () => Promise<NoteSuggestion | null>;
 }) {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -438,6 +515,18 @@ function EditorContextMenu({
           onClick={() => run(() => insertEmbed(editor, onPickNote))}
         />
       ) : null}
+      <ContextMenuSubmenu
+        id="ai"
+        icon={<Brain size={17} />}
+        label="AI 助手"
+        active={activeSubmenu === "ai"}
+        onOpen={openSubmenu}
+        onCloseSoon={closeSubmenuSoon}
+      >
+        <ContextMenuItem icon={<Sparkles size={17} />} label="生成摘要" onClick={() => run(() => onAiAction("summary"))} />
+        <ContextMenuItem icon={<TextSearch size={17} />} label="建议标题" onClick={() => run(() => onAiAction("title"))} />
+        <ContextMenuItem icon={<Tag size={17} />} label="提取标签" onClick={() => run(() => onAiAction("tags"))} />
+      </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="format"
         icon={<Bold size={17} />}
@@ -564,7 +653,60 @@ function ContextMenuSeparator() {
   return <span className="context-menu-separator" role="separator" />;
 }
 
+function AiResultDialog({
+  editor,
+  state,
+  onClose,
+}: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
+  state: AiResultState | null;
+  onClose: () => void;
+}) {
+  if (!state) return null;
+
+  const canApply = state.status === "done" && state.result.trim().length > 0;
+  const insertResult = () => {
+    if (!canApply) return;
+    editor.chain().focus().insertContent(plainTextToHtml(state.result)).run();
+    onClose();
+  };
+
+  return (
+    <div className="insert-popover" role="dialog" aria-modal="true" aria-label={state.title}>
+      <div className="insert-card ai-result-card">
+        <header>
+          <strong>{state.title}</strong>
+          <p>{state.status === "loading" ? "正在处理当前笔记。" : state.status === "error" ? "没有完成请求。" : "结果可复制，也可以插入到光标位置。"}</p>
+        </header>
+        <div className={`ai-editor-result is-${state.status}`}>
+          {state.status === "loading" ? <Sparkles size={17} className="spinner" /> : null}
+          <div>{state.result}</div>
+        </div>
+        <div className="insert-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose}>关闭</button>
+          <button type="button" className="dialog-secondary" disabled={!canApply} onClick={() => void navigator.clipboard?.writeText(state.result)}>复制</button>
+          <button type="button" className="dialog-primary" disabled={!canApply} onClick={insertResult}>插入</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const truncateLabel = (value: string) => {
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length > 18 ? `${normalized.slice(0, 18)}...` : normalized;
 };
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const plainTextToHtml = (value: string) =>
+  value
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
+    .join("");

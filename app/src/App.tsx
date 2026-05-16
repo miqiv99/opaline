@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
-import { AiPanel, AiSettingsPanel } from "./ai/AiPanel";
+import { AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
@@ -770,21 +770,23 @@ export function App() {
 
   return (
     <main
-      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${(view === "note" || view === "graph") ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
+      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${(view === "note" || view === "graph" || view === "settings") ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
     >
-      {(view === "note" || view === "graph") ? (
+      {(view === "note" || view === "graph" || view === "settings") ? (
         <NoteRibbon
           leftCollapsed={leftPanelCollapsed}
           onHome={() => setView("home")}
+          onNotes={() => setView("note")}
           onToggleLeft={() => setLeftPanelCollapsed((value) => !value)}
           onGraph={() => setView("graph")}
+          onSettings={() => setView("settings")}
           onImport={importMarkdown}
           onExport={exportMarkdown}
         />
       ) : null}
-      {view === "home" || ((view === "note" || view === "graph") && leftPanelCollapsed) ? null : (
-      <aside className={`sidebar ${(view === "note" || view === "graph") ? "is-vault-sidebar" : ""}`}>
-        {(view === "note" || view === "graph") ? null : (
+      {view === "home" || ((view === "note" || view === "graph" || view === "settings") && leftPanelCollapsed) ? null : (
+      <aside className={`sidebar ${(view === "note" || view === "graph" || view === "settings") ? "is-vault-sidebar" : ""}`}>
+        {(view === "note" || view === "graph" || view === "settings") ? null : (
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
             <img src={leafLogo} alt="" />
@@ -797,7 +799,7 @@ export function App() {
         )}
 
         <div className="sidebar-actions">
-          {(view === "note" || view === "graph") ? null : (
+          {(view === "note" || view === "graph" || view === "settings") ? null : (
             <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip="入口" aria-label="入口">
               <Home size={17} />
               <span>入口</span>
@@ -811,13 +813,13 @@ export function App() {
             <FilePlus2 size={17} />
             <span>新建</span>
           </button>
-          {(view !== "note" && view !== "graph") ? (
+          {(view !== "note" && view !== "graph" && view !== "settings") ? (
             <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip="导入 Markdown 文件" aria-label="导入 Markdown">
               <FileDown size={17} />
               <span>导入</span>
             </button>
           ) : null}
-          {(view === "note" || view === "graph") ? (
+          {(view === "note" || view === "graph" || view === "settings") ? (
             <>
               <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip="新建文件夹" aria-label="新建文件夹">
                 <FolderPlus size={17} />
@@ -866,7 +868,7 @@ export function App() {
           </div>
         ) : null}
 
-        {(view === "note" || view === "graph") ? (
+        {(view === "note" || view === "graph" || view === "settings") ? (
           <VaultExplorer
             notes={workspace.notes}
             favorites={favoriteNotes}
@@ -901,10 +903,6 @@ export function App() {
           </nav>
         )}
 
-        <button type="button" className="settings-entry" onClick={() => setView("settings")}>
-          <Settings size={18} />
-          <span>设置</span>
-        </button>
       </aside>
       )}
 
@@ -913,29 +911,33 @@ export function App() {
           <header className="topbar">
             <div>
               <h1>{activeTitle}</h1>
-              <p>
-                {view === "note" && workspace.activeNote ? workspace.activeNote.path : status}
-                {isDirty ? <span className="dirty-dot">未保存</span> : null}
-                {currentTags.map((tag) => (
-                  <span key={tag} className="tag-pill">#{tag}</span>
-                ))}
-              </p>
+              {view !== "note" || isDirty || currentTags.length ? (
+                <p>
+                  {view === "note" ? null : status}
+                  {isDirty ? <span className="dirty-dot">未保存</span> : null}
+                  {currentTags.map((tag) => (
+                    <span key={tag} className="tag-pill">#{tag}</span>
+                  ))}
+                </p>
+              ) : null}
             </div>
-            {workspace.activeNote ? (
-              <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label="收藏">
-                <Star size={18} fill={workspace.activeNote.favorite ? "currentColor" : "none"} />
-              </button>
-            ) : null}
             {view === "note" ? (
-              <button
-                className="right-panel-toggle"
-                type="button"
-                data-tooltip={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
-                onClick={() => setRightPanelCollapsed((value) => !value)}
-                aria-label={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
-              >
-                {rightPanelCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-              </button>
+              <div className="topbar-actions">
+                {workspace.activeNote ? (
+                  <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label="收藏">
+                    <Star size={18} fill={workspace.activeNote.favorite ? "currentColor" : "none"} />
+                  </button>
+                ) : null}
+                <button
+                  className="right-panel-toggle"
+                  type="button"
+                  data-tooltip={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+                  onClick={() => setRightPanelCollapsed((value) => !value)}
+                  aria-label={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+                >
+                  {rightPanelCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                </button>
+              </div>
             ) : null}
           </header>
         )}
@@ -981,23 +983,6 @@ export function App() {
               onPickNote={pickNote}
             />
             <aside className="inspector">
-              <Section title="操作" icon={<CalendarDays size={16} />}>
-                <div className="inspector-actions">
-                  <button type="button" onClick={requestCreateNote} disabled={isBusy}>
-                    <FilePlus2 size={16} />
-                    <span>新建笔记</span>
-                  </button>
-                  <button type="button" onClick={createDailyNote} disabled={isBusy}>
-                    <CalendarDays size={16} />
-                    <span>今日日记</span>
-                  </button>
-                  <button type="button" onClick={() => workspace.path && refreshNotes(workspace.path)} disabled={isBusy || !workspace.path}>
-                    <RefreshCw size={16} />
-                    <span>刷新</span>
-                  </button>
-                </div>
-              </Section>
-              <AiPanel />
               <Section title="大纲" icon={<FileText size={16} />}>
                 {workspace.activeNote.headings.length ? (
                   workspace.activeNote.headings.map((heading) => <p key={heading}>{heading}</p>)
@@ -1130,25 +1115,32 @@ function EntryChoiceView({
 function NoteRibbon({
   leftCollapsed,
   onHome,
+  onNotes,
   onToggleLeft,
   onGraph,
+  onSettings,
   onImport,
   onExport,
 }: {
   leftCollapsed: boolean;
   onHome: () => void;
+  onNotes: () => void;
   onToggleLeft: () => void;
   onGraph: () => void;
+  onSettings: () => void;
   onImport: () => void;
   onExport: () => void;
 }) {
   return (
     <nav className="note-ribbon" aria-label="工作台">
+      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"} aria-label={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"}>
+        {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
       <button type="button" onClick={onHome} data-tooltip="返回入口页" aria-label="返回入口页">
         <Home size={18} />
       </button>
-      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"} aria-label={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"}>
-        {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      <button type="button" onClick={onNotes} data-tooltip="文档" aria-label="文档">
+        <BookOpen size={18} />
       </button>
       <button type="button" onClick={onImport} data-tooltip="导入 Markdown" aria-label="导入 Markdown">
         <FileDown size={18} />
@@ -1158,6 +1150,9 @@ function NoteRibbon({
       </button>
       <button type="button" onClick={onGraph} data-tooltip="图谱" aria-label="图谱">
         <Network size={18} />
+      </button>
+      <button type="button" className="ribbon-bottom" onClick={onSettings} data-tooltip="设置" aria-label="设置">
+        <Settings size={18} />
       </button>
     </nav>
   );

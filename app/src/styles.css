@@ -26,6 +26,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background:
@@ -54,8 +62,10 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(260px, 304px) minmax(0, 1fr);
   min-height: 100vh;
+  width: 100%;
   padding: 14px;
   gap: 14px;
+  overflow: hidden;
 }
 
 .app-shell.is-home-mode {
@@ -65,6 +75,8 @@ button:disabled {
 
 .app-shell.is-note-mode {
   grid-template-columns: 44px 292px minmax(0, 1fr);
+  height: 100vh;
+  min-height: 0;
   gap: 0;
   padding: 0;
   background: #f3f1ea;
@@ -86,7 +98,7 @@ button:disabled {
 
 .note-ribbon {
   display: grid;
-  align-content: start;
+  grid-auto-rows: max-content;
   gap: 8px;
   min-height: 100vh;
   border-right: 1px solid var(--xz-border);
@@ -136,10 +148,21 @@ button:disabled {
   opacity: 1;
 }
 
+.note-ribbon [data-tooltip]::after {
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+}
+
 .note-ribbon button:hover {
   border-color: var(--xz-border);
   background: rgba(255, 255, 255, 0.72);
   color: var(--xz-green-deep);
+}
+
+.note-ribbon .ribbon-bottom {
+  align-self: end;
+  margin-top: auto;
 }
 
 .sidebar {
@@ -563,6 +586,8 @@ button:disabled {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   gap: 14px;
 }
 
@@ -630,6 +655,17 @@ button:disabled {
   padding: 8px 14px;
 }
 
+.topbar > div:first-child {
+  min-width: 0;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .right-panel-toggle {
   position: relative;
   display: grid;
@@ -661,14 +697,19 @@ button:disabled {
 
 .favorite-button {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   flex: 0 0 auto;
   border: 1px solid var(--xz-border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
   color: var(--xz-green-deep);
+}
+
+.favorite-button:hover {
+  border-color: var(--xz-border-strong);
+  background: var(--xz-green-soft);
 }
 
 .topbar h1 {
@@ -1147,7 +1188,6 @@ button:disabled {
   padding: 6px;
 }
 
-.context-menu-submenu:hover > .context-submenu-panel,
 .context-menu-submenu.is-open > .context-submenu-panel {
   display: grid;
 }
@@ -1178,6 +1218,11 @@ button:disabled {
 
 .context-menu-item:disabled {
   opacity: 0.45;
+}
+
+.context-menu-item:disabled:hover {
+  background: transparent;
+  color: var(--xz-text-primary);
 }
 
 .context-menu-separator {
@@ -1275,7 +1320,9 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
   background: #fffefa;
   padding: 24px;
 }
@@ -1598,8 +1645,21 @@ button:disabled {
   margin: 0 auto;
 }
 
+.is-note-mode .settings-view {
+  align-content: start;
+  width: min(880px, calc(100% - 44px));
+  padding: 24px 0 48px;
+}
+
 .settings-card {
   padding: 22px;
+}
+
+.is-note-mode .settings-card {
+  border-color: var(--xz-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: none;
 }
 
 .workspace-settings-row {
@@ -2320,6 +2380,42 @@ button:disabled {
   min-height: 38px;
   border-radius: 13px;
   padding: 0 15px;
+}
+
+.ai-result-card {
+  width: min(620px, 100%);
+}
+
+.ai-editor-result {
+  display: flex;
+  gap: 10px;
+  min-height: 82px;
+  max-height: min(360px, 54vh);
+  overflow: auto;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--xz-text-primary);
+  padding: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.ai-editor-result.is-loading {
+  align-items: center;
+  color: var(--xz-text-secondary);
+}
+
+.ai-editor-result.is-done {
+  border-color: rgba(34, 168, 115, 0.26);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.ai-editor-result.is-error {
+  border-color: rgba(220, 53, 69, 0.22);
+  background: #fff0f0;
+  color: #cc1a1a;
 }
 
 @media (max-width: 760px) {
