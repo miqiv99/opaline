@@ -1070,20 +1070,14 @@ fn plugin_storage_remove(path: String, input: PluginStorageInput) -> Result<(), 
 
 #[tauri::command]
 fn plugin_system_open_external(target: String, app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
-
-    app.shell().open(target, None).map_err(to_error)
+    open_target_with_system(&app, &target)
 }
 
 #[tauri::command]
 fn plugin_system_open_path(path: String, target: String, app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
-
     let workspace = workspace_path(&path)?;
     let target = resolve_plugin_path(&workspace, &target);
-    app.shell()
-        .open(target.to_string_lossy().to_string(), None)
-        .map_err(to_error)
+    open_target_with_system(&app, &target.to_string_lossy())
 }
 
 #[tauri::command]
@@ -1325,6 +1319,40 @@ fn run_command_capture(
         elapsed_ms: started.elapsed().as_millis(),
         timed_out,
     })
+}
+
+fn open_target_with_system(app: &tauri::AppHandle, target: &str) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
+    #[cfg(target_os = "windows")]
+    {
+        app.shell()
+            .command("cmd")
+            .args(["/C", "start", "", target])
+            .spawn()
+            .map(|_| ())
+            .map_err(to_error)
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        app.shell()
+            .command("open")
+            .arg(target)
+            .spawn()
+            .map(|_| ())
+            .map_err(to_error)
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        app.shell()
+            .command("xdg-open")
+            .arg(target)
+            .spawn()
+            .map(|_| ())
+            .map_err(to_error)
+    }
 }
 
 fn read_installed_plugin(plugin_path: &Path) -> Result<Option<InstalledPlugin>, String> {

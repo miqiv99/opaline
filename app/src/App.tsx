@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
+import { AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
 import { OpalineEditor } from "./editor/OpalineEditor";
@@ -60,11 +61,59 @@ const initialState: WorkspaceState = {
 
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
+const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
 const LINK_KIND_LABEL: Record<LinkKind, string> = {
   note: "文件",
   heading: "标题",
   block: "块",
   concept: "概念",
+};
+
+type SettingsPanelId = "files" | "plugins" | "ai";
+type FileLinkSettings = {
+  defaultOpenFile: "last" | "none";
+  newNoteLocation: "vault-root" | "current-folder" | "journal";
+};
+
+const defaultFileLinkSettings = (): FileLinkSettings => ({
+  defaultOpenFile: "last",
+  newNoteLocation: "vault-root",
+});
+
+const loadFileLinkSettings = (): FileLinkSettings => {
+  if (typeof localStorage === "undefined") return defaultFileLinkSettings();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FILE_LINK_SETTINGS_STORAGE_KEY) || "null") as Partial<FileLinkSettings> | null;
+    return {
+      defaultOpenFile: parsed?.defaultOpenFile === "none" ? "none" : "last",
+      newNoteLocation:
+        parsed?.newNoteLocation === "current-folder" || parsed?.newNoteLocation === "journal"
+          ? parsed.newNoteLocation
+          : "vault-root",
+    };
+  } catch {
+    return defaultFileLinkSettings();
+  }
+};
+
+const saveFileLinkSettings = (settings: FileLinkSettings) => {
+  localStorage.setItem(FILE_LINK_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+};
+
+const loadLastActiveNote = (): { path?: string } | null => {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVE_NOTE_STORAGE_KEY) || "null") as { path?: string } | null;
+  } catch {
+    return null;
+  }
+};
+
+const directoryForNewNote = (settings: FileLinkSettings, activeNote: NoteDocument | null) => {
+  if (settings.newNoteLocation === "journal") return "notes/journal";
+  if (settings.newNoteLocation === "current-folder" && activeNote?.path.includes("/")) {
+    return activeNote.path.split("/").slice(0, -1).join("/") || "notes";
+  }
+  return "notes";
 };
 
 const normalizeInternalNotePath = (value: string) =>
@@ -160,6 +209,7 @@ export function App() {
   const [allFoldersExpanded, setAllFoldersExpanded] = useState(true);
   const [noteContextMenu, setNoteContextMenu] = useState<{ note: NoteSummary; x: number; y: number } | null>(null);
   const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
+  const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
   const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
@@ -206,6 +256,14 @@ export function App() {
     setBacklinks(await workspaceAdapter.listBacklinks(path, noteId));
   }, []);
 
+  const updateFileLinkSettings = useCallback((patch: Partial<FileLinkSettings>) => {
+    setFileLinkSettings((current) => {
+      const next = { ...current, ...patch };
+      saveFileLinkSettings(next);
+      return next;
+    });
+  }, []);
+
   const openWorkspacePath = useCallback(
     async (path: string) => {
       await workspaceAdapter.ensureWorkspace(path);
@@ -213,9 +271,23 @@ export function App() {
       localStorage.setItem(WORKSPACE_PATH_STORAGE_KEY, path);
       setWorkspace((current) => ({ ...current, path, notes }));
       setStatus(notes.length > 0 ? "工作区已打开" : "工作区已初始化");
+      if (fileLinkSettings.defaultOpenFile === "last") {
+        const last = loadLastActiveNote();
+        const lastSummary = last?.path ? notes.find((note) => note.path === last.path) : null;
+        if (lastSummary) {
+          const note = await workspaceAdapter.readNote(path, lastSummary.path);
+          const nextArticleHtml = articleFromHtmlDocument(note.html);
+          setWorkspace({ path, notes, activeNote: note });
+          setArticleHtml(nextArticleHtml);
+          setSavedArticleHtml(nextArticleHtml);
+          setView("note");
+          await refreshBacklinks(path, note.id);
+          setStatus("已打开上次的文件");
+        }
+      }
       return notes;
     },
-    [refreshNotes],
+    [fileLinkSettings.defaultOpenFile, refreshBacklinks, refreshNotes],
   );
 
   const openWorkspace = useCallback(async () => {
@@ -255,7 +327,11 @@ export function App() {
       const path = workspace.path ?? (await workspaceAdapter.defaultWorkspacePath());
 
       await workspaceAdapter.ensureWorkspace(path);
-      const note = await workspaceAdapter.createNote(path, { ...input, title });
+      const note = await workspaceAdapter.createNote(path, {
+        ...input,
+        title,
+        directory: input.directory ?? directoryForNewNote(fileLinkSettings, workspace.activeNote),
+      });
       const notes = await workspaceAdapter.listNotes(path);
       openNoteDocument(path, notes, note);
       await refreshBacklinks(path, note.id);
@@ -265,7 +341,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshBacklinks, workspace.path]);
+  }, [fileLinkSettings, refreshBacklinks, workspace.activeNote, workspace.path]);
 
   const createNote = useCallback(async () => {
     const template = NOTE_TEMPLATES.find((item) => item.id === draftTemplate) ?? NOTE_TEMPLATES[0];
@@ -1013,6 +1089,8 @@ export function App() {
         ) : view === "settings" ? (
           <SettingsView
             workspacePath={workspace.path}
+            fileLinkSettings={fileLinkSettings}
+            onFileLinkSettingsChange={updateFileLinkSettings}
             onChangeWorkspace={async () => {
               const newPath = await workspaceAdapter.chooseWorkspace();
               if (!newPath) return;
@@ -1686,32 +1764,130 @@ function TodayView({
 
 function SettingsView({
   workspacePath,
+  fileLinkSettings,
+  onFileLinkSettingsChange,
   onChangeWorkspace,
 }: {
   workspacePath: string | null;
+  fileLinkSettings: FileLinkSettings;
+  onFileLinkSettingsChange: (patch: Partial<FileLinkSettings>) => void;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
+  const [activePanel, setActivePanel] = useState<SettingsPanelId>("files");
+
   return (
     <section className="settings-view settings-panel-view">
       <aside className="settings-sidebar" aria-label="设置分类">
         <strong>选项</strong>
-        <button type="button"><Bot size={17} />关于</button>
-        <button type="button"><NotebookPen size={17} />编辑器</button>
-        <button type="button" onClick={onChangeWorkspace}><FolderOpen size={17} />文件与链接</button>
-        <button type="button"><Settings size={17} />外观</button>
-        <button type="button"><CommandIcon />快捷键</button>
-        <button type="button"><KeyIcon />钥匙串</button>
-        <button type="button"><Puzzle size={17} />核心插件</button>
-        <button type="button" className="is-active"><Puzzle size={17} />第三方插件</button>
-        <em>核心插件</em>
-        <button type="button"><BookOpen size={17} />白板</button>
-        <button type="button"><RefreshCw size={17} />同步</button>
-        <button type="button"><FileText size={17} />页面预览</button>
+        <button type="button" className={activePanel === "files" ? "is-active" : ""} onClick={() => setActivePanel("files")}>
+          <FolderOpen size={17} />文件与链接
+        </button>
+        <button type="button" className={activePanel === "plugins" ? "is-active" : ""} onClick={() => setActivePanel("plugins")}>
+          <Puzzle size={17} />第三方插件
+        </button>
+        <button type="button" className={activePanel === "ai" ? "is-active" : ""} onClick={() => setActivePanel("ai")}>
+          <Bot size={17} />AI 设置
+        </button>
       </aside>
       <div className="settings-main-panel">
-        <LiveComponentsSettingsPanel workspacePath={workspacePath} />
+        {activePanel === "files" ? (
+          <FileLinksSettingsPanel
+            workspacePath={workspacePath}
+            settings={fileLinkSettings}
+            onChange={onFileLinkSettingsChange}
+            onChangeWorkspace={onChangeWorkspace}
+          />
+        ) : activePanel === "plugins" ? (
+          <LiveComponentsSettingsPanel workspacePath={workspacePath} />
+        ) : (
+          <AiSettingsPanel />
+        )}
       </div>
     </section>
+  );
+}
+
+function FileLinksSettingsPanel({
+  workspacePath,
+  settings,
+  onChange,
+  onChangeWorkspace,
+}: {
+  workspacePath: string | null;
+  settings: FileLinkSettings;
+  onChange: (patch: Partial<FileLinkSettings>) => void;
+  onChangeWorkspace: () => void | Promise<void>;
+}) {
+  return (
+    <section className="settings-row-list">
+      <SettingsSelectRow
+        title="默认打开文件"
+        description="选择启动时打开的文件。"
+        value={settings.defaultOpenFile}
+        onChange={(value) => onChange({ defaultOpenFile: value as FileLinkSettings["defaultOpenFile"] })}
+        options={[
+          { value: "last", label: "上次打开的文件" },
+          { value: "none", label: "不自动打开文件" },
+        ]}
+      />
+      <SettingsSelectRow
+        title="新建笔记的存放位置"
+        description="指定新建笔记的存放路径。"
+        value={settings.newNoteLocation}
+        onChange={(value) => onChange({ newNoteLocation: value as FileLinkSettings["newNoteLocation"] })}
+        options={[
+          { value: "vault-root", label: "仓库的根目录" },
+          { value: "current-folder", label: "当前文件所在文件夹" },
+          { value: "journal", label: "日记文件夹" },
+        ]}
+      />
+      <div className="settings-choice-row">
+        <div>
+          <strong>附件默认存放路径</strong>
+          <small>当前固定存放到工作区的 assets/images 和 assets/files。</small>
+        </div>
+        <select value="assets" disabled>
+          <option value="assets">仓库的 assets 目录</option>
+        </select>
+      </div>
+      <div className="settings-choice-row">
+        <div>
+          <strong>当前工作区</strong>
+          <small>{workspacePath ?? "正在准备工作区"}</small>
+        </div>
+        <button type="button" className="secondary-action-button" onClick={onChangeWorkspace}>
+          更改
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SettingsSelectRow({
+  title,
+  description,
+  value,
+  options,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="settings-choice-row">
+      <div>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </div>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -1862,14 +2038,6 @@ function PluginPolicyRow({
       )}
     </div>
   );
-}
-
-function CommandIcon() {
-  return <span className="settings-sidebar-symbol">⌘</span>;
-}
-
-function KeyIcon() {
-  return <span className="settings-sidebar-symbol">⌕</span>;
 }
 
 function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {

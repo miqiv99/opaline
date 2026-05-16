@@ -1973,6 +1973,59 @@ button:disabled {
   margin: 0 auto;
 }
 
+.settings-row-list {
+  display: grid;
+  gap: 0;
+  max-width: 820px;
+  margin: 0 auto;
+  border-radius: 14px;
+  background: rgba(248, 248, 247, 0.92);
+  padding: 20px 30px;
+}
+
+.settings-choice-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+  padding: 17px 0;
+}
+
+.settings-choice-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-choice-row strong {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.settings-choice-row small {
+  display: block;
+  max-width: 620px;
+  color: var(--xz-text-secondary);
+  line-height: 1.55;
+}
+
+.settings-choice-row select {
+  min-width: 190px;
+  min-height: 36px;
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--xz-text-primary);
+  padding: 0 10px;
+  font-size: 0.92rem;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.08);
+}
+
+.settings-choice-row select:disabled {
+  color: var(--xz-text-secondary);
+  opacity: 0.72;
+}
+
 .settings-card {
   padding: 22px;
 }
@@ -3326,8 +3379,13 @@ button:disabled {
   }
 
   .widget-picker-grid,
-  .widget-field-grid {
+  .widget-field-grid,
+  .settings-choice-row {
     grid-template-columns: 1fr;
+  }
+
+  .settings-choice-row select {
+    width: 100%;
   }
 }
 
