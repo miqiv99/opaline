@@ -47,7 +47,24 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 const loadSavedLocale = () => {
   if (typeof localStorage === "undefined") return "zh-Hans";
-  return localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) || "zh-Hans";
+  const saved = localStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
+  if (saved) return saved;
+  return detectInitialLocale();
+};
+
+const detectInitialLocale = () => {
+  if (typeof navigator === "undefined") return "zh-Hans";
+  const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const language of languages) {
+    const normalized = language.toLowerCase();
+    if (normalized === "zh-hans" || normalized === "zh-cn" || normalized === "zh-sg" || normalized.startsWith("zh-hans-")) {
+      return "zh-Hans";
+    }
+    if (normalized === "en" || normalized.startsWith("en-")) {
+      return "en";
+    }
+  }
+  return "zh-Hans";
 };
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
