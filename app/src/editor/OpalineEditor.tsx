@@ -296,7 +296,6 @@ export function OpalineEditor({
           data-tooltip={isSaving ? t("action.saving") : t("action.save")}
           onClick={() => {
             const html = editor.getHTML();
-            onChange(html);
             void onSave(html);
           }}
           disabled={isSaving}

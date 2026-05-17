@@ -486,13 +486,28 @@ fn save_note(
 
     let absolute = note_absolute_path(&workspace, &note.path)?;
     let html = normalize_note_html(&note.html, &note.id, &note.title)?;
-    write_file_atomically(&absolute, &html)?;
+    let current_html = if absolute.exists() {
+        Some(fs::read_to_string(&absolute).map_err(to_error)?)
+    } else {
+        None
+    };
+    let unchanged = current_html
+        .as_ref()
+        .is_some_and(|current| note_html_equivalent_for_save(current, &html));
 
-    let html = fs::read_to_string(&absolute).map_err(to_error)?;
+    if !unchanged {
+        write_file_atomically(&absolute, &html)?;
+    }
+
+    let html = if unchanged {
+        current_html.unwrap_or(html)
+    } else {
+        fs::read_to_string(&absolute).map_err(to_error)?
+    };
     let conn = open_index(&workspace)?;
     let summary = summary_from_html(&conn, &workspace, &absolute, &html)?;
     upsert_note_index(&conn, &summary, &html)?;
-    if create_history.unwrap_or(true) {
+    if create_history.unwrap_or(true) && !unchanged {
         create_note_history_snapshot(&workspace, &summary.id, &summary.path, &html, false)?;
     }
 
@@ -2432,6 +2447,63 @@ fn normalize_note_html(
     Ok(normalized)
 }
 
+fn note_html_equivalent_for_save(left: &str, right: &str) -> bool {
+    normalize_updated_meta_for_compare(left) == normalize_updated_meta_for_compare(right)
+}
+
+fn normalize_updated_meta_for_compare(html: &str) -> String {
+    let mut normalized = String::with_capacity(html.len());
+    let mut remaining = html;
+
+    loop {
+        let Some(meta_start) = remaining.to_ascii_lowercase().find("<meta") else {
+            normalized.push_str(remaining);
+            break;
+        };
+        let (before_meta, from_meta) = remaining.split_at(meta_start);
+        normalized.push_str(before_meta);
+
+        let Some(meta_end) = from_meta.find('>') else {
+            normalized.push_str(from_meta);
+            break;
+        };
+
+        let (meta_tag, after_meta) = from_meta.split_at(meta_end + 1);
+        let lower_meta = meta_tag.to_ascii_lowercase();
+        if lower_meta.contains("name=\"opaline:updated\"")
+            || lower_meta.contains("name='opaline:updated'")
+        {
+            normalized.push_str(&normalize_meta_content_for_compare(meta_tag));
+        } else {
+            normalized.push_str(meta_tag);
+        }
+        remaining = after_meta;
+    }
+
+    normalized
+}
+
+fn normalize_meta_content_for_compare(meta_tag: &str) -> String {
+    let lower_meta = meta_tag.to_ascii_lowercase();
+    for marker in ["content=\"", "content='"] {
+        if let Some(content_start) = lower_meta.find(marker) {
+            let value_start = content_start + marker.len();
+            let quote = marker.chars().last().unwrap_or('"');
+            if let Some(relative_end) = meta_tag[value_start..].find(quote) {
+                let value_end = value_start + relative_end;
+                return format!(
+                    "{}{}{}",
+                    &meta_tag[..value_start],
+                    "__opaline_updated__",
+                    &meta_tag[value_end..]
+                );
+            }
+        }
+    }
+
+    meta_tag.to_string()
+}
+
 fn write_file_atomically(path: &Path, contents: &str) -> Result<(), String> {
     let parent = path
         .parent()
@@ -2974,6 +3046,23 @@ mod tests {
         )
         .expect("latest history is read");
         assert!(latest_html.contains("changed content"));
+
+        let unchanged = save_note(
+            workspace_string.clone(),
+            NoteDocument {
+                html: changed.html.clone(),
+                ..changed.clone()
+            },
+            Some(true),
+        )
+        .expect("unchanged note is accepted");
+        let unchanged_history = list_note_history(
+            workspace_string.clone(),
+            unchanged.path.clone(),
+            unchanged.id.clone(),
+        )
+        .expect("history is listed after unchanged save");
+        assert_eq!(unchanged_history.len(), history.len());
 
         let oldest = history.last().expect("oldest snapshot");
         let restored = restore_note_history(

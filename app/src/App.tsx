@@ -66,10 +66,14 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
 const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
+const DEFAULT_AUTO_SAVE_DELAY_MS = 5000;
+const MIN_AUTO_SAVE_DELAY_MS = 2000;
+const MAX_AUTO_SAVE_DELAY_MS = 300000;
 type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
   newNoteLocation: "vault-root" | "current-folder" | "journal";
+  autoSaveDelayMs: number;
 };
 type StatsSettings = {
   heatmapThresholds: [number, number, number, number];
@@ -79,6 +83,7 @@ const STATS_SETTINGS_STORAGE_KEY = "opaline-stats-settings";
 const defaultFileLinkSettings = (): FileLinkSettings => ({
   defaultOpenFile: "last",
   newNoteLocation: "vault-root",
+  autoSaveDelayMs: DEFAULT_AUTO_SAVE_DELAY_MS,
 });
 const defaultStatsSettings = (): StatsSettings => ({
   heatmapThresholds: [1, 10, 30, 60],
@@ -94,10 +99,19 @@ const loadFileLinkSettings = (): FileLinkSettings => {
         parsed?.newNoteLocation === "current-folder" || parsed?.newNoteLocation === "journal"
           ? parsed.newNoteLocation
           : "vault-root",
+      autoSaveDelayMs: normalizeAutoSaveDelayMs(parsed?.autoSaveDelayMs),
     };
   } catch {
     return defaultFileLinkSettings();
   }
+};
+
+const normalizeAutoSaveDelayMs = (value: unknown) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_AUTO_SAVE_DELAY_MS;
+  }
+  return Math.min(MAX_AUTO_SAVE_DELAY_MS, Math.max(MIN_AUTO_SAVE_DELAY_MS, Math.round(parsed)));
 };
 
 const saveFileLinkSettings = (settings: FileLinkSettings) => {
@@ -252,6 +266,7 @@ export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(initialState);
   const [view, setView] = useState<AppView>("home");
   const [articleHtml, setArticleHtml] = useState("");
+  const latestArticleHtmlRef = useRef(articleHtml);
   const [savedArticleHtml, setSavedArticleHtml] = useState("");
   const [status, setStatus] = useState(() => t("app.status.preparingWorkspace"));
   const [isBusy, setIsBusy] = useState(false);
@@ -290,6 +305,11 @@ export function App() {
     }
     return Array.from(tags).sort();
   }, [workspace.notes]);
+
+  const updateArticleHtml = useCallback((html: string) => {
+    latestArticleHtmlRef.current = html;
+    setArticleHtml(html);
+  }, []);
   const cycleVaultSort = useCallback(() => {
     setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
   }, []);
@@ -405,6 +425,7 @@ export function App() {
           const note = await workspaceAdapter.readNote(path, lastSummary.path);
           const nextArticleHtml = articleFromHtmlDocument(note.html);
           setWorkspace({ path, notes, activeNote: note });
+          latestArticleHtmlRef.current = nextArticleHtml;
           setArticleHtml(nextArticleHtml);
           setSavedArticleHtml(nextArticleHtml);
           setView("note");
@@ -635,6 +656,7 @@ export function App() {
     }
 
     const nextArticleHtml = options.articleHtml ?? articleHtml;
+    latestArticleHtmlRef.current = nextArticleHtml;
 
     if (nextArticleHtml === savedArticleHtml) {
       if (!options.silent) {
@@ -643,16 +665,35 @@ export function App() {
       return;
     }
 
+    const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes);
+    if (sameNoteDocumentContent(workspace.activeNote.html, html)) {
+      setSavedArticleHtml(nextArticleHtml);
+      setArticleHtml((current) => (
+        latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
+      ));
+      if (!options.silent) {
+        setStatus(t("app.status.noUnsavedChanges"));
+      }
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes);
       const saved = await workspaceAdapter.saveNote(workspace.path, {
         ...workspace.activeNote,
         title: titleFromArticleHtml(nextArticleHtml, workspace.activeNote.title),
         html,
       }, { createHistory: !options.silent });
       const notes = await refreshNotes(workspace.path);
-      openNoteDocument(workspace.path, notes, saved);
+      setWorkspace((current) => (
+        current.activeNote?.id === saved.id
+          ? { path: workspace.path, notes, activeNote: saved }
+          : { ...current, notes }
+      ));
+      setSavedArticleHtml(nextArticleHtml);
+      setArticleHtml((current) => (
+        latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
+      ));
       await refreshBacklinks(workspace.path, saved.id);
       setStatus(options.silent ? t("app.status.autoSaved", { title: saved.title }) : t("app.status.saved", { title: saved.title }));
     } catch (error) {
@@ -936,10 +977,10 @@ export function App() {
 
     const timer = window.setTimeout(() => {
       void saveNote({ silent: true });
-    }, 1400);
+    }, fileLinkSettings.autoSaveDelayMs);
 
     return () => window.clearTimeout(timer);
-  }, [isBusy, isDirty, isSaving, saveNote]);
+  }, [fileLinkSettings.autoSaveDelayMs, isBusy, isDirty, isSaving, saveNote]);
 
   useEffect(() => {
     if (!workspace.path) {
@@ -1057,6 +1098,7 @@ export function App() {
     const nextArticleHtml = articleFromHtmlDocument(note.html);
     localStorage.setItem(ACTIVE_NOTE_STORAGE_KEY, JSON.stringify({ id: note.id, path: note.path, title: note.title }));
     setWorkspace({ path, notes, activeNote: note });
+    latestArticleHtmlRef.current = nextArticleHtml;
     setArticleHtml(nextArticleHtml);
     setSavedArticleHtml(nextArticleHtml);
     setView("note");
@@ -1207,15 +1249,16 @@ export function App() {
           <header className="topbar">
             <div>
               <h1>{activeTitle}</h1>
-              {view !== "note" || isDirty || currentTags.length ? (
+              {view === "note" ? (
                 <p>
-                  {view === "note" ? null : status}
                   {isDirty ? <span className="dirty-dot">{t("common.unsaved")}</span> : null}
                   {currentTags.map((tag) => (
                     <span key={tag} className="tag-pill">#{tag}</span>
                   ))}
                 </p>
-              ) : null}
+              ) : (
+                <p>{status}</p>
+              )}
             </div>
             {view === "note" ? (
               <div className="topbar-actions">
@@ -1287,7 +1330,7 @@ export function App() {
               currentNote={workspace.activeNote}
               linkableNotes={workspace.notes}
               scrollToBlockTarget={pendingBlockTarget}
-              onChange={setArticleHtml}
+              onChange={updateArticleHtml}
               onSave={(html) => saveNote({ articleHtml: html })}
               onImportAsset={importAsset}
               onSearchNotes={searchNoteSuggestions}
@@ -2499,6 +2542,26 @@ function FileLinksSettingsPanel({
       />
       <div className="settings-choice-row">
         <div>
+          <strong>{t("settings.autoSaveDelay")}</strong>
+          <small>{t("settings.autoSaveDelayDesc")}</small>
+        </div>
+        <label className="settings-number-field">
+          <input
+            type="number"
+            min={MIN_AUTO_SAVE_DELAY_MS / 1000}
+            max={MAX_AUTO_SAVE_DELAY_MS / 1000}
+            step={1}
+            value={Math.round(settings.autoSaveDelayMs / 1000)}
+            onChange={(event) => {
+              onChange({ autoSaveDelayMs: normalizeAutoSaveDelayMs(Number(event.target.value) * 1000) });
+            }}
+            aria-label={t("settings.autoSaveDelay")}
+          />
+          <span>{t("settings.seconds")}</span>
+        </label>
+      </div>
+      <div className="settings-choice-row">
+        <div>
           <strong>{t("settings.attachmentLocation")}</strong>
           <small>{t("settings.attachmentLocationDesc")}</small>
         </div>
@@ -3178,6 +3241,14 @@ const activityCompactLabel = (day: StatsDay, t: ReturnType<typeof useI18n>["t"])
 
 const activityLabel = (day: StatsDay, locale: string, t: ReturnType<typeof useI18n>["t"]) =>
   `${formatStatsDate(day.date, locale)}: ${activityCompactLabel(day, t)}`;
+
+const sameNoteDocumentContent = (left: string, right: string) =>
+  normalizeUpdatedMetaForCompare(left) === normalizeUpdatedMetaForCompare(right);
+
+const normalizeUpdatedMetaForCompare = (html: string) =>
+  html.replace(/<meta\b(?=[^>]*\bname=["']opaline:updated["'])[^>]*>/gi, (tag) =>
+    tag.replace(/\bcontent=(["'])[\s\S]*?\1/i, "content=\"\""),
+  );
 
 const formatTime = (iso: string, locale = "zh-CN") =>
   new Intl.DateTimeFormat(locale, {
