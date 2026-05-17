@@ -170,6 +170,26 @@ struct InstalledPluginWidget {
     code: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LanguagePackManifest {
+    schema_version: i64,
+    id: String,
+    locale: String,
+    name: String,
+    native_name: String,
+    version: String,
+    author: Option<String>,
+    fallback: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LoadedLanguagePack {
+    manifest: LanguagePackManifest,
+    messages: HashMap<String, String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PluginPingResult {
@@ -985,6 +1005,64 @@ fn open_plugins_folder(path: String, app: tauri::AppHandle) -> Result<(), String
 }
 
 #[tauri::command]
+fn list_language_packs(path: String) -> Result<Vec<LoadedLanguagePack>, String> {
+    let workspace = workspace_path(&path)?;
+    let packs_dir = language_packs_dir(&workspace);
+    if !packs_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut packs = Vec::new();
+    for entry in fs::read_dir(&packs_dir).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let pack_path = entry.path();
+        if !pack_path.is_dir() {
+            continue;
+        }
+
+        let manifest_path = pack_path.join("manifest.json");
+        let messages_path = pack_path.join("messages.json");
+        if !manifest_path.is_file() || !messages_path.is_file() {
+            continue;
+        }
+
+        let manifest_raw = fs::read_to_string(&manifest_path).map_err(to_error)?;
+        let manifest: LanguagePackManifest = serde_json::from_str(&manifest_raw).map_err(to_error)?;
+        validate_language_pack_manifest(&manifest)?;
+
+        let messages_raw = fs::read_to_string(&messages_path).map_err(to_error)?;
+        let messages_value: serde_json::Value = serde_json::from_str(&messages_raw).map_err(to_error)?;
+        let object = messages_value
+            .as_object()
+            .ok_or_else(|| "messages.json must be a JSON object".to_string())?;
+        let mut messages = HashMap::new();
+        for (key, value) in object {
+            if let Some(message) = value.as_str() {
+                messages.insert(key.to_string(), message.to_string());
+            }
+        }
+
+        packs.push(LoadedLanguagePack { manifest, messages });
+    }
+
+    packs.sort_by(|a, b| {
+        a.manifest
+            .native_name
+            .to_lowercase()
+            .cmp(&b.manifest.native_name.to_lowercase())
+    });
+    Ok(packs)
+}
+
+#[tauri::command]
+fn open_language_packs_folder(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    let workspace = workspace_path(&path)?;
+    let packs = language_packs_dir(&workspace);
+    fs::create_dir_all(&packs).map_err(to_error)?;
+    open_target_with_system(&app, &packs.to_string_lossy())
+}
+
+#[tauri::command]
 fn list_installed_plugins(path: String) -> Result<Vec<InstalledPlugin>, String> {
     let workspace = workspace_path(&path)?;
     let plugins = plugins_dir(&workspace);
@@ -1167,6 +1245,8 @@ pub fn run() {
             import_asset,
             read_settings,
             write_settings,
+            list_language_packs,
+            open_language_packs_folder,
             read_file_text,
             rename_note,
             delete_note,
@@ -1228,6 +1308,26 @@ fn workspace_path(path: &str) -> Result<PathBuf, String> {
 
 fn plugins_dir(workspace: &Path) -> PathBuf {
     workspace.join(".opaline").join("plugins")
+}
+
+fn language_packs_dir(workspace: &Path) -> PathBuf {
+    workspace.join(".opaline").join("language-packs")
+}
+
+fn validate_language_pack_manifest(manifest: &LanguagePackManifest) -> Result<(), String> {
+    if manifest.schema_version != 1 {
+        return Err("language pack schemaVersion must be 1".to_string());
+    }
+    if manifest.id.trim().is_empty() {
+        return Err("language pack id cannot be empty".to_string());
+    }
+    if manifest.locale.trim().is_empty() {
+        return Err("language pack locale cannot be empty".to_string());
+    }
+    if manifest.native_name.trim().is_empty() {
+        return Err("language pack nativeName cannot be empty".to_string());
+    }
+    Ok(())
 }
 
 fn plugin_data_dir(workspace: &Path, plugin_id: &str) -> Result<PathBuf, String> {

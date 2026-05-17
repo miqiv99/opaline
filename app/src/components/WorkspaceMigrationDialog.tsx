@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../i18n";
 
 interface WorkspaceMigrationDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ export function WorkspaceMigrationDialog({
   onMove,
   onCancel,
 }: WorkspaceMigrationDialogProps) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<MigrationPhase>("prompt");
   const [error, setError] = useState("");
 
@@ -35,7 +37,7 @@ export function WorkspaceMigrationDialog({
       }
       setPhase("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "迁移失败");
+      setError(err instanceof Error ? err.message : t("migration.errorFallback"));
       setPhase("error");
     }
   };
@@ -58,63 +60,63 @@ export function WorkspaceMigrationDialog({
         {phase === "prompt" ? (
           <>
             <div className="note-dialog-header">
-              <h2 id="migration-title">工作区迁移</h2>
-              <p>更换工作区位置时，你可以将已有笔记和资源一起带过去。</p>
+              <h2 id="migration-title">{t("migration.title")}</h2>
+              <p>{t("migration.description")}</p>
             </div>
             <div className="migration-paths">
               <div className="migration-path-row">
-                <span>当前</span>
+                <span>{t("migration.current")}</span>
                 <code>{oldPath}</code>
               </div>
               <div className="migration-path-row">
-                <span>新位置</span>
+                <span>{t("migration.newLocation")}</span>
                 <code>{newPath}</code>
               </div>
             </div>
             <div className="dialog-actions">
               <button type="button" className="dialog-secondary" onClick={close}>
-                取消
+                {t("action.cancel")}
               </button>
               <button type="button" className="dialog-primary" onClick={() => run("copy")}>
-                复制到新位置
+                {t("migration.copy")}
               </button>
               <button type="button" className="dialog-primary" onClick={() => run("move")}>
-                移动到新位置
+                {t("migration.move")}
               </button>
             </div>
           </>
         ) : phase === "migrating" ? (
           <>
             <div className="note-dialog-header">
-              <h2>正在迁移...</h2>
-              <p>请稍候，笔记和资源正在转移到新位置。</p>
+              <h2>{t("migration.runningTitle")}</h2>
+              <p>{t("migration.runningDesc")}</p>
             </div>
             <p className="migration-status">
               <span className="spinner" />
-              迁移中...
+              {t("migration.running")}
             </p>
           </>
         ) : phase === "done" ? (
           <>
             <div className="note-dialog-header">
-              <h2>迁移完成</h2>
-              <p>工作区已成功迁移到新位置。</p>
+              <h2>{t("migration.doneTitle")}</h2>
+              <p>{t("migration.doneDesc")}</p>
             </div>
             <div className="dialog-actions">
               <button type="button" className="dialog-primary" onClick={close}>
-                确定
+                {t("action.confirm")}
               </button>
             </div>
           </>
         ) : (
           <>
             <div className="note-dialog-header">
-              <h2>迁移失败</h2>
+              <h2>{t("migration.errorTitle")}</h2>
               <p>{error}</p>
             </div>
             <div className="dialog-actions">
               <button type="button" className="dialog-secondary" onClick={close}>
-                关闭
+                {t("action.close")}
               </button>
             </div>
           </>

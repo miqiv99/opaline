@@ -2,8 +2,10 @@ import { Brain, Key, Loader2, PlugZap, RefreshCw } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { AiSettings } from "./adapter";
 import { AI_ADAPTERS, getAiAdapter, loadAiSettings, saveAiSettings } from "./settings";
+import { useI18n } from "../i18n";
 
 export function AiSettingsPanel() {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<AiSettings>(() => loadAiSettings());
   const [savedMessage, setSavedMessage] = useState("");
   const [toolStatus, setToolStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -17,9 +19,9 @@ export function AiSettingsPanel() {
 
   const persistSettings = useCallback(() => {
     saveAiSettings(settings);
-    setSavedMessage("已保存");
+    setSavedMessage(t("ai.saved"));
     window.setTimeout(() => setSavedMessage(""), 1800);
-  }, [settings]);
+  }, [settings, t]);
 
   const aiOptions = {
     model: settings.model || activeAdapter.defaultModel,
@@ -29,13 +31,13 @@ export function AiSettingsPanel() {
 
   const testModel = useCallback(async () => {
     setToolStatus("loading");
-    setToolMessage("正在测试模型连通性...");
+    setToolMessage(t("ai.testing"));
     try {
       if (!settings.apiKey.trim()) {
-        throw new Error("请先填写 API Key");
+        throw new Error(t("ai.missingKey"));
       }
       if (!aiOptions.model.trim()) {
-        throw new Error("请先填写模型名称");
+        throw new Error(t("ai.missingModel"));
       }
       if (activeAdapter.testModel) {
         await activeAdapter.testModel(aiOptions);
@@ -49,53 +51,53 @@ export function AiSettingsPanel() {
         );
       }
       setToolStatus("done");
-      setToolMessage(`模型可用：${aiOptions.model}`);
+      setToolMessage(t("ai.modelAvailable", { model: aiOptions.model }));
     } catch (err) {
       setToolStatus("error");
-      setToolMessage(err instanceof Error ? err.message : "模型测试失败");
+      setToolMessage(err instanceof Error ? err.message : t("ai.testFailed"));
     }
-  }, [activeAdapter, aiOptions, settings.apiKey]);
+  }, [activeAdapter, aiOptions, settings.apiKey, t]);
 
   const fetchModels = useCallback(async () => {
     setToolStatus("loading");
-    setToolMessage("正在抓取模型列表...");
+    setToolMessage(t("ai.fetchingModels"));
     try {
       if (!settings.apiKey.trim()) {
-        throw new Error("请先填写 API Key");
+        throw new Error(t("ai.missingKey"));
       }
       if (!activeAdapter.listModels) {
-        throw new Error("当前提供商不支持抓取模型列表");
+        throw new Error(t("ai.noListModels"));
       }
       const models = await activeAdapter.listModels({
         apiKey: settings.apiKey,
         baseUrl: settings.baseUrl || activeAdapter.defaultBaseUrl,
       });
       if (models.length === 0) {
-        throw new Error("接口返回了空模型列表");
+        throw new Error(t("ai.emptyModels"));
       }
       setFetchedModels(models);
       saveSettings({ ...settings, model: settings.model || models[0] });
       setToolStatus("done");
-      setToolMessage(`已抓取 ${models.length} 个模型`);
+      setToolMessage(t("ai.fetchedModels", { count: models.length }));
     } catch (err) {
       setToolStatus("error");
-      setToolMessage(err instanceof Error ? err.message : "抓取模型失败");
+      setToolMessage(err instanceof Error ? err.message : t("ai.fetchFailed"));
     }
-  }, [activeAdapter, saveSettings, settings]);
+  }, [activeAdapter, saveSettings, settings, t]);
 
   return (
     <section className="settings-card">
       <div className="settings-card-header">
         <Brain size={18} />
         <div>
-          <h2>AI 设置</h2>
-          <p>聊天、整理和模型测试会使用这里的配置。</p>
+          <h2>{t("ai.settingsTitle")}</h2>
+          <p>{t("ai.settingsDesc")}</p>
         </div>
       </div>
 
       <div className="ai-settings">
         <label>
-          <span>提供商</span>
+          <span>{t("ai.provider")}</span>
           <select
             value={settings.provider}
             onChange={(e) => {
@@ -117,7 +119,7 @@ export function AiSettingsPanel() {
         </label>
 
         <label>
-          <span>API 地址</span>
+          <span>{t("ai.apiBase")}</span>
           <input
             type="text"
             value={settings.baseUrl ?? activeAdapter.defaultBaseUrl ?? ""}
@@ -127,7 +129,7 @@ export function AiSettingsPanel() {
         </label>
 
         <label>
-          <span>模型</span>
+          <span>{t("ai.model")}</span>
           <input
             type="text"
             value={settings.model}
@@ -154,7 +156,7 @@ export function AiSettingsPanel() {
       </div>
 
       {fetchedModels.length > 0 ? (
-        <div className="ai-model-chips" aria-label="已抓取模型">
+        <div className="ai-model-chips" aria-label={t("ai.fetchedModelsAria")}>
           {fetchedModels.slice(0, 8).map((model) => (
             <button key={model} type="button" onClick={() => saveSettings({ ...settings, model })}>
               {model}
@@ -165,15 +167,15 @@ export function AiSettingsPanel() {
 
       <div className="ai-tool-actions">
         <button type="button" onClick={persistSettings}>
-          <span>保存</span>
+          <span>{t("ai.save")}</span>
         </button>
         <button type="button" onClick={testModel} disabled={toolStatus === "loading"}>
           <PlugZap size={15} />
-          <span>测试模型</span>
+          <span>{t("ai.testModel")}</span>
         </button>
         <button type="button" onClick={fetchModels} disabled={toolStatus === "loading"}>
           <RefreshCw size={15} />
-          <span>抓取模型</span>
+          <span>{t("ai.fetchModels")}</span>
         </button>
       </div>
 

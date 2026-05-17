@@ -52,6 +52,7 @@ import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
 import { useConstrainedMenuPosition } from "./components/useConstrainedMenuPosition";
+import { useI18n, type LanguageOption } from "./i18n";
 
 const initialState: WorkspaceState = {
   path: null,
@@ -62,14 +63,7 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
 const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
-const LINK_KIND_LABEL: Record<LinkKind, string> = {
-  note: "文件",
-  heading: "标题",
-  block: "块",
-  concept: "概念",
-};
-
-type SettingsPanelId = "files" | "plugins" | "ai";
+type SettingsPanelId = "files" | "plugins" | "ai" | "language";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
   newNoteLocation: "vault-root" | "current-folder" | "journal";
@@ -132,62 +126,73 @@ type TodayMessage = {
   createdAt: string;
 };
 
-const NOTE_TEMPLATES: Array<{
+type NoteTemplate = {
   id: NoteTemplateId;
   title: string;
   description: string;
   icon: ReactNode;
   defaultTitle: string;
   body: string;
-}> = [
+};
+
+const noteTemplates = (t: ReturnType<typeof useI18n>["t"]): NoteTemplate[] => [
   {
     id: "blank",
-    title: "空白笔记",
-    description: "从一个标题和空白正文开始。",
+    title: t("template.blank.title"),
+    description: t("template.blank.description"),
     icon: <FilePlus2 size={17} />,
-    defaultTitle: "未命名笔记",
+    defaultTitle: t("template.blank.defaultTitle"),
     body: "<p></p>",
   },
   {
     id: "idea",
-    title: "想法",
-    description: "记录一个还没成形但值得保留的念头。",
+    title: t("template.idea.title"),
+    description: t("template.idea.description"),
     icon: <Lightbulb size={17} />,
-    defaultTitle: "一个想法",
-    body: '<p><span data-opaline-tag="idea">#idea</span></p><h2>想法</h2><p></p><h2>为什么值得留下</h2><p></p><h2>下一步</h2><ul><li></li></ul>',
+    defaultTitle: t("template.idea.defaultTitle"),
+    body: t("template.body.idea"),
   },
   {
     id: "project-log",
-    title: "项目日志",
-    description: "记录今天推进了什么、卡在哪里、下一步是什么。",
+    title: t("template.projectLog.title"),
+    description: t("template.projectLog.description"),
     icon: <CalendarDays size={17} />,
-    defaultTitle: "项目日志",
-    body: '<p><span data-opaline-tag="project">#project</span></p><h2>今天推进</h2><ul><li></li></ul><h2>关键决定</h2><p></p><h2>卡点</h2><p></p><h2>下一步</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p></p></div></li></ul>',
+    defaultTitle: t("template.projectLog.defaultTitle"),
+    body: t("template.body.projectLog"),
   },
   {
     id: "reading",
-    title: "阅读摘录",
-    description: "把文章、书、网页里的关键句变成自己的材料。",
+    title: t("template.reading.title"),
+    description: t("template.reading.description"),
     icon: <BookOpen size={17} />,
-    defaultTitle: "阅读摘录",
-    body: '<p><span data-opaline-tag="reading">#reading</span></p><h2>来源</h2><p></p><h2>摘录</h2><blockquote><p></p></blockquote><h2>我怎么理解</h2><p></p><h2>相关笔记</h2><p></p>',
+    defaultTitle: t("template.reading.defaultTitle"),
+    body: t("template.body.reading"),
   },
   {
     id: "debugging",
-    title: "问题排查",
-    description: "保存 bug、报错、假设和最终解法。",
+    title: t("template.debugging.title"),
+    description: t("template.debugging.description"),
     icon: <Bug size={17} />,
-    defaultTitle: "问题排查",
-    body: '<p><span data-opaline-tag="debug">#debug</span></p><h2>现象</h2><p></p><h2>复现步骤</h2><ol><li></li></ol><h2>原因假设</h2><ul><li></li></ul><h2>解决办法</h2><p></p><h2>以后怎么避免</h2><p></p>',
+    defaultTitle: t("template.debugging.defaultTitle"),
+    body: t("template.body.debugging"),
   },
 ];
 
 export function App() {
+  const {
+    t,
+    locale,
+    languageOptions,
+    communityLanguagePacks,
+    setLocale,
+    setCommunityLanguagePacks,
+  } = useI18n();
+  const templates = useMemo(() => noteTemplates(t), [t]);
   const [workspace, setWorkspace] = useState<WorkspaceState>(initialState);
   const [view, setView] = useState<AppView>("home");
   const [articleHtml, setArticleHtml] = useState("");
   const [savedArticleHtml, setSavedArticleHtml] = useState("");
-  const [status, setStatus] = useState("正在准备工作区");
+  const [status, setStatus] = useState(() => t("app.status.preparingWorkspace"));
   const [isBusy, setIsBusy] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [query, setQuery] = useState("");
@@ -196,7 +201,7 @@ export function App() {
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [], brokenLinks: [] });
   const [pendingBlockTarget, setPendingBlockTarget] = useState<{ blockId: string; requestId: number } | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [draftTitle, setDraftTitle] = useState("未命名笔记");
+  const [draftTitle, setDraftTitle] = useState(() => t("template.blank.defaultTitle"));
   const [draftLang, setDraftLang] = useState("zh-Hans");
   const [draftTemplate, setDraftTemplate] = useState<NoteTemplateId>("blank");
   const [todayText, setTodayText] = useState("");
@@ -225,25 +230,40 @@ export function App() {
     setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  useEffect(() => {
+    if (!workspace.path || !workspaceAdapter.listLanguagePacks) {
+      setCommunityLanguagePacks([]);
+      return;
+    }
+
+    void workspaceAdapter.listLanguagePacks(workspace.path)
+      .then(setCommunityLanguagePacks)
+      .catch(() => setCommunityLanguagePacks([]));
+  }, [setCommunityLanguagePacks, workspace.path]);
+
   const activeTitle = useMemo(() => {
     if (view === "home") {
       return "Opaline";
     }
     if (view === "settings") {
-      return "设置";
+      return t("app.title.settings");
     }
     if (view === "today") {
-      return "今天";
+      return t("app.title.today");
     }
     if (view === "graph") {
-      return "图谱";
+      return t("app.title.graph");
     }
     if (!workspace.activeNote) {
-      return "没有打开的笔记";
+      return t("app.title.noOpenNote");
     }
 
     return titleFromArticleHtml(articleHtml, workspace.activeNote.title);
-  }, [articleHtml, view, workspace.activeNote]);
+  }, [articleHtml, t, view, workspace.activeNote]);
 
   const refreshNotes = useCallback(async (path: string) => {
     const notes = await workspaceAdapter.listNotes(path);
@@ -270,7 +290,7 @@ export function App() {
       const notes = await refreshNotes(path);
       localStorage.setItem(WORKSPACE_PATH_STORAGE_KEY, path);
       setWorkspace((current) => ({ ...current, path, notes }));
-      setStatus(notes.length > 0 ? "工作区已打开" : "工作区已初始化");
+      setStatus(notes.length > 0 ? t("app.status.workspaceOpened") : t("app.status.workspaceInitialized"));
       if (fileLinkSettings.defaultOpenFile === "last") {
         const last = loadLastActiveNote();
         const lastSummary = last?.path ? notes.find((note) => note.path === last.path) : null;
@@ -282,12 +302,12 @@ export function App() {
           setSavedArticleHtml(nextArticleHtml);
           setView("note");
           await refreshBacklinks(path, note.id);
-          setStatus("已打开上次的文件");
+          setStatus(t("app.status.lastFileOpened"));
         }
       }
       return notes;
     },
-    [fileLinkSettings.defaultOpenFile, refreshBacklinks, refreshNotes],
+    [fileLinkSettings.defaultOpenFile, refreshBacklinks, refreshNotes, t],
   );
 
   const openWorkspace = useCallback(async () => {
@@ -295,30 +315,30 @@ export function App() {
     try {
       const path = await workspaceAdapter.chooseWorkspace();
       if (!path) {
-        setStatus("未选择工作区");
+        setStatus(t("app.status.workspaceNotSelected"));
         return;
       }
 
       await openWorkspacePath(path);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "打开工作区失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.openWorkspaceFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [openWorkspacePath]);
+  }, [openWorkspacePath, t]);
 
   const requestCreateNote = useCallback(() => {
-    const template = NOTE_TEMPLATES[0];
+    const template = templates[0];
     setDraftTemplate(template.id);
     setDraftTitle(template.defaultTitle);
     setDraftLang("zh-Hans");
     setCreateDialogOpen(true);
-  }, []);
+  }, [templates]);
 
   const createNoteFromInput = useCallback(async (input: NewNoteInput, successMessage: string) => {
     const title = input.title.trim();
     if (!title) {
-      setStatus("笔记标题不能为空");
+      setStatus(t("app.status.titleRequired"));
       return;
     }
 
@@ -337,14 +357,14 @@ export function App() {
       await refreshBacklinks(path, note.id);
       setStatus(successMessage);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "创建笔记失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.createNoteFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [fileLinkSettings, refreshBacklinks, workspace.activeNote, workspace.path]);
+  }, [fileLinkSettings, refreshBacklinks, t, workspace.activeNote, workspace.path]);
 
   const createNote = useCallback(async () => {
-    const template = NOTE_TEMPLATES.find((item) => item.id === draftTemplate) ?? NOTE_TEMPLATES[0];
+    const template = templates.find((item) => item.id === draftTemplate) ?? templates[0];
     setCreateDialogOpen(false);
     await createNoteFromInput(
       {
@@ -352,9 +372,9 @@ export function App() {
         lang: draftLang,
         body: template.body,
       },
-      `已创建${template.title}`,
+      t("app.status.createdTemplate", { title: template.title }),
     );
-  }, [createNoteFromInput, draftLang, draftTemplate, draftTitle]);
+  }, [createNoteFromInput, draftLang, draftTemplate, draftTitle, t, templates]);
 
   const createDailyNote = useCallback(async () => {
     setIsBusy(true);
@@ -366,16 +386,16 @@ export function App() {
       const notes = await workspaceAdapter.listNotes(path);
       openNoteDocument(path, notes, note);
       await refreshBacklinks(path, note.id);
-      setStatus("已打开今天的日记");
+      setStatus(t("app.status.todayOpened"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "创建日记失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.createDailyFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshBacklinks, workspace.path]);
+  }, [refreshBacklinks, t, workspace.path]);
 
   const createFolder = useCallback(async () => {
-    const raw = window.prompt("新建文件夹", "notes/");
+    const raw = window.prompt(t("dialog.folderPromptTitle"), "notes/");
     if (!raw) {
       return;
     }
@@ -390,20 +410,20 @@ export function App() {
       await workspaceAdapter.ensureWorkspace(path);
       await workspaceAdapter.createFolder(path, directory.startsWith("notes") ? directory : `notes/${directory}`);
       await refreshNotes(path);
-      setStatus("文件夹已创建");
+      setStatus(t("app.status.folderCreated"));
       setAllFoldersExpanded(true);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "创建文件夹失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.createFolderFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.path]);
+  }, [refreshNotes, t, workspace.path]);
 
   const importMarkdown = useCallback(async () => {
     const selected = await open({
       multiple: true,
       directory: false,
-      title: "选择 Markdown 文件",
+      title: t("dialog.chooseMarkdown"),
       filters: [{ name: "Markdown", extensions: ["md"] }],
     });
     if (!selected) return;
@@ -423,29 +443,29 @@ export function App() {
       }
 
       await refreshNotes(path);
-      setStatus(`已导入 ${paths.length} 篇笔记`);
+      setStatus(t("app.status.importedNotes", { count: paths.length }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "导入失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.importFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.path]);
+  }, [refreshNotes, t, workspace.path]);
 
   const exportNoteMarkdown = useCallback(async (note: NoteSummary) => {
     if (!workspace.path) {
-      setStatus("请先打开工作区");
+      setStatus(t("app.status.openWorkspaceFirst"));
       return;
     }
 
     const dir = await open({
       directory: true,
       multiple: false,
-      title: `导出「${note.title}」为 Markdown`,
+      title: t("dialog.exportMarkdownTitle", { title: note.title }),
     });
     if (typeof dir !== "string") return;
 
     setIsBusy(true);
-    setStatus(`正在导出：${note.title}`);
+    setStatus(t("app.status.exporting", { title: note.title }));
     try {
       const { articleHtmlToMarkdown } = await import("./editor/markdownExport");
       const document = await workspaceAdapter.readNote(workspace.path, note.path);
@@ -453,13 +473,13 @@ export function App() {
       const markdown = articleHtmlToMarkdown(articleHtml);
       const filePath = `${dir}/${markdownExportPath(note.path, note.title)}`;
       await workspaceAdapter.writeExportFile!(filePath, markdown);
-      setStatus(`已导出 Markdown：${note.title}`);
+      setStatus(t("app.status.exportedMarkdown", { title: note.title }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "导出失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.exportFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [workspace.path]);
+  }, [t, workspace.path]);
 
   const openNote = useCallback(
     async (note: NoteSummary) => {
@@ -473,14 +493,14 @@ export function App() {
         openNoteDocument(workspace.path, workspace.notes, document);
         setView("note");
         await refreshBacklinks(workspace.path, document.id);
-        setStatus("笔记已打开");
+        setStatus(t("app.status.noteOpened"));
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "打开笔记失败");
+        setStatus(error instanceof Error ? error.message : t("app.status.openNoteFailed"));
       } finally {
         setIsBusy(false);
       }
     },
-    [refreshBacklinks, workspace.notes, workspace.path],
+    [refreshBacklinks, t, workspace.notes, workspace.path],
   );
 
   const openSearchResult = useCallback(
@@ -499,7 +519,7 @@ export function App() {
 
   const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string } = {}) => {
     if (!workspace.path || !workspace.activeNote) {
-      setStatus("没有可保存的笔记");
+      setStatus(t("app.status.noNoteToSave"));
       return;
     }
 
@@ -507,7 +527,7 @@ export function App() {
 
     if (nextArticleHtml === savedArticleHtml) {
       if (!options.silent) {
-        setStatus("没有未保存的更改");
+        setStatus(t("app.status.noUnsavedChanges"));
       }
       return;
     }
@@ -523,13 +543,13 @@ export function App() {
       const notes = await refreshNotes(workspace.path);
       openNoteDocument(workspace.path, notes, saved);
       await refreshBacklinks(workspace.path, saved.id);
-      setStatus(options.silent ? `自动保存：${saved.title}` : `已保存：${saved.title}`);
+      setStatus(options.silent ? t("app.status.autoSaved", { title: saved.title }) : t("app.status.saved", { title: saved.title }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "保存失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.saveFailed"));
     } finally {
       setIsSaving(false);
     }
-  }, [articleHtml, refreshBacklinks, refreshNotes, savedArticleHtml, workspace.activeNote, workspace.notes, workspace.path]);
+  }, [articleHtml, refreshBacklinks, refreshNotes, savedArticleHtml, t, workspace.activeNote, workspace.notes, workspace.path]);
 
   const openInternalLink = useCallback(
     async (target: { noteId?: string; notePath?: string; blockId?: string | null; sourceHtml?: string }) => {
@@ -540,7 +560,7 @@ export function App() {
       });
 
       if (!note) {
-        setStatus("找不到这个内部链接指向的笔记");
+        setStatus(t("app.status.internalLinkMissing"));
         return;
       }
 
@@ -555,7 +575,7 @@ export function App() {
 
       await openNote(note);
     },
-    [articleHtml, openNote, saveNote, savedArticleHtml, workspace.notes],
+    [articleHtml, openNote, saveNote, savedArticleHtml, t, workspace.notes],
   );
 
   const toggleFavorite = useCallback(async () => {
@@ -570,8 +590,8 @@ export function App() {
       notes,
       activeNote: current.activeNote ? { ...current.activeNote, favorite } : current.activeNote,
     }));
-    setStatus(favorite ? "已收藏" : "已取消收藏");
-  }, [refreshNotes, workspace.activeNote, workspace.path]);
+    setStatus(favorite ? t("app.status.favorited") : t("app.status.unfavorited"));
+  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const toggleNoteFavorite = useCallback(async (note: NoteSummary) => {
     if (!workspace.path) return;
@@ -582,8 +602,8 @@ export function App() {
       notes,
       activeNote: current.activeNote?.id === note.id ? { ...current.activeNote, favorite } : current.activeNote,
     }));
-    setStatus(favorite ? "已收藏" : "已取消收藏");
-  }, [refreshNotes, workspace.path]);
+    setStatus(favorite ? t("app.status.favorited") : t("app.status.unfavorited"));
+  }, [refreshNotes, t, workspace.path]);
 
   const duplicateNote = useCallback(async (note: NoteSummary) => {
     if (!workspace.path) return;
@@ -592,28 +612,28 @@ export function App() {
       const document = await workspaceAdapter.readNote(workspace.path, note.path);
       const directory = note.path.split("/").slice(0, -1).join("/") || "notes";
       const duplicate = await workspaceAdapter.createNote(workspace.path, {
-        title: `${note.title} 副本`,
+        title: t("context.duplicateTitle", { title: note.title }),
         lang: "zh-Hans",
         directory,
         body: articleFromHtmlDocument(document.html),
       });
       const notes = await workspaceAdapter.listNotes(workspace.path);
       openNoteDocument(workspace.path, notes, duplicate);
-      setStatus("已创建副本");
+      setStatus(t("app.status.duplicated"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "创建副本失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.duplicateFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [workspace.path]);
+  }, [t, workspace.path]);
 
   const copyNotePath = useCallback(async (note: NoteSummary) => {
     await navigator.clipboard?.writeText(note.path);
-    setStatus("已复制路径");
-  }, []);
+    setStatus(t("app.status.pathCopied"));
+  }, [t]);
 
   const renameNote = useCallback(async (note: NoteSummary) => {
-    const newTitle = window.prompt("新标题", note.title)?.trim();
+    const newTitle = window.prompt(t("dialog.renameTitle"), note.title)?.trim();
     if (!newTitle || newTitle === note.title) return;
     setIsBusy(true);
     try {
@@ -625,16 +645,16 @@ export function App() {
       } else {
         setWorkspace((current) => ({ ...current, notes: notesList }));
       }
-      setStatus("已重命名");
+      setStatus(t("app.status.renamed"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "重命名失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.renameFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.activeNote, workspace.path]);
+  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const deleteNote = useCallback(async (note: NoteSummary) => {
-    if (!window.confirm(`确定要删除「${note.title}」吗？此操作不可撤销。`)) return;
+    if (!window.confirm(t("dialog.deleteConfirm", { title: note.title }))) return;
     setIsBusy(true);
     try {
       await workspaceAdapter.deleteNote(workspace.path!, note.id);
@@ -643,16 +663,16 @@ export function App() {
         setView("home");
       }
       await refreshNotes(workspace.path!);
-      setStatus("已删除");
+      setStatus(t("app.status.deleted"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "删除失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.deleteFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.activeNote, workspace.path]);
+  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const moveNote = useCallback(async (note: NoteSummary) => {
-    const dir = window.prompt("移动到文件夹 (e.g. notes/archive)", "notes/")?.trim();
+    const dir = window.prompt(t("dialog.movePrompt"), "notes/")?.trim();
     if (!dir) return;
     setIsBusy(true);
     try {
@@ -664,21 +684,21 @@ export function App() {
       } else {
         setWorkspace((current) => ({ ...current, notes: notesList }));
       }
-      setStatus("已移动");
+      setStatus(t("app.status.moved"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "移动失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.moveFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.activeNote, workspace.path]);
+  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const revealNoteInExplorer = useCallback(async (note: NoteSummary) => {
     try {
       await workspaceAdapter.revealInExplorer(workspace.path!, note.path);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "打开文件管理器失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.revealFailed"));
     }
-  }, [workspace.path]);
+  }, [t, workspace.path]);
 
   const moveNoteTo = useCallback(async (note: NoteSummary, targetDir: string) => {
     if (!workspace.path) return;
@@ -694,25 +714,25 @@ export function App() {
       } else {
         setWorkspace((current) => ({ ...current, notes: notesList }));
       }
-      setStatus(`已移动到 ${targetDir}`);
+      setStatus(t("app.status.movedTo", { path: targetDir }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "移动失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.moveFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, workspace.activeNote, workspace.path]);
+  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const importAsset = useCallback(
     async (kind: "image" | "file"): Promise<ImportedAsset | null> => {
       if (!workspace.path) {
-        setStatus("工作区还在准备中");
+        setStatus(t("app.status.workspacePreparing"));
         return null;
       }
 
       const selected = await open({
         multiple: false,
         directory: false,
-        title: kind === "image" ? "选择图片" : "选择附件",
+        title: kind === "image" ? t("dialog.chooseImage") : t("dialog.chooseAttachment"),
       });
 
       if (typeof selected !== "string") {
@@ -721,7 +741,7 @@ export function App() {
 
       return workspaceAdapter.importAsset(workspace.path, { sourcePath: selected, kind });
     },
-    [workspace.path],
+    [t, workspace.path],
   );
 
   const searchNoteSuggestions = useCallback(async (queryText: string): Promise<NoteSuggestion[]> => {
@@ -733,7 +753,7 @@ export function App() {
           id: note.id,
           title: note.title,
           path: note.path,
-          excerpt: note.headings.slice(0, 3).join(" · ") || note.tags.map((tag) => `#${tag}`).join(" ") || "最近笔记",
+          excerpt: note.headings.slice(0, 3).join(" · ") || note.tags.map((tag) => `#${tag}`).join(" ") || t("empty.recent"),
           updatedAt: note.updatedAt,
         }));
 
@@ -746,7 +766,7 @@ export function App() {
         path: result.path,
         excerpt: result.excerpt,
       }));
-  }, [workspace.activeNote?.id, workspace.notes, workspace.path]);
+  }, [t, workspace.activeNote?.id, workspace.notes, workspace.path]);
 
   useEffect(() => {
     if (didLoadDefaultWorkspace) {
@@ -759,10 +779,10 @@ export function App() {
         const path = localStorage.getItem(WORKSPACE_PATH_STORAGE_KEY) || (await workspaceAdapter.defaultWorkspacePath());
         await openWorkspacePath(path);
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "初始化工作区失败");
+        setStatus(error instanceof Error ? error.message : t("app.status.initWorkspaceFailed"));
       }
     })();
-  }, [didLoadDefaultWorkspace, openWorkspacePath]);
+  }, [didLoadDefaultWorkspace, openWorkspacePath, t]);
 
   useEffect(() => {
     if (!isDirty || isSaving || isBusy) {
@@ -791,7 +811,7 @@ export function App() {
   const appendTodayConversation = useCallback(async () => {
     const text = todayText.trim();
     if (!text) {
-      setStatus("先写一点内容");
+      setStatus(t("app.status.writeSomethingFirst"));
       return;
     }
 
@@ -812,7 +832,7 @@ export function App() {
       await workspaceAdapter.ensureWorkspace(path);
       let dailyNote = await workspaceAdapter.createDailyNote(path);
       const currentNotes = await workspaceAdapter.listNotes(path);
-      const withUserEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), userMessage);
+      const withUserEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), userMessage, locale, t);
       dailyNote = await workspaceAdapter.saveNote(path, {
         ...dailyNote,
         html: replaceArticleInDocument(dailyNote.html, withUserEntry, currentNotes),
@@ -824,11 +844,11 @@ export function App() {
         const assistantMessage: TodayMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "已记录。AI 还没配置，去设置里保存模型后我就能继续接话。",
+          content: t("today.aiNotConfigured"),
           createdAt: new Date().toISOString(),
         };
         setTodayMessages((current) => [...current, assistantMessage]);
-        setStatus("已写入今日日记，AI 尚未配置");
+        setStatus(t("app.status.todaySavedNoAi"));
         setWorkspace((current) => ({ ...current, path, notes: currentNotes, activeNote: current.activeNote }));
         return;
       }
@@ -842,7 +862,7 @@ export function App() {
           {
             role: "system",
             content:
-              "你是 Opaline 的随手记录助手。用户可能在吐槽、复盘、提问或记录灵感。请先接住用户的话，再给出有用的下一步、解决思路或可沉淀的笔记线索。用中文，简洁但具体。",
+              t("today.systemPrompt"),
           },
           ...recentMessages,
         ],
@@ -861,7 +881,7 @@ export function App() {
       };
       setTodayMessages((current) => [...current, assistantMessage]);
 
-      const withAssistantEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), assistantMessage);
+      const withAssistantEntry = appendDailyEntry(articleFromHtmlDocument(dailyNote.html), assistantMessage, locale, t);
       const saved = await workspaceAdapter.saveNote(path, {
         ...dailyNote,
         html: replaceArticleInDocument(dailyNote.html, withAssistantEntry, currentNotes),
@@ -873,20 +893,20 @@ export function App() {
         notes,
         activeNote: current.activeNote?.id === saved.id ? saved : current.activeNote,
       }));
-      setStatus("已写入今日日记，AI 已回复");
+      setStatus(t("app.status.todaySavedWithAi"));
     } catch (error) {
       const assistantMessage: TodayMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: error instanceof Error ? error.message : "记录或 AI 请求失败",
+        content: error instanceof Error ? error.message : t("today.recordOrAiFailed"),
         createdAt: new Date().toISOString(),
       };
       setTodayMessages((current) => [...current, assistantMessage]);
-      setStatus(error instanceof Error ? error.message : "记录失败");
+      setStatus(error instanceof Error ? error.message : t("app.status.recordFailed"));
     } finally {
       setIsTodayBusy(false);
     }
-  }, [refreshNotes, todayMessages, todayText, workspace.path]);
+  }, [locale, refreshNotes, t, todayMessages, todayText, workspace.path]);
 
   const openNoteDocument = (path: string, notes: NoteSummary[], note: NoteDocument) => {
     const nextArticleHtml = articleFromHtmlDocument(note.html);
@@ -921,68 +941,68 @@ export function App() {
           </span>
           <div>
             <strong>Opaline</strong>
-            <span>本地 HTML 笔记</span>
+            <span>{t("app.brand.subtitle")}</span>
           </div>
         </div>
         )}
 
         <div className="sidebar-actions">
           {(view === "note" || view === "graph" || view === "settings") ? null : (
-            <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip="入口" aria-label="入口">
+            <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip={t("action.home")} aria-label={t("action.home")}>
               <Home size={17} />
-              <span>入口</span>
+              <span>{t("action.home")}</span>
             </button>
           )}
-          <button type="button" onClick={openWorkspace} disabled={isBusy} data-tooltip="打开工作区" aria-label="打开工作区">
+          <button type="button" onClick={openWorkspace} disabled={isBusy} data-tooltip={t("action.open")} aria-label={t("action.open")}>
             <FolderOpen size={17} />
-            <span>打开</span>
+            <span>{t("action.open")}</span>
           </button>
-          <button type="button" onClick={requestCreateNote} disabled={isBusy} data-tooltip="新建笔记" aria-label="新建笔记">
+          <button type="button" onClick={requestCreateNote} disabled={isBusy} data-tooltip={t("action.create")} aria-label={t("action.create")}>
             <FilePlus2 size={17} />
-            <span>新建</span>
+            <span>{t("action.create")}</span>
           </button>
           {(view !== "note" && view !== "graph" && view !== "settings") ? (
-            <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip="导入 Markdown 文件" aria-label="导入 Markdown">
+            <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip={t("action.import")} aria-label={t("action.import")}>
               <FileUp size={17} />
-              <span>导入</span>
+              <span>{t("action.import")}</span>
             </button>
           ) : null}
           {(view === "note" || view === "graph" || view === "settings") ? (
             <>
-              <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip="新建文件夹" aria-label="新建文件夹">
+              <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip={t("action.createFolder")} aria-label={t("action.createFolder")}>
                 <FolderPlus size={17} />
-                <span>新建文件夹</span>
+                <span>{t("action.createFolder")}</span>
               </button>
-              <button type="button" onClick={() => setAllFoldersExpanded((value) => !value)} disabled={isBusy} data-tooltip={allFoldersExpanded ? "折叠全部" : "展开全部"} aria-label={allFoldersExpanded ? "折叠全部" : "展开全部"}>
+              <button type="button" onClick={() => setAllFoldersExpanded((value) => !value)} disabled={isBusy} data-tooltip={allFoldersExpanded ? t("action.collapseFolders") : t("action.expandFolders")} aria-label={allFoldersExpanded ? t("action.collapseFolders") : t("action.expandFolders")}>
                 <ChevronsDown size={17} />
-                <span>{allFoldersExpanded ? "折叠文件夹" : "展开文件夹"}</span>
+                <span>{allFoldersExpanded ? t("action.collapseFolders") : t("action.expandFolders")}</span>
               </button>
-              <button type="button" onClick={cycleVaultSort} disabled={isBusy} data-tooltip={vaultSortMode === "updated" ? "按修改时间排序" : "按标题排序"} aria-label={vaultSortMode === "updated" ? "按修改时间排序" : "按标题排序"}>
+              <button type="button" onClick={cycleVaultSort} disabled={isBusy} data-tooltip={vaultSortMode === "updated" ? t("action.sortByTime") : t("action.sortByTitle")} aria-label={vaultSortMode === "updated" ? t("action.sortByTime") : t("action.sortByTitle")}>
                 <ArrowDownAZ size={17} />
-                <span>{vaultSortMode === "updated" ? "按时间" : "按标题"}</span>
+                <span>{vaultSortMode === "updated" ? t("action.sortByTime") : t("action.sortByTitle")}</span>
               </button>
             </>
           ) : (
-            <button type="button" onClick={createDailyNote} disabled={isBusy} data-tooltip="日记" aria-label="日记">
+            <button type="button" onClick={createDailyNote} disabled={isBusy} data-tooltip={t("action.daily")} aria-label={t("action.daily")}>
               <CalendarDays size={17} />
-              <span>日记</span>
+              <span>{t("action.daily")}</span>
             </button>
           )}
           {workspace.path ? (
-            <button type="button" onClick={() => refreshNotes(workspace.path as string)} disabled={isBusy} data-tooltip="刷新" aria-label="刷新">
+            <button type="button" onClick={() => refreshNotes(workspace.path as string)} disabled={isBusy} data-tooltip={t("action.refresh")} aria-label={t("action.refresh")}>
               <RefreshCw size={17} />
-              <span>刷新</span>
+              <span>{t("action.refresh")}</span>
             </button>
           ) : null}
         </div>
 
         <div className="workspace-path" title={workspace.path ?? undefined}>
-          {workspace.path ?? "未选择工作区"}
+          {workspace.path ?? t("common.noWorkspace")}
         </div>
 
         <label className="search-box">
           <Search size={16} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题和正文" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search.placeholder")} />
         </label>
 
         {query ? (
@@ -1011,9 +1031,9 @@ export function App() {
             }}
           />
         ) : (
-          <nav className="note-list" aria-label="笔记列表">
+          <nav className="note-list" aria-label={t("nav.notes")}>
             {workspace.notes.length === 0 ? (
-              <p className="empty-state">还没有笔记。</p>
+              <p className="empty-state">{t("common.emptyNotes")}</p>
             ) : (
               workspace.notes.map((note) => (
                 <NoteListItem
@@ -1042,7 +1062,7 @@ export function App() {
               {view !== "note" || isDirty || currentTags.length ? (
                 <p>
                   {view === "note" ? null : status}
-                  {isDirty ? <span className="dirty-dot">未保存</span> : null}
+                  {isDirty ? <span className="dirty-dot">{t("common.unsaved")}</span> : null}
                   {currentTags.map((tag) => (
                     <span key={tag} className="tag-pill">#{tag}</span>
                   ))}
@@ -1052,16 +1072,16 @@ export function App() {
             {view === "note" ? (
               <div className="topbar-actions">
                 {workspace.activeNote ? (
-                  <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label="收藏">
+                  <button className="favorite-button" type="button" onClick={toggleFavorite} aria-label={t("app.status.favorited")}>
                     <Star size={18} fill={workspace.activeNote.favorite ? "currentColor" : "none"} />
                   </button>
                 ) : null}
                 <button
                   className="right-panel-toggle"
                   type="button"
-                  data-tooltip={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+                  data-tooltip={rightPanelCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}
                   onClick={() => setRightPanelCollapsed((value) => !value)}
-                  aria-label={rightPanelCollapsed ? "展开右侧栏" : "折叠右侧栏"}
+                  aria-label={rightPanelCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}
                 >
                   {rightPanelCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
                 </button>
@@ -1090,6 +1110,11 @@ export function App() {
           <SettingsView
             workspacePath={workspace.path}
             fileLinkSettings={fileLinkSettings}
+            locale={locale}
+            languageOptions={languageOptions}
+            communityLanguagePacks={communityLanguagePacks}
+            onLocaleChange={setLocale}
+            onLanguagePacksChange={setCommunityLanguagePacks}
             onFileLinkSettingsChange={updateFileLinkSettings}
             onChangeWorkspace={async () => {
               const newPath = await workspaceAdapter.chooseWorkspace();
@@ -1117,14 +1142,14 @@ export function App() {
               onOpenInternalLink={openInternalLink}
             />
             <aside className="inspector">
-              <Section title="大纲" icon={<FileText size={16} />}>
+              <Section title={t("panel.outline")} icon={<FileText size={16} />}>
                 {workspace.activeNote.headings.length ? (
                   workspace.activeNote.headings.map((heading) => <p key={heading}>{heading}</p>)
                 ) : (
-                  <p className="muted">还没有标题。</p>
+                  <p className="muted">{t("panel.noHeadings")}</p>
                 )}
               </Section>
-              <Section title="本篇关联" icon={<Link2 size={16} />}>
+              <Section title={t("panel.outgoing")} icon={<Link2 size={16} />}>
                 {workspace.activeNote.outgoingLinks.length ? (
                   workspace.activeNote.outgoingLinks.map((link) => {
                     const target = link.targetId ? workspace.notes.find((note) => note.id === link.targetId) : null;
@@ -1139,7 +1164,7 @@ export function App() {
                         }}
                       >
                         <span className={`relation-kind is-${link.kind ?? "note"}`}>
-                          {LINK_KIND_LABEL[(link.kind ?? "note") as LinkKind]}
+                          {t(`relation.${(link.kind ?? "note") as LinkKind}`)}
                         </span>
                         <span>{link.label || link.href}</span>
                         {link.targetHeading ? <small>{link.targetHeading}</small> : null}
@@ -1149,10 +1174,10 @@ export function App() {
                     );
                   })
                 ) : (
-                  <p className="muted">这篇笔记还没有引用其他笔记、标题、块或概念。</p>
+                  <p className="muted">{t("panel.noOutgoing")}</p>
                 )}
               </Section>
-              <Section title="谁提到本篇" icon={<Clock3 size={16} />}>
+              <Section title={t("panel.backlinks")} icon={<Clock3 size={16} />}>
                 {backlinks.length ? (
                   backlinks.map((link) => (
                     <button key={link.id} className="inspector-link" type="button" onClick={() => openSearchResult(link)}>
@@ -1160,10 +1185,10 @@ export function App() {
                     </button>
                   ))
                 ) : (
-                  <p className="muted">还没有其他笔记提到本篇。保存链接后这里会自动更新。</p>
+                  <p className="muted">{t("panel.noBacklinks")}</p>
                 )}
               </Section>
-              <Section title="本篇图谱" icon={<Network size={16} />}>
+              <Section title={t("panel.localGraph")} icon={<Network size={16} />}>
                 <GraphPreview
                   graph={graph}
                   activeNoteId={workspace.activeNote.id}
@@ -1174,7 +1199,7 @@ export function App() {
                 />
                 {workspace.activeNote.outgoingLinks.filter((link) => link.isBroken).length ? (
                   <p className="is-broken">
-                    {workspace.activeNote.outgoingLinks.filter((link) => link.isBroken).length} 条本篇断链
+                    {t("panel.brokenLinks", { count: workspace.activeNote.outgoingLinks.filter((link) => link.isBroken).length })}
                   </p>
                 ) : null}
               </Section>
@@ -1203,7 +1228,7 @@ export function App() {
         title={draftTitle}
         lang={draftLang}
         template={draftTemplate}
-        templates={NOTE_TEMPLATES}
+        templates={templates}
         busy={isBusy}
         onTitleChange={setDraftTitle}
         onLangChange={setDraftLang}
@@ -1254,15 +1279,16 @@ function EntryChoiceView({
   onSerious: () => void;
   onCasual: () => void;
 }) {
+  const { t } = useI18n();
   return (
-    <section className="entry-choice" aria-label="选择记录方式">
+    <section className="entry-choice" aria-label={t("home.serious")}>
       <button type="button" className="entry-choice-card" onClick={onSerious}>
         <NotebookPen size={82} strokeWidth={1.7} />
-        <span>认真记记</span>
+        <span>{t("home.serious")}</span>
       </button>
       <button type="button" className="entry-choice-card" onClick={onCasual}>
         <MessageCircle size={82} strokeWidth={1.7} />
-        <span>随便记记</span>
+        <span>{t("home.casual")}</span>
       </button>
     </section>
   );
@@ -1285,24 +1311,25 @@ function NoteRibbon({
   onSettings: () => void;
   onImport: () => void;
 }) {
+  const { t } = useI18n();
   return (
-    <nav className="note-ribbon" aria-label="工作台">
-      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"} aria-label={leftCollapsed ? "展开左侧栏" : "折叠左侧栏"}>
+    <nav className="note-ribbon" aria-label={t("nav.workspace")}>
+      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? t("action.expandFolders") : t("action.collapseFolders")} aria-label={leftCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}>
         {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
-      <button type="button" onClick={onHome} data-tooltip="返回入口页" aria-label="返回入口页">
+      <button type="button" onClick={onHome} data-tooltip={t("nav.backHome")} aria-label={t("nav.backHome")}>
         <Home size={18} />
       </button>
-      <button type="button" onClick={onNotes} data-tooltip="文档" aria-label="文档">
+      <button type="button" onClick={onNotes} data-tooltip={t("nav.notes")} aria-label={t("nav.notes")}>
         <BookOpen size={18} />
       </button>
-      <button type="button" onClick={onImport} data-tooltip="导入 Markdown" aria-label="导入 Markdown">
+      <button type="button" onClick={onImport} data-tooltip={t("action.import")} aria-label={t("action.import")}>
         <FileUp size={18} />
       </button>
-      <button type="button" onClick={onGraph} data-tooltip="图谱" aria-label="图谱">
+      <button type="button" onClick={onGraph} data-tooltip={t("nav.graph")} aria-label={t("nav.graph")}>
         <Network size={18} />
       </button>
-      <button type="button" className="ribbon-bottom" onClick={onSettings} data-tooltip="设置" aria-label="设置">
+      <button type="button" className="ribbon-bottom" onClick={onSettings} data-tooltip={t("nav.settings")} aria-label={t("nav.settings")}>
         <Settings size={18} />
       </button>
     </nav>
@@ -1322,23 +1349,24 @@ function SeriousEmptyView({
   onOpen: (note: NoteSummary) => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <section className="serious-empty">
-      <div className="serious-empty-actions" aria-label="开始认真记录">
+      <div className="serious-empty-actions" aria-label={t("home.serious")}>
         <button type="button" onClick={onCreate} disabled={busy}>
           <FilePlus2 size={24} />
-          <span>新建</span>
+          <span>{t("action.create")}</span>
         </button>
         <button type="button" onClick={onDaily} disabled={busy}>
           <CalendarDays size={24} />
-          <span>日记</span>
+          <span>{t("action.daily")}</span>
         </button>
       </div>
 
       <section className="serious-start-panel">
         <div className="vault-section-title">
           <Clock3 size={15} />
-          <span>最近</span>
+          <span>{t("empty.recent")}</span>
         </div>
         {recentNotes.length ? (
           <div className="recent-note-grid">
@@ -1350,7 +1378,7 @@ function SeriousEmptyView({
             ))}
           </div>
         ) : (
-          <p className="empty-state">认真记录从第一篇笔记开始。</p>
+          <p className="empty-state">{t("empty.startSerious")}</p>
         )}
       </section>
 
@@ -1367,6 +1395,7 @@ function GraphPreview({
   activeNoteId: string;
   onOpenNode: (nodeId: string) => void;
 }) {
+  const { t } = useI18n();
   const activeNode = graph.nodes.find((node) => node.id === activeNoteId);
   const neighborhoodEdges = graph.edges.filter((edge) => edge.source === activeNoteId || edge.target === activeNoteId);
   const neighborhoodIds = new Set<string>([activeNoteId]);
@@ -1404,12 +1433,12 @@ function GraphPreview({
   const edges = neighborhoodEdges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).slice(0, 36);
 
   if (!activeNode) {
-    return <p className="muted">还没有可显示的图谱。</p>;
+    return <p className="muted">{t("graph.previewEmpty")}</p>;
   }
 
   return (
     <div className="graph-preview">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="笔记图谱">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("nav.graph")}>
         {edges.map((edge, index) => {
           const source = positions.get(edge.source);
           const target = positions.get(edge.target);
@@ -1445,8 +1474,8 @@ function GraphPreview({
       </svg>
       <p>
         {edges.length
-          ? `当前笔记 · ${nodes.length - 1} 个相邻节点 · ${edges.length} 条关系`
-          : "当前笔记暂时没有关联关系"}
+          ? t("graph.previewStats", { nodes: nodes.length - 1, edges: edges.length })
+          : t("graph.previewNoRelations")}
       </p>
     </div>
   );
@@ -1471,12 +1500,13 @@ function VaultExplorer({
   onContextMenu: (note: NoteSummary, event: MouseEvent) => void;
   onMoveTo: (note: NoteSummary, targetDir: string) => void;
 }) {
+  const { t, locale } = useI18n();
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [draggingNote, setDraggingNote] = useState<NoteSummary | null>(null);
 
   const sortedNotes = [...notes].sort((a, b) => {
     if (sortMode === "title") {
-      return a.title.localeCompare(b.title, "zh-Hans");
+      return a.title.localeCompare(b.title, locale);
     }
     return b.updatedAt.localeCompare(a.updatedAt);
   });
@@ -1530,9 +1560,9 @@ function VaultExplorer({
         <section className="vault-section">
           <div className="vault-section-title">
             <Star size={15} />
-            <span>收藏</span>
+            <span>{t("app.status.favorited")}</span>
           </div>
-          <nav className="note-list is-compact" aria-label="收藏笔记">
+          <nav className="note-list is-compact" aria-label={t("app.status.favorited")}>
             {favorites.map((note) => (
               <NoteListItem
                 key={note.path}
@@ -1550,18 +1580,18 @@ function VaultExplorer({
       <section className="vault-section is-files">
         <div className="vault-section-title">
           <FileText size={15} />
-          <span>文件</span>
-          <small>{sortMode === "updated" ? "时间" : "标题"}</small>
+          <span>{t("settings.filesLinks")}</span>
+          <small>{sortMode === "updated" ? t("action.sortByTime") : t("action.sortByTitle")}</small>
         </div>
-        <nav className="note-list vault-tree" aria-label="所有笔记">
+        <nav className="note-list vault-tree" aria-label={t("nav.notes")}>
           {notes.length === 0 ? (
-            <p className="empty-state">还没有笔记。</p>
+            <p className="empty-state">{t("common.emptyNotes")}</p>
           ) : (
             grouped.map((group) => (
               <section key={group.directory} className={`vault-folder ${dragOverFolder === group.directory ? "is-drag-over" : ""}`}>
                 <div className="vault-folder-title" {...makeFolderDropHandlers(group.directory)}>
                   <ChevronRight size={14} className={expanded ? "is-expanded" : undefined} />
-                  <span>{group.directory.replace(/^notes\/?/, "") || "根目录"}</span>
+                  <span>{group.directory.replace(/^notes\/?/, "") || t("settings.vaultRoot")}</span>
                 </div>
                 {expanded ? (
                   <div className="vault-folder-notes">
@@ -1606,6 +1636,7 @@ function NoteListItem({
   onContextMenu?: (event: MouseEvent) => void;
   onOpen: () => void;
 }) {
+  const { t, locale } = useI18n();
   return (
     <button
       type="button"
@@ -1648,6 +1679,7 @@ function NoteContextMenu({
   onMove: (note: NoteSummary) => void;
   onReveal: (note: NoteSummary) => void;
 }) {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuStyle = useConstrainedMenuPosition(state, menuRef);
 
@@ -1697,17 +1729,17 @@ function NoteContextMenu({
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <button type="button" onClick={() => run(() => onOpen(state.note))}>打开</button>
-      <button type="button" onClick={() => run(() => onRename(state.note))}>重命名</button>
-      <button type="button" onClick={() => run(() => onDuplicate(state.note))}>创建副本</button>
-      <button type="button" onClick={() => run(() => onToggleFavorite(state.note))}>{state.note.favorite ? "取消收藏" : "收藏"}</button>
+      <button type="button" onClick={() => run(() => onOpen(state.note))}>{t("action.open")}</button>
+      <button type="button" onClick={() => run(() => onRename(state.note))}>{t("context.rename")}</button>
+      <button type="button" onClick={() => run(() => onDuplicate(state.note))}>{t("context.duplicate")}</button>
+      <button type="button" onClick={() => run(() => onToggleFavorite(state.note))}>{state.note.favorite ? t("app.status.unfavorited") : t("app.status.favorited")}</button>
       <span role="separator" />
-      <button type="button" onClick={() => run(() => onMove(state.note))}>移动到...</button>
-      <button type="button" onClick={() => run(() => onReveal(state.note))}>在文件管理器中显示</button>
-      <button type="button" onClick={() => run(() => onCopyPath(state.note))}>复制路径</button>
-      <button type="button" onClick={() => run(() => onExportMarkdown(state.note))}>导出 Markdown</button>
+      <button type="button" onClick={() => run(() => onMove(state.note))}>{t("context.moveTo")}</button>
+      <button type="button" onClick={() => run(() => onReveal(state.note))}>{t("context.reveal")}</button>
+      <button type="button" onClick={() => run(() => onCopyPath(state.note))}>{t("context.copyPath")}</button>
+      <button type="button" onClick={() => run(() => onExportMarkdown(state.note))}>{t("context.exportMarkdown")}</button>
       <span role="separator" />
-      <button type="button" className="menu-danger" onClick={() => run(() => onDelete(state.note))}>删除</button>
+      <button type="button" className="menu-danger" onClick={() => run(() => onDelete(state.note))}>{t("context.delete")}</button>
     </div>
   );
 }
@@ -1725,15 +1757,16 @@ function TodayView({
   onTextChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const { t, locale } = useI18n();
   return (
     <section className="today-home">
       <div className="today-chat">
-        <section className="today-thread" aria-label="今日对话">
+        <section className="today-thread" aria-label={t("app.title.today")}>
           {messages.map((message) => (
             <article key={message.id} className={`today-message is-${message.role}`}>
               <div>
-                <strong>{message.role === "user" ? "我" : "AI"}</strong>
-                <span>{formatTime(message.createdAt)}</span>
+                <strong>{message.role === "user" ? t("common.me") : t("common.ai")}</strong>
+                <span>{formatTime(message.createdAt, locale)}</span>
               </div>
               <div dangerouslySetInnerHTML={{ __html: paragraphsFromPlainText(message.content) }} />
             </article>
@@ -1749,12 +1782,12 @@ function TodayView({
             }
           }}
           rows={4}
-          aria-label="今天"
+          aria-label={t("app.title.today")}
         />
         <div className="today-composer-actions">
           <button type="button" onClick={onSubmit} disabled={busy || !text.trim()}>
             {busy ? <Bot size={17} className="spinner" /> : <Send size={17} />}
-            <span>{busy ? "处理中" : "发送"}</span>
+            <span>{busy ? t("action.processing") : t("action.send")}</span>
           </button>
         </div>
       </div>
@@ -1765,28 +1798,42 @@ function TodayView({
 function SettingsView({
   workspacePath,
   fileLinkSettings,
+  locale,
+  languageOptions,
+  communityLanguagePacks,
+  onLocaleChange,
+  onLanguagePacksChange,
   onFileLinkSettingsChange,
   onChangeWorkspace,
 }: {
   workspacePath: string | null;
   fileLinkSettings: FileLinkSettings;
+  locale: string;
+  languageOptions: LanguageOption[];
+  communityLanguagePacks: ReturnType<typeof useI18n>["communityLanguagePacks"];
+  onLocaleChange: (locale: string) => void;
+  onLanguagePacksChange: ReturnType<typeof useI18n>["setCommunityLanguagePacks"];
   onFileLinkSettingsChange: (patch: Partial<FileLinkSettings>) => void;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const [activePanel, setActivePanel] = useState<SettingsPanelId>("files");
 
   return (
     <section className="settings-view settings-panel-view">
-      <aside className="settings-sidebar" aria-label="设置分类">
-        <strong>选项</strong>
+      <aside className="settings-sidebar" aria-label={t("settings.options")}>
+        <strong>{t("settings.options")}</strong>
         <button type="button" className={activePanel === "files" ? "is-active" : ""} onClick={() => setActivePanel("files")}>
-          <FolderOpen size={17} />文件与链接
+          <FolderOpen size={17} />{t("settings.filesLinks")}
+        </button>
+        <button type="button" className={activePanel === "language" ? "is-active" : ""} onClick={() => setActivePanel("language")}>
+          <MessageCircle size={17} />{t("settings.language")}
         </button>
         <button type="button" className={activePanel === "plugins" ? "is-active" : ""} onClick={() => setActivePanel("plugins")}>
-          <Puzzle size={17} />第三方插件
+          <Puzzle size={17} />{t("settings.plugins")}
         </button>
         <button type="button" className={activePanel === "ai" ? "is-active" : ""} onClick={() => setActivePanel("ai")}>
-          <Bot size={17} />AI 设置
+          <Bot size={17} />{t("settings.ai")}
         </button>
       </aside>
       <div className="settings-main-panel">
@@ -1796,6 +1843,15 @@ function SettingsView({
             settings={fileLinkSettings}
             onChange={onFileLinkSettingsChange}
             onChangeWorkspace={onChangeWorkspace}
+          />
+        ) : activePanel === "language" ? (
+          <LanguageSettingsPanel
+            workspacePath={workspacePath}
+            locale={locale}
+            languageOptions={languageOptions}
+            communityLanguagePacks={communityLanguagePacks}
+            onLocaleChange={onLocaleChange}
+            onLanguagePacksChange={onLanguagePacksChange}
           />
         ) : activePanel === "plugins" ? (
           <LiveComponentsSettingsPanel workspacePath={workspacePath} />
@@ -1818,45 +1874,46 @@ function FileLinksSettingsPanel({
   onChange: (patch: Partial<FileLinkSettings>) => void;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   return (
     <section className="settings-row-list">
       <SettingsSelectRow
-        title="默认打开文件"
-        description="选择启动时打开的文件。"
+        title={t("settings.defaultOpenFile")}
+        description={t("settings.defaultOpenFileDesc")}
         value={settings.defaultOpenFile}
         onChange={(value) => onChange({ defaultOpenFile: value as FileLinkSettings["defaultOpenFile"] })}
         options={[
-          { value: "last", label: "上次打开的文件" },
-          { value: "none", label: "不自动打开文件" },
+          { value: "last", label: t("settings.lastOpenFile") },
+          { value: "none", label: t("settings.noAutoOpen") },
         ]}
       />
       <SettingsSelectRow
-        title="新建笔记的存放位置"
-        description="指定新建笔记的存放路径。"
+        title={t("settings.newNoteLocation")}
+        description={t("settings.newNoteLocationDesc")}
         value={settings.newNoteLocation}
         onChange={(value) => onChange({ newNoteLocation: value as FileLinkSettings["newNoteLocation"] })}
         options={[
-          { value: "vault-root", label: "仓库的根目录" },
-          { value: "current-folder", label: "当前文件所在文件夹" },
-          { value: "journal", label: "日记文件夹" },
+          { value: "vault-root", label: t("settings.vaultRoot") },
+          { value: "current-folder", label: t("settings.currentFolder") },
+          { value: "journal", label: t("settings.journalFolder") },
         ]}
       />
       <div className="settings-choice-row">
         <div>
-          <strong>附件默认存放路径</strong>
-          <small>当前固定存放到工作区的 assets/images 和 assets/files。</small>
+          <strong>{t("settings.attachmentLocation")}</strong>
+          <small>{t("settings.attachmentLocationDesc")}</small>
         </div>
         <select value="assets" disabled>
-          <option value="assets">仓库的 assets 目录</option>
+          <option value="assets">{t("settings.assetsFolder")}</option>
         </select>
       </div>
       <div className="settings-choice-row">
         <div>
-          <strong>当前工作区</strong>
-          <small>{workspacePath ?? "正在准备工作区"}</small>
+          <strong>{t("settings.currentWorkspace")}</strong>
+          <small>{workspacePath ?? t("app.status.preparingWorkspace")}</small>
         </div>
         <button type="button" className="secondary-action-button" onClick={onChangeWorkspace}>
-          更改
+          {t("action.change")}
         </button>
       </div>
     </section>
@@ -1891,7 +1948,109 @@ function SettingsSelectRow({
   );
 }
 
+function LanguageSettingsPanel({
+  workspacePath,
+  locale,
+  languageOptions,
+  communityLanguagePacks,
+  onLocaleChange,
+  onLanguagePacksChange,
+}: {
+  workspacePath: string | null;
+  locale: string;
+  languageOptions: LanguageOption[];
+  communityLanguagePacks: ReturnType<typeof useI18n>["communityLanguagePacks"];
+  onLocaleChange: (locale: string) => void;
+  onLanguagePacksChange: ReturnType<typeof useI18n>["setCommunityLanguagePacks"];
+}) {
+  const { t } = useI18n();
+  const [status, setStatus] = useState("");
+
+  const refreshLanguagePacks = useCallback(async () => {
+    if (!workspacePath || !workspaceAdapter.listLanguagePacks) {
+      onLanguagePacksChange([]);
+      setStatus(t("settings.workspaceNotReady"));
+      return;
+    }
+
+    try {
+      const packs = await workspaceAdapter.listLanguagePacks(workspacePath);
+      onLanguagePacksChange(packs);
+      setStatus(packs.length ? t("settings.languagePackStatusRefreshed", { count: packs.length }) : t("settings.languagePackStatusEmpty"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("settings.languagePackReadFailed"));
+    }
+  }, [onLanguagePacksChange, t, workspacePath]);
+
+  const openLanguagePacksFolder = useCallback(async () => {
+    if (!workspacePath) {
+      setStatus(t("settings.workspaceNotReady"));
+      return;
+    }
+    if (!workspaceAdapter.openLanguagePacksFolder) {
+      setStatus(t("settings.cannotOpenLanguageFolder"));
+      return;
+    }
+
+    try {
+      await workspaceAdapter.openLanguagePacksFolder(workspacePath);
+      setStatus(t("settings.languagePackOpened"));
+      await refreshLanguagePacks();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("settings.languagePackOpenFailed"));
+    }
+  }, [refreshLanguagePacks, t, workspacePath]);
+
+  return (
+    <section className="settings-row-list">
+      <SettingsSelectRow
+        title={t("settings.interfaceLanguage")}
+        description={t("settings.interfaceLanguageDesc")}
+        value={locale}
+        onChange={onLocaleChange}
+        options={languageOptions.map((option) => ({
+          value: option.locale,
+          label: `${option.nativeName} (${option.source === "builtin" ? t("settings.builtinLanguage") : t("settings.communityLanguage")})`,
+        }))}
+      />
+      <div className="settings-choice-row">
+        <div>
+          <strong>{t("settings.communityPacks")}</strong>
+          <small>{t("settings.communityPacksDesc")}</small>
+        </div>
+        <div className="installed-plugins-actions">
+          <button type="button" title={t("action.refresh")} onClick={() => void refreshLanguagePacks()}>
+            <RefreshCw size={16} />
+          </button>
+          <button type="button" title={t("action.openFolder")} onClick={openLanguagePacksFolder}>
+            <FolderOpen size={16} />
+          </button>
+        </div>
+      </div>
+      {status ? <p className="plugin-status-text">{status}</p> : null}
+      <div className="plugin-market-card">
+        <p className="plugin-status-text">
+          {communityLanguagePacks.length
+            ? t("settings.installedLanguagePacks", { count: communityLanguagePacks.length })
+            : t("settings.noLanguagePacks")}
+        </p>
+        {communityLanguagePacks.map((pack) => (
+          <div className="plugin-example-row" key={pack.manifest.id}>
+            <div>
+              <strong>{pack.manifest.nativeName}</strong>
+              <small>{pack.manifest.name} · {pack.manifest.locale}</small>
+              <code>{pack.manifest.id}</code>
+            </div>
+            <span>{pack.manifest.version}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string | null }) {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<LiveComponentSettings>(() => loadLiveComponentSettings());
   const [installedPlugins, setInstalledPlugins] = useState<InstalledPlugin[]>(() => loadInstalledPluginsFromCache());
   const [pluginStatus, setPluginStatus] = useState("");
@@ -1913,63 +2072,63 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
 
     const plugins = await workspaceAdapter.listInstalledPlugins(workspacePath);
     setInstalledPlugins(plugins);
-    setPluginStatus(plugins.length ? `已刷新：${plugins.length} 个插件` : "");
-  }, [workspacePath]);
+    setPluginStatus(plugins.length ? t("plugin.statusRefreshed", { count: plugins.length }) : "");
+  }, [t, workspacePath]);
 
   useEffect(() => {
     void refreshInstalledPlugins().catch((error) => {
-      setPluginStatus(error instanceof Error ? error.message : "读取插件失败");
+      setPluginStatus(error instanceof Error ? error.message : t("plugin.readFailed"));
     });
   }, [refreshInstalledPlugins]);
 
   const openPluginsFolder = useCallback(async () => {
     if (!workspacePath) {
-      setPluginStatus("工作区还没有准备好");
+      setPluginStatus(t("plugin.workspaceNotReady"));
       return;
     }
     if (!workspaceAdapter.openPluginsFolder) {
-      setPluginStatus("当前环境不能打开本地插件文件夹");
+      setPluginStatus(t("plugin.cannotOpenFolder"));
       return;
     }
 
     try {
       await workspaceAdapter.openPluginsFolder(workspacePath);
-      setPluginStatus("已打开 .opaline/plugins，放入插件文件夹后点刷新");
+      setPluginStatus(t("plugin.openedFolder"));
       await refreshInstalledPlugins();
     } catch (error) {
-      setPluginStatus(error instanceof Error ? error.message : "打开插件文件夹失败");
+      setPluginStatus(error instanceof Error ? error.message : t("plugin.openFolderFailed"));
     }
-  }, [refreshInstalledPlugins, workspacePath]);
+  }, [refreshInstalledPlugins, t, workspacePath]);
 
   return (
     <section className="plugin-settings-content">
       <div className="plugin-policy-list is-obsidian-like">
         <PluginPolicyRow
           icon={<ShieldCheck size={17} />}
-          title="安全模式"
-          description={settings.trustedPluginWidgetsEnabled ? "安全模式已关闭。第三方插件已允许运行。" : "安全模式已开启。开启以限制第三方插件运行。"}
+          title={t("plugin.safeMode")}
+          description={settings.trustedPluginWidgetsEnabled ? t("plugin.safeModeOffDesc") : t("plugin.safeModeOnDesc")}
           enabled={settings.trustedPluginWidgetsEnabled}
           onToggle={() => updateSettings({ trustedPluginWidgetsEnabled: !settings.trustedPluginWidgetsEnabled })}
-          buttonLabel={settings.trustedPluginWidgetsEnabled ? "关闭" : "开启"}
+          buttonLabel={settings.trustedPluginWidgetsEnabled ? t("plugin.turnOff") : t("plugin.turnOn")}
         />
         <div className="plugin-policy-row">
           <div className="plugin-policy-icon"><Puzzle size={17} /></div>
           <div>
-            <strong>社区插件市场</strong>
-            <small>浏览、安装社区成员制作的第三方插件。</small>
+            <strong>{t("plugin.market")}</strong>
+            <small>{t("plugin.marketDesc")}</small>
           </div>
-          <button type="button" className="secondary-action-button is-purple" disabled>浏览</button>
+          <button type="button" className="secondary-action-button is-purple" disabled>{t("action.browse")}</button>
         </div>
         <div className="plugin-policy-row">
           <div className="plugin-policy-icon"><FolderOpen size={17} /></div>
           <div>
-            <strong>插件安装情况</strong>
-            <small>你目前已经安装了 {installedPlugins.length} 个插件。</small>
+            <strong>{t("plugin.installStatus")}</strong>
+            <small>{t("plugin.installedCount", { count: installedPlugins.length })}</small>
           </div>
         </div>
         <PluginPolicyRow
-          title="自动检查插件更新"
-          description="定期检查第三方插件的更新。"
+          title={t("plugin.autoUpdate")}
+          description={t("plugin.autoUpdateDesc")}
           enabled={settings.autoCheckPluginUpdates}
           onToggle={() => updateSettings({ autoCheckPluginUpdates: !settings.autoCheckPluginUpdates })}
         />
@@ -1977,12 +2136,12 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
 
       <div className="plugin-market-card">
         <div className="installed-plugins-header">
-          <h3>已安装插件</h3>
+          <h3>{t("plugin.installed")}</h3>
           <div className="installed-plugins-actions">
-            <button type="button" title="刷新插件" onClick={() => void refreshInstalledPlugins()}>
+            <button type="button" title={t("plugin.refreshTitle")} onClick={() => void refreshInstalledPlugins()}>
               <RefreshCw size={16} />
             </button>
-            <button type="button" title="打开插件文件夹" onClick={openPluginsFolder}>
+            <button type="button" title={t("plugin.openFolderTitle")} onClick={openPluginsFolder}>
               <FolderOpen size={16} />
             </button>
           </div>
@@ -1994,7 +2153,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
               <div>
                 <strong>{plugin.name}</strong>
                 <small>{plugin.description || plugin.id}</small>
-                <code>{plugin.widgets.length ? plugin.widgets.map((widget) => widget.type).join(" / ") : "没有声明 widget"}</code>
+                <code>{plugin.widgets.length ? plugin.widgets.map((widget) => widget.type).join(" / ") : t("plugin.noWidget")}</code>
               </div>
               <span>{plugin.version}</span>
             </div>
@@ -2066,14 +2225,15 @@ function CreateNoteDialog({
   title: string;
   lang: string;
   template: NoteTemplateId;
-  templates: typeof NOTE_TEMPLATES;
+  templates: NoteTemplate[];
   busy: boolean;
   onTitleChange: (value: string) => void;
   onLangChange: (value: string) => void;
-  onTemplateChange: (template: (typeof NOTE_TEMPLATES)[number]) => void;
+  onTemplateChange: (template: NoteTemplate) => void;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
+  const { t } = useI18n();
   if (!open) {
     return null;
   }
@@ -2089,20 +2249,20 @@ function CreateNoteDialog({
             </svg>
           </span>
           <div>
-            <h2 id="create-note-title">创建新笔记</h2>
-            <p>选择一个清晰标题，Opaline 会保存为干净 HTML 文件。</p>
+            <h2 id="create-note-title">{t("create.title")}</h2>
+            <p>{t("create.description")}</p>
           </div>
         </div>
 
         <label className="dialog-field">
-          <span>笔记标题</span>
+          <span>{t("create.noteTitle")}</span>
           <input autoFocus value={title} onChange={(event) => onTitleChange(event.target.value)} onKeyDown={(event) => {
             if (event.key === "Enter") onSubmit();
             if (event.key === "Escape") onCancel();
           }} />
         </label>
 
-        <div className="template-picker" role="listbox" aria-label="选择笔记模板">
+        <div className="template-picker" role="listbox" aria-label={t("create.templateAria")}>
           {templates.map((item) => (
             <button
               key={item.id}
@@ -2118,7 +2278,7 @@ function CreateNoteDialog({
         </div>
 
         <label className="dialog-field">
-          <span>语言</span>
+          <span>{t("create.language")}</span>
           <select value={lang} onChange={(event) => onLangChange(event.target.value)}>
             <option value="zh-Hans">简体中文</option>
             <option value="en">English</option>
@@ -2129,10 +2289,10 @@ function CreateNoteDialog({
 
         <div className="dialog-actions">
           <button type="button" className="dialog-secondary" onClick={onCancel}>
-            取消
+            {t("action.cancel")}
           </button>
           <button type="button" className="dialog-primary" onClick={onSubmit} disabled={busy || !title.trim()}>
-            创建笔记
+            {t("create.submit")}
           </button>
         </div>
       </section>
@@ -2168,7 +2328,12 @@ const markdownExportPath = (notePath: string, fallbackTitle: string) => {
   return `${safeParts.join("/")}.md`;
 };
 
-const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
+const appendDailyEntry = (
+  articleHtml: string,
+  message: TodayMessage,
+  locale: string,
+  t: ReturnType<typeof useI18n>["t"],
+) => {
   const document = new DOMParser().parseFromString(`<article>${articleHtml}</article>`, "text/html");
   const article = document.body.firstElementChild ?? document.createElement("article");
   let log = article.querySelector<HTMLElement>("[data-opaline-daily-log]");
@@ -2177,7 +2342,7 @@ const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
     log = document.createElement("section");
     log.setAttribute("data-opaline-daily-log", "");
     const heading = document.createElement("h2");
-    heading.textContent = "今日记录";
+    heading.textContent = t("today.dailyLog");
     log.append(heading);
     article.append(log);
   }
@@ -2186,7 +2351,7 @@ const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
   entry.setAttribute("data-opaline-entry", message.role);
   const meta = document.createElement("p");
   meta.setAttribute("data-opaline-entry-meta", "");
-  meta.textContent = `${message.role === "user" ? "我" : "AI"} · ${formatTime(message.createdAt)}`;
+  meta.textContent = `${message.role === "user" ? t("common.me") : t("common.ai")} · ${formatTime(message.createdAt, locale)}`;
   const content = document.createElement("div");
   content.setAttribute("data-opaline-entry-content", "");
   content.innerHTML = paragraphsFromPlainText(message.content);
@@ -2196,8 +2361,8 @@ const appendDailyEntry = (articleHtml: string, message: TodayMessage) => {
   return article.innerHTML;
 };
 
-const formatTime = (iso: string) =>
-  new Intl.DateTimeFormat("zh-CN", {
+const formatTime = (iso: string, locale = "zh-CN") =>
+  new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));

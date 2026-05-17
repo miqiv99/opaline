@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import type { GraphData, GraphEdge, LinkKind } from "../domain/note";
 import { createForceSimulation } from "./graphForce";
 import type { SimEdge, SimNode } from "./graphForce";
+import { useI18n } from "../i18n";
 
 interface GraphViewProps {
   graph: GraphData;
@@ -19,11 +20,11 @@ const NODE_COLOR = "rgba(20, 122, 85, 0.78)";
 const ACTIVE_COLOR = "var(--xz-green-deep)";
 const DIMMED_COLOR = "rgba(20, 122, 85, 0.22)";
 const CONCEPT_COLOR = "rgba(91, 103, 219, 0.76)";
-const LINK_KIND_META: Record<LinkKind, { label: string; color: string; dim: string; dash?: string }> = {
-  note: { label: "文件", color: "rgba(20, 122, 85, 0.38)", dim: "rgba(20, 122, 85, 0.07)" },
-  heading: { label: "标题", color: "rgba(31, 111, 235, 0.38)", dim: "rgba(31, 111, 235, 0.08)" },
-  block: { label: "块", color: "rgba(191, 125, 0, 0.42)", dim: "rgba(191, 125, 0, 0.08)", dash: "5 4" },
-  concept: { label: "概念", color: "rgba(91, 103, 219, 0.38)", dim: "rgba(91, 103, 219, 0.08)", dash: "2 4" },
+const LINK_KIND_META: Record<LinkKind, { labelKey: string; color: string; dim: string; dash?: string }> = {
+  note: { labelKey: "relation.note", color: "rgba(20, 122, 85, 0.38)", dim: "rgba(20, 122, 85, 0.07)" },
+  heading: { labelKey: "relation.heading", color: "rgba(31, 111, 235, 0.38)", dim: "rgba(31, 111, 235, 0.08)" },
+  block: { labelKey: "relation.block", color: "rgba(191, 125, 0, 0.42)", dim: "rgba(191, 125, 0, 0.08)", dash: "5 4" },
+  concept: { labelKey: "relation.concept", color: "rgba(91, 103, 219, 0.38)", dim: "rgba(91, 103, 219, 0.08)", dash: "2 4" },
 };
 const LINK_KINDS: LinkKind[] = ["note", "heading", "block", "concept"];
 
@@ -34,6 +35,7 @@ export function GraphView({
   onOpenNote,
   onBack,
 }: GraphViewProps) {
+  const { t } = useI18n();
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(600);
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 800, h: 600 });
@@ -275,11 +277,11 @@ export function GraphView({
     return (
       <section className="graph-full-view">
         <div className="graph-toolbar">
-          <button type="button" onClick={onBack} data-tooltip="返回" aria-label="返回">
+          <button type="button" onClick={onBack} data-tooltip={t("action.back")} aria-label={t("action.back")}>
             <ArrowLeft size={18} />
           </button>
         </div>
-        <p className="empty-state">还没有可显示的图谱。创建一些笔记并添加链接后图谱就会出现。</p>
+        <p className="empty-state">{t("graph.empty")}</p>
       </section>
     );
   }
@@ -287,7 +289,7 @@ export function GraphView({
   return (
     <section className="graph-full-view">
       <div className="graph-toolbar">
-        <button type="button" onClick={onBack} data-tooltip="返回" aria-label="返回">
+        <button type="button" onClick={onBack} data-tooltip={t("action.back")} aria-label={t("action.back")}>
           <ArrowLeft size={18} />
         </button>
         <label className="graph-search-box">
@@ -295,7 +297,7 @@ export function GraphView({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索笔记..."
+            placeholder={t("graph.searchPlaceholder")}
           />
         </label>
         {allTags.length ? (
@@ -313,8 +315,13 @@ export function GraphView({
           </div>
         ) : null}
         <div className="graph-summary">
-          {visibleGraph.nodes.filter((node) => node.kind !== "concept").length} / {graph.nodes.filter((node) => node.kind !== "concept").length} 篇笔记 · {visibleGraph.edges.length} / {graph.edges.length} 条关系
-          {graph.brokenLinks.length ? ` · ${graph.brokenLinks.length} 条断链` : ""}
+          {t("graph.summary", {
+            visibleNotes: visibleGraph.nodes.filter((node) => node.kind !== "concept").length,
+            totalNotes: graph.nodes.filter((node) => node.kind !== "concept").length,
+            visibleEdges: visibleGraph.edges.length,
+            totalEdges: graph.edges.length,
+          })}
+          {graph.brokenLinks.length ? t("graph.summaryBroken", { count: graph.brokenLinks.length }) : ""}
         </div>
         <button
           type="button"
@@ -322,9 +329,9 @@ export function GraphView({
           disabled={!activeNoteId}
           onClick={() => setFocusNeighborhood((value) => !value)}
         >
-          当前邻域
+          {t("graph.neighborhood")}
         </button>
-        <div className="graph-kind-filters" aria-label="关系类型">
+        <div className="graph-kind-filters" aria-label={t("graph.relationTypes")}>
           {LINK_KINDS.map((kind) => (
             <button
               key={kind}
@@ -333,7 +340,7 @@ export function GraphView({
               onClick={() => toggleKind(kind)}
               style={{ "--kind-color": LINK_KIND_META[kind].color } as CSSProperties}
             >
-              {LINK_KIND_META[kind].label}
+              {t(LINK_KIND_META[kind].labelKey)}
               <span>{kindCounts.get(kind) ?? 0}</span>
             </button>
           ))}
@@ -344,7 +351,7 @@ export function GraphView({
           {LINK_KINDS.map((kind) => (
             <span key={kind}>
               <i style={{ background: LINK_KIND_META[kind].color }} />
-              {LINK_KIND_META[kind].label}
+              {t(LINK_KIND_META[kind].labelKey)}
             </span>
           ))}
         </div>
@@ -353,7 +360,7 @@ export function GraphView({
           width={width}
           height={height}
           role="img"
-          aria-label="笔记图谱"
+          aria-label={t("nav.graph")}
           onWheel={handleWheel}
           onPointerDown={handlePointerDown}
           onClick={() => setSelectedEdge(null)}
@@ -380,7 +387,7 @@ export function GraphView({
                   setSelectedEdge(edge);
                 }}
               >
-                <title>{`${LINK_KIND_META[kind].label}关系：${edge.label || ""}`}</title>
+                <title>{t("graph.edgeTitle", { kind: t(LINK_KIND_META[kind].labelKey), label: edge.label || "" })}</title>
               </line>
             );
           })}
@@ -404,7 +411,7 @@ export function GraphView({
                 stroke="white"
                 strokeWidth={node.id === activeNoteId ? 3 : 2}
               />
-              <title>{node.kind === "concept" ? `概念：${node.title}` : node.title}</title>
+              <title>{node.kind === "concept" ? t("graph.conceptTitle", { title: node.title }) : node.title}</title>
               <text
                 x={node.x}
                 y={node.y + node.r + 12}
@@ -421,13 +428,13 @@ export function GraphView({
         {selectedEdge ? (
           <div className="graph-edge-detail" role="status">
             <span className={`relation-kind is-${selectedEdge.kind ?? "note"}`}>
-              {LINK_KIND_META[(selectedEdge.kind ?? "note") as LinkKind].label}
+              {t(LINK_KIND_META[(selectedEdge.kind ?? "note") as LinkKind].labelKey)}
             </span>
-            <strong>{selectedEdge.label || "未命名关系"}</strong>
+            <strong>{selectedEdge.label || t("graph.edgeUntitled")}</strong>
             <p>{edgeNodeTitle(graph, selectedEdge.source)} {"->"} {edgeNodeTitle(graph, selectedEdge.target)}</p>
-            {selectedEdge.targetHeading ? <small>标题：{selectedEdge.targetHeading}</small> : null}
-            {selectedEdge.targetBlockId ? <small>块：#{selectedEdge.targetBlockId}</small> : null}
-            {selectedEdge.concept ? <small>概念：#{selectedEdge.concept}</small> : null}
+            {selectedEdge.targetHeading ? <small>{t("relation.heading")}：{selectedEdge.targetHeading}</small> : null}
+            {selectedEdge.targetBlockId ? <small>{t("relation.block")}：#{selectedEdge.targetBlockId}</small> : null}
+            {selectedEdge.concept ? <small>{t("relation.concept")}：#{selectedEdge.concept}</small> : null}
           </div>
         ) : null}
       </div>

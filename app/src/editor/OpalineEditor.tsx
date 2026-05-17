@@ -54,6 +54,7 @@ import { OpalineWidget } from "./extensions/widget";
 import { OpalineScript } from "./extensions/liveScript";
 import { BUILT_IN_WIDGETS, loadLiveComponentSettings } from "./liveComponentSettings";
 import { loadInstalledPluginsFromCache, type InstalledPluginWidget } from "./pluginRegistry";
+import { useI18n } from "../i18n";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -126,6 +127,7 @@ export function OpalineEditor({
   onSearchNotes,
   onOpenInternalLink,
 }: OpalineEditorProps) {
+  const { t } = useI18n();
   const [dialog, setDialog] = useState<InsertDialogState | null>(null);
   const [aiResult, setAiResult] = useState<AiResultState | null>(null);
   const [noteLinkDialogOpen, setNoteLinkDialogOpen] = useState(false);
@@ -233,65 +235,65 @@ export function OpalineEditor({
   }, [content, editor, scrollToBlockTarget]);
 
   if (!editor) {
-    return <div className="editor-empty">正在准备编辑器...</div>;
+    return <div className="editor-empty">{t("editor.empty")}</div>;
   }
 
   return (
     <section className="editor-shell" onClick={() => setContextMenu(null)}>
-      <div className="toolbar" aria-label="编辑工具栏">
-        <IconButton label="撤销" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
+      <div className="toolbar" aria-label={t("editor.toolbar")}>
+        <IconButton label={t("editor.undo")} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
           <Undo2 size={17} />
         </IconButton>
-        <IconButton label="重做" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
+        <IconButton label={t("editor.redo")} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
           <Redo2 size={17} />
         </IconButton>
         <span className="toolbar-divider" />
-        <IconButton label="标注块" onClick={() => insertCallout(editor)}>
+        <IconButton label={t("editor.callout")} onClick={() => insertCallout(editor, t)}>
           <MessageSquareQuote size={17} />
         </IconButton>
-        <IconButton label="双栏布局" onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
+        <IconButton label={t("editor.twoColumn")} onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
           <Columns2 size={17} />
         </IconButton>
-        <IconButton label="对照布局" onClick={() => editor.chain().focus().insertCompareLayout().run()}>
+        <IconButton label={t("editor.compare")} onClick={() => editor.chain().focus().insertCompareLayout().run()}>
           <TextCursorInput size={17} />
         </IconButton>
-        <IconButton label="旁注布局" onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
+        <IconButton label={t("editor.sidenote")} onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
           <PanelRight size={17} />
         </IconButton>
-        <IconButton label="可展开说明" onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
+        <IconButton label={t("editor.disclosure")} onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
           <span className="icon-math-display">⌄</span>
         </IconButton>
         <span className="toolbar-divider" />
-        <IconButton label="行内公式" onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
+        <IconButton label={t("editor.mathInline")} onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
           <Pi size={17} />
         </IconButton>
-        <IconButton label="公式块" onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
+        <IconButton label={t("editor.mathBlock")} onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
           <span className="icon-math-display">∑</span>
         </IconButton>
-        <IconButton label="插入图表" onClick={() => setDialog({ type: "mermaid", value: "graph TD\n  A[开始] --> B[完成]" })}>
+        <IconButton label={t("editor.mermaid")} onClick={() => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") })}>
           <GitBranch size={17} />
         </IconButton>
-        <IconButton label="链接到本篇标题/段落" onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
+        <IconButton label={t("editor.linkAtomic")} onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
           <LinkIcon size={17} />
         </IconButton>
-        <IconButton label="插入组件" onClick={() => setWidgetDialogOpen(true)}>
+        <IconButton label={t("editor.widget")} onClick={() => setWidgetDialogOpen(true)}>
           <Network size={17} />
         </IconButton>
         <IconButton
-          label="实验脚本笔记"
+          label={t("editor.script")}
           onClick={() => editor.chain().focus().insertOpalineScript().run()}
           disabled={!liveComponentSettings.experimentalScriptsEnabled}
         >
           <Code2 size={17} />
         </IconButton>
         {onSearchNotes ? (
-          <IconButton label="嵌入笔记" onClick={() => setEmbedDialogOpen(true)}>
+          <IconButton label={t("editor.embedNote")} onClick={() => setEmbedDialogOpen(true)}>
             <FileImage size={17} />
           </IconButton>
         ) : null}
         <button
           className="save-button"
-          data-tooltip={isSaving ? "保存中" : "保存"}
+          data-tooltip={isSaving ? t("action.saving") : t("action.save")}
           onClick={() => {
             const html = editor.getHTML();
             onChange(html);
@@ -300,7 +302,7 @@ export function OpalineEditor({
           disabled={isSaving}
         >
           <Save size={17} />
-          <span>{isSaving ? "保存中" : "保存"}</span>
+          <span>{isSaving ? t("action.saving") : t("action.save")}</span>
         </button>
       </div>
       <EditorContent editor={editor} className="editor-scroll" />
@@ -455,12 +457,12 @@ const runEditorAiAction = async (
   }
 };
 
-const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>) => {
+const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>, t: ReturnType<typeof useI18n>["t"]) => {
   editor
     .chain()
     .focus()
     .insertContent(
-      '<section data-opaline-callout="note"><p><strong>提示</strong></p><p>在这里写标注内容。</p></section><p></p>',
+      t("editor.calloutDefault"),
     )
     .run();
 };
@@ -1195,6 +1197,7 @@ function EditorContextMenu({
   canLinkNote: boolean;
   canEmbedNote: boolean;
 }) {
+  const { t } = useI18n();
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const submenuCloseTimer = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -1328,7 +1331,7 @@ function EditorContextMenu({
       >
         <ContextMenuItem icon={<FileImage size={17} />} label="图片" onClick={() => run(onImage)} />
         <ContextMenuItem icon={<Table2 size={17} />} label="表格" onClick={() => run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
-        <ContextMenuItem icon={<MessageSquareQuote size={17} />} label="标注块" onClick={() => run(() => insertCallout(editor))} />
+        <ContextMenuItem icon={<MessageSquareQuote size={17} />} label={t("editor.callout")} onClick={() => run(() => insertCallout(editor, t))} />
         <ContextMenuItem icon={<Columns2 size={17} />} label="双栏块" onClick={() => run(() => editor.chain().focus().insertTwoColumnLayout().run())} />
       </ContextMenuSubmenu>
       <ContextMenuSeparator />

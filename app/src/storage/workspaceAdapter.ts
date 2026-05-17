@@ -8,6 +8,7 @@ import type {
   SearchResult,
 } from "../domain/note";
 import type { InstalledPlugin } from "../editor/pluginRegistry";
+import type { LoadedLanguagePack } from "../i18n";
 
 export interface WorkspaceAdapter {
   defaultWorkspacePath(): Promise<string>;
@@ -32,6 +33,8 @@ export interface WorkspaceAdapter {
   revealInExplorer(path: string, notePath: string): Promise<void>;
   readSettings(path: string): Promise<Record<string, unknown>>;
   writeSettings(path: string, settings: Record<string, unknown>): Promise<void>;
+  listLanguagePacks?(path: string): Promise<LoadedLanguagePack[]>;
+  openLanguagePacksFolder?(path: string): Promise<void>;
   openPluginsFolder?(path: string): Promise<void>;
   listInstalledPlugins?(path: string): Promise<InstalledPlugin[]>;
   copyWorkspace?(source: string, destination: string): Promise<void>;

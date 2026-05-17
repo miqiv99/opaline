@@ -109,6 +109,14 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     await invoke("write_settings", { path, settings });
   },
 
+  async listLanguagePacks(path: string) {
+    return invoke("list_language_packs", { path });
+  },
+
+  async openLanguagePacksFolder(path: string) {
+    await invoke("open_language_packs_folder", { path });
+  },
+
   async openPluginsFolder(path: string) {
     await invoke("open_plugins_folder", { path });
   },
