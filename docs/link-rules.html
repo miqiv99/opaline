@@ -20,19 +20,19 @@
         <pre><code>&lt;span data-opaline-unresolved="Title"&gt;[[Title]]&lt;/span&gt;</code></pre>
 
         <h2>Four Relationship Types</h2>
-        <p>The data model and graph view now distinguish four relationship types. The editor now exposes ordinary-user flows for copying the current block link and inserting links to headings or blocks in the current note. Concept-link creation from selected text is still a later step.</p>
+        <p>The data model and relationship-map view now distinguish four relationship types. The editor now exposes ordinary-user flows for copying the current block link and inserting links to headings or blocks in the current note. Concept-link creation from selected text is still a later step.</p>
         <ul>
           <li><strong>File-level:</strong> links to a note.</li>
           <li><strong>Heading-level:</strong> links to a heading inside a note.</li>
           <li><strong>Block-level:</strong> links to a stable paragraph, card, table, quote block, or other block.</li>
-          <li><strong>Concept-level:</strong> links to a concept node. Tags are currently used as concept nodes in the graph.</li>
+          <li><strong>Concept-level:</strong> links to a concept node. Tags are currently used as concept nodes in the relationship map.</li>
         </ul>
         <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;Target note&lt;/a&gt;
 &lt;a href="target.html#Research-Question" data-opaline-link="note-id" data-opaline-link-kind="heading"&gt;Research Question&lt;/a&gt;
 &lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;intro block&lt;/a&gt;
 &lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
-        <p>The graph renders these as different edge types: file, heading, block, and concept. This allows filtering by relationship type instead of treating every link as the same kind of edge.</p>
-        <p>The full graph view can focus on the active note's neighborhood and lets users click an edge to inspect its relationship type, source, target, and any heading, block, or concept metadata.</p>
+        <p>The relationship map renders these as different edge types: file, heading, block, and concept. This allows filtering by relationship type instead of treating every link as the same kind of edge.</p>
+        <p>The full relationship-map view can focus on the active note's context and lets users click an edge to inspect its relationship type, source, target, and any heading, block, or concept metadata.</p>
 
         <h2>Ordinary <code>&lt;a&gt;</code> Links</h2>
         <ul>
@@ -50,7 +50,7 @@
 
         <h2>Live Components and Plugins</h2>
         <p>Live components are represented as controlled, readable HTML. Settings separate built-in widgets, installed plugin widgets, and experimental script notes.</p>
-        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;Opaline widget: Current note neighborhood&lt;/opaline-widget&gt;
+        <pre><code>&lt;opaline-widget type="local-graph" title="Current note context"&gt;Opaline widget: Current note context&lt;/opaline-widget&gt;
 &lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly"&gt;Opaline widget: Network status&lt;/opaline-widget&gt;
 &lt;opaline-script title="Experimental script" language="javascript"&gt;const status = await opaline.net.fetch("http://192.168.1.1/status");&lt;/opaline-script&gt;</code></pre>
         <p>Opaline may render built-in widget types such as <code>query</code>, <code>chart</code>, and <code>local-graph</code>. Plugin widgets are handled by scripts installed under <code>.opaline/plugins</code>, with <code>manifest.json</code> mapping widget types to script files while notes store only parameters. <code>&lt;opaline-script&gt;</code> remains the per-note experimental script escape hatch.</p>

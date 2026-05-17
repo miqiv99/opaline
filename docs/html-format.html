@@ -74,7 +74,7 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
   &lt;p&gt;Three reasons: write consistency, query complexity, and operational overhead.&lt;/p&gt;
 &lt;/details&gt;
 
-&lt;!-- Markdown: no native equivalent — Obsidian callouts don't collapse --&gt;</code></pre>
+&lt;!-- Markdown: no native equivalent without extension-specific syntax --&gt;</code></pre>
 
         <h2>Multilingual Support</h2>
         <p>HTML has strong multilingual support when documents are saved as UTF-8 and correctly annotated.</p>
@@ -146,9 +146,9 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
 
         <h2>Live Component and Plugin Policy</h2>
         <p>Opaline can store live components as custom elements while keeping the note readable outside the app. Settings separate built-in widgets, installed plugin widgets, and experimental script notes.</p>
-        <p>Built-ins include <code>query</code>, <code>chart</code>, and <code>local-graph</code>. Third-party widget scripts live in workspace plugin folders such as <code>.opaline/plugins/network-tools/</code>, while notes store only widget parameters.</p>
-        <pre><code>&lt;opaline-widget type="local-graph" title="Current note neighborhood"&gt;
-  Opaline widget: Current note neighborhood
+        <p>Built-ins include <code>query</code>, <code>chart</code>, and <code>local-graph</code>. External widget scripts live in workspace extension folders such as <code>.opaline/plugins/network-tools/</code>, while notes store only widget parameters.</p>
+        <pre><code>&lt;opaline-widget type="local-graph" title="Current note context"&gt;
+  Opaline widget: Current note context
 &lt;/opaline-widget&gt;
 
 &lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly" refresh="5s"&gt;

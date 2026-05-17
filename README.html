@@ -127,19 +127,19 @@
         </nav>
 
         <h2>Core Thesis</h2>
-        <p>Opaline should not begin as a social platform, forum, website builder, or full Obsidian clone. The first product should be a reliable local tool for one person.</p>
+        <p>Opaline should not begin as a social platform, forum, website builder, or clone of an existing notes app. The first product should be a reliable local tool for one person.</p>
 
         <pre><code>speak -&gt; auto-record -&gt; save -&gt; search -&gt; link -&gt; publish later</code></pre>
 
         <p>The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.</p>
 
         <h2>Current Product Loop</h2>
-        <p>The current prototype splits users from the first screen. <strong>认真记记</strong> opens a more Obsidian-like workspace for deliberate note work. <strong>随便记记</strong> opens Today, where users can talk first and let Opaline turn the conversation into a durable daily HTML note.</p>
+        <p>The current prototype splits users from the first screen. <strong>认真记记</strong> opens a focused knowledge workspace for deliberate note work. <strong>随便记记</strong> opens Today, where users can talk first and let Opaline turn the conversation into a durable daily HTML note.</p>
         <ul>
           <li>Opaline auto-initializes a default workspace in the user's documents folder under <code>Opaline</code>.</li>
           <li>The Today page is a minimal conversation surface: user turns are written to the daily HTML note before AI replies.</li>
           <li>The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.</li>
-          <li>The right inspector contains note operations, outline, outgoing links, backlinks, and a compact graph preview.</li>
+          <li>The right inspector contains note operations, outline, outgoing links, mentions, and a compact relationship-map preview.</li>
           <li>Settings owns workspace location, AI provider, custom API base URL, model, API key, model testing, model fetching, and the live-component/plugin policy.</li>
           <li>Changing the workspace location is remembered; file migration from the previous workspace is the next needed step.</li>
         </ul>
@@ -154,17 +154,17 @@
           <li>AI settings with provider selection, custom API base URL, model, API key, explicit save, model testing, and model fetching.</li>
           <li>Clean Opaline HTML Profile helpers and tests.</li>
           <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
-          <li>Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.</li>
-          <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for graph modeling.</li>
+          <li>Link scanning for normal links, wiki-style note links, block references, mentions, outgoing links, and broken links.</li>
+          <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for relationship-map modeling.</li>
           <li>The editor can copy the current block link and insert links to headings or blocks in the current note using stable block IDs.</li>
-          <li>Settings now include an Obsidian-inspired third-party plugin panel with safe mode, install status, refresh, and an action to open <code>.opaline/plugins</code>.</li>
+          <li>Settings now include an extension panel with plugin protection, install status, refresh, and an action to open <code>.opaline/plugins</code>.</li>
           <li><code>&lt;opaline-widget&gt;</code> can store built-in widgets and installed plugin widgets such as <code>network-status</code>. Notes store parameters such as <code>type</code>, <code>target</code>, <code>endpoint</code>, and <code>refresh</code>; scripts live in the workspace plugin folder.</li>
           <li><code>&lt;opaline-script&gt;</code> exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with <code>opaline.render()</code> or call HTTP/HTTPS APIs through <code>opaline.net.fetch()</code>.</li>
           <li>Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.</li>
           <li>Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.</li>
           <li>File-pane right-click menu for opening, duplicating, favoriting, copying note paths, and opening local history.</li>
           <li>Built-in local note history stores HTML snapshots in workspace metadata. It is not Git, does not require Git to be installed, keeps the last 30 days by default, and restores only after preview and confirmation.</li>
-          <li>Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters, current-note neighborhood mode, and edge details.</li>
+          <li>Focused knowledge workspace with a left ribbon, file explorer, collapsible left/right panels, relationship-map preview, and a full relationship view with relation-type filters, current-note context mode, and edge details.</li>
         </ul>
         <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations need more polish, and the HTML-native editor interactions need more polish.</p>
         <p>Known residual issue: block links can open the target note and scroll to the target block, but the visible target highlight is still unreliable in the desktop editor and may not appear. This should be fixed in a focused follow-up.</p>
@@ -173,7 +173,7 @@
         <ul>
           <li><strong>Live components / Web Components:</strong> Settings keep built-in widgets and experimental script notes separate, while third-party widgets are loaded from <code>.opaline/plugins/&lt;plugin-id&gt;/</code>. A plugin <code>manifest.json</code> maps component types such as <code>network-status</code> to script files; notes store parameter declarations such as <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code>.</li>
           <li><strong>DOM-level atomic links:</strong> blocks keep <code>data-opaline-block-id</code>, and the editor now exposes copy/insert flows for stable heading and block links.</li>
-          <li><strong>Dynamic graph:</strong> the graph keeps file, heading, block, and concept relations separate, can focus on the active note neighborhood, and lets users inspect edge details.</li>
+          <li><strong>Dynamic relationship map:</strong> the map keeps file, heading, block, and concept relations separate, can focus on the active note context, and lets users inspect edge details.</li>
         </ul>
 
         <h2>Today Conversation</h2>
@@ -189,21 +189,21 @@
           <li>Tauri 2 for the native shell</li>
           <li>React for UI</li>
           <li>Tiptap on ProseMirror for rich editing</li>
-          <li>SQLite for metadata, search indexes, links, backlinks, tags, app state, and optional embeddings</li>
+          <li>SQLite for metadata, search indexes, links, mentions, tags, app state, and optional embeddings</li>
           <li>File system storage for HTML notes and assets</li>
         </ul>
         <p>Local history lives under <code>.opaline/history/</code> beside other app metadata, not in <code>notes/</code>. Git-friendly workflows may become an advanced optional feature later, but Git is not the basic history path.</p>
 
         <h2>Short-Term Roadmap</h2>
         <ol>
-          <li>Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.</li>
+          <li>Polish the serious workspace so the file pane, side panels, and editor feel coherent.</li>
           <li>Add workspace migration when users change locations.</li>
           <li>Polish file context actions and add richer controls for local history, including future retention choices such as 7, 30, 90 days, forever, or size caps.</li>
-          <li>Improve the graph view beyond the first neighborhood and edge-detail pass: better layout, saved graph presets, and clearer navigation from edges back to exact targets.</li>
+          <li>Improve the relationship-map view beyond the first context and edge-detail pass: better layout, saved map presets, and clearer navigation from edges back to exact targets.</li>
           <li>Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.</li>
           <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>
           <li>Continue hardening the Opaline HTML Profile with parser-based validation and tests.</li>
-          <li>Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.</li>
+          <li>Deepen SQLite FTS search, metadata scanning, mentions, and broken-link repair.</li>
           <li>Add AI retrieval over local notes with visible sources before generated answers.</li>
           <li>Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.</li>
           <li>Later: static publishing and reader-facing concept search over public notes.</li>

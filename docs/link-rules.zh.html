@@ -20,19 +20,19 @@
         <pre><code>&lt;span data-opaline-unresolved="标题"&gt;[[标题]]&lt;/span&gt;</code></pre>
 
         <h2>四类关系</h2>
-        <p>当前数据模型和图谱已经区分四种关系。编辑器已经提供复制当前块链接、从当前笔记选择标题或块并插入链接的普通用户入口；从选中文字创建“概念级关系”的交互仍是后续步骤。</p>
+        <p>当前数据模型和关系图已经区分四种关系。编辑器已经提供复制当前块链接、从当前笔记选择标题或块并插入链接的普通用户入口；从选中文字创建“概念级关系”的交互仍是后续步骤。</p>
         <ul>
           <li><strong>文件级：</strong>链接到某篇笔记。</li>
           <li><strong>标题级：</strong>链接到某篇笔记的某个标题。</li>
           <li><strong>块级：</strong>链接到某个段落、卡片、表格、引用块等稳定块。</li>
-          <li><strong>概念级：</strong>链接到一个概念节点，当前标签会先进入图谱成为概念节点。</li>
+          <li><strong>概念级：</strong>链接到一个概念节点，当前标签会先进入关系图成为概念节点。</li>
         </ul>
         <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;目标笔记&lt;/a&gt;
 &lt;a href="target.html#研究问题" data-opaline-link="note-id" data-opaline-link-kind="heading"&gt;研究问题&lt;/a&gt;
 &lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-intro"&gt;某段内容&lt;/a&gt;
 &lt;a href="opaline://concept/RAG" data-opaline-link-kind="concept" data-opaline-concept="RAG"&gt;RAG&lt;/a&gt;</code></pre>
-        <p>图谱会把这些关系渲染为不同类型的边：文件、标题、块、概念。这样后续可以按关系类型过滤，而不是把所有链接都当作同一种边。</p>
-        <p>完整图谱现在可以聚焦当前笔记邻域，也可以点击边查看关系类型、来源、目标，以及具体标题、块或概念元数据。</p>
+        <p>关系图会把这些关系渲染为不同类型的边：文件、标题、块、概念。这样后续可以按关系类型过滤，而不是把所有链接都当作同一种边。</p>
+        <p>完整关系图现在可以聚焦当前笔记关联范围，也可以点击边查看关系类型、来源、目标，以及具体标题、块或概念元数据。</p>
 
         <h2>普通 <code>&lt;a&gt;</code> 链接</h2>
         <ul>
@@ -50,7 +50,7 @@
 
         <h2>活组件与插件</h2>
         <p>活组件使用受控、可读 HTML 表达。设置页把内置组件、已安装插件组件和实验性脚本笔记分开。</p>
-        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记邻域"&gt;Opaline widget: 当前笔记邻域&lt;/opaline-widget&gt;
+        <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记关联范围"&gt;Opaline widget: 当前笔记关联范围&lt;/opaline-widget&gt;
 &lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly"&gt;Opaline widget: 网络设备状态&lt;/opaline-widget&gt;
 &lt;opaline-script title="实验脚本" language="javascript"&gt;const status = await opaline.net.fetch("http://192.168.1.1/status");&lt;/opaline-script&gt;</code></pre>
         <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。插件组件由 <code>.opaline/plugins</code> 里的脚本接管，<code>manifest.json</code> 把组件类型映射到脚本文件，笔记只保存参数。<code>&lt;opaline-script&gt;</code> 仍是单篇笔记里的实验性脚本入口。</p>

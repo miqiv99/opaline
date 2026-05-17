@@ -6,13 +6,13 @@ This Markdown file is kept as the repository landing page. Start from [index.htm
 
 It starts as a personal desktop note app, but the larger idea is broader: notes should be durable local documents that can be edited comfortably, searched deeply, linked together, published as webpages, and eventually queried by AI with clear citations.
 
-Obsidian proved that local Markdown files can become a serious personal knowledge base. Opaline explores a related but different bet:
+Local Markdown tools proved that plain files can become a serious personal knowledge base. Opaline explores a related but different bet:
 
 > Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.
 
 ## Core Thesis
 
-Opaline should not begin as a social platform, forum, website builder, or full Obsidian clone.
+Opaline should not begin as a social platform, forum, website builder, or clone of an existing notes app.
 
 The first product should be a reliable local tool for one person:
 
@@ -26,11 +26,11 @@ The long-term direction can grow toward public knowledge sites and reader-facing
 
 The current prototype now splits users naturally from the first screen:
 
-- **认真记记** opens a more Obsidian-like workspace for users who know what they want to record.
+- **认真记记** opens a focused knowledge workspace for users who know what they want to record.
 - **随便记记** opens Today, where users can talk first and let the app turn the conversation into a durable daily HTML note.
 - Today writes the user's raw text into the daily note before AI replies, so casual conversation becomes local knowledge instead of disposable chat.
 - The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.
-- The right inspector now contains note operations, outline, outgoing links, backlinks, and a small graph preview.
+- The right inspector now contains note operations, outline, outgoing links, mentions, and a small relationship-map preview.
 - Settings owns workspace location, AI configuration, and the live-component/plugin policy so the note/editor surface stays focused.
 
 The immediate next product gap is workspace migration: changing the workspace location should offer to copy or move the previous workspace files with an explicit confirmation flow.
@@ -48,17 +48,17 @@ The current app is no longer only a scaffold. It already has the first usable de
 - AI settings with provider selection, custom API base URL, model name, API key, explicit save, model test, and model fetching.
 - Clean Opaline HTML Profile helpers and tests.
 - SQLite-backed metadata/search direction, with FTS participation already introduced for search.
-- Link scanning for normal links, wiki-style note links, block references, backlinks, outgoing links, and broken links.
-- Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for the graph model.
+- Link scanning for normal links, wiki-style note links, block references, mentions, outgoing links, and broken links.
+- Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for the relationship-map model.
 - The editor can copy a stable link to the current block and insert links to headings or blocks in the current note using stored block IDs.
-- Settings now include an Obsidian-inspired third-party plugin panel: safe-mode toggle, install status, refresh, and an "open plugins folder" action for `.opaline/plugins`.
+- Settings now include an extension panel: plugin protection, install status, refresh, and an "open extensions folder" action for `.opaline/plugins`.
 - `<opaline-widget>` can store built-in widgets and installed plugin widgets such as `network-status`. Notes only store parameters such as `type`, `target`, `endpoint`, and `refresh`; plugin scripts live in the workspace plugin folder.
 - `<opaline-script>` exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with `opaline.render()` or call HTTP/HTTPS APIs through `opaline.net.fetch()`. Saved HTML files include a small live runtime so they also try to run in a normal browser, where browser CORS rules still apply.
 - Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.
 - Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.
 - File-pane right-click menu for opening, duplicating, favoriting, copying note paths, and opening local history.
 - Built-in local note history stores HTML snapshots under workspace metadata. It is not Git, and basic users do not need Git installed. The first version keeps snapshots for the last 30 days by default and restores only after preview and confirmation.
-- Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters, current-note neighborhood mode, and edge details.
+- Focused knowledge workspace with a left ribbon, file explorer, collapsible left/right panels, relationship-map preview, and a full relationship view with relation-type filters, current-note context mode, and edge details.
 
 Still rough:
 
@@ -146,7 +146,7 @@ The product advantage is not merely "using HTML". The advantage is maintaining c
 - Tauri 2 for the native shell
 - React for UI
 - Tiptap on ProseMirror for rich editing
-- SQLite for metadata, search indexes, links, backlinks, tags, app state, and optional embeddings
+- SQLite for metadata, search indexes, links, mentions, tags, app state, and optional embeddings
 - File system storage for HTML notes and assets
 
 ### Future Targets
@@ -245,8 +245,8 @@ Blocks can later receive stable identifiers:
 Live components are stored as readable custom elements rather than arbitrary scripts. Settings expose built-in widgets, installed plugin widgets, and the separate experimental script-note switch.
 
 ```html
-<opaline-widget type="local-graph" title="Current note neighborhood">
-  Opaline widget: Current note neighborhood
+<opaline-widget type="local-graph" title="Current note context">
+  Opaline widget: Current note context
 </opaline-widget>
 
 <opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly">
@@ -293,10 +293,10 @@ Opaline should distinguish identity from location.
 - Paths should be user-facing locations that may change.
 - Links should store both an `href` and a stable Opaline target ID when possible.
 - Links should also keep a relation kind: file, heading, block, or concept.
-- SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.
+- SQLite can resolve IDs, paths, titles, aliases, mentions, and broken links.
 
-This allows notes to be renamed or moved without losing graph meaning.
-It also allows the graph to show different kinds of knowledge relationships instead of treating every edge as the same.
+This allows notes to be renamed or moved without losing relationship meaning.
+It also allows the relationship map to show different kinds of knowledge relationships instead of treating every edge as the same.
 
 ## Storage Model
 
@@ -312,7 +312,7 @@ Files store durable content:
 SQLite stores derived and app-specific data:
 
 - search index
-- backlinks
+- mentions
 - outgoing links
 - tags
 - titles and aliases
@@ -354,7 +354,7 @@ React UI
 
 - note identity
 - note metadata
-- links and backlinks
+- links and mentions
 - tags
 - assets
 - search indexing
@@ -580,12 +580,12 @@ Goal: make notes connect.
 - `[[note links]]`
 - Resolve links to stable IDs
 - Update links when notes move
-- Backlinks
+- Mentions
 - Outgoing links
 - Broken-link detection
 - Daily notes
 - Today chat that appends user and AI turns into the daily HTML note
-- Basic graph data
+- Basic relationship-map data
 
 Success criteria:
 
@@ -639,7 +639,7 @@ Goal: make selected notes public.
 - Generate static HTML site
 - Include assets
 - Include search index
-- Include backlinks and table of contents
+- Include mentions and table of contents
 - Support custom theme basics
 - Preserve public/private boundaries
 
@@ -687,7 +687,7 @@ Success criteria:
 - Should aliases live in `<meta>` tags, JSON metadata, or visible note properties?
 - How should assets move when a note moves?
 - How should private links behave when exporting public notes?
-- Should backlinks be computed eagerly or lazily?
+- Should mentions be computed eagerly or lazily?
 - Which SQLite search strategy should be used first?
 - Should embeddings be stored locally per workspace?
 - How should AI adapters handle privacy and provider choice?
@@ -713,15 +713,15 @@ These may become possible later. They should not define the first working versio
 
 ## Short-Term Roadmap
 
-1. Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.
+1. Polish the serious workspace so the file pane, side panels, and editor feel coherent.
 2. Add workspace migration when users change locations.
 3. Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.
-4. Improve the graph view beyond the first neighborhood and edge-detail pass: better layout, saved graph presets, and clearer navigation from edges back to exact targets.
+4. Improve the relationship-map view beyond the first context and edge-detail pass: better layout, saved map presets, and clearer navigation from edges back to exact targets.
 5. Fix block-link target highlighting so opening a target note, scrolling to the block, and showing a visible highlight become a stable flow.
 6. Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.
 7. Improve HTML-native editing affordances so columns, sidenotes, callouts, embeds, and disclosure blocks feel like interactive blocks rather than hidden markup.
 8. Continue hardening the Opaline HTML Profile with parser-based validation and tests.
-9. Deepen SQLite FTS search, metadata scanning, backlinks, and broken-link repair.
+9. Deepen SQLite FTS search, metadata scanning, mentions, and broken-link repair.
 10. Add AI retrieval over local notes with visible sources before generated answers.
 11. Add explicit AI-assisted note operations: summarize, extract tags, suggest links, split notes, and create outlines.
 12. Later: static publishing and reader-facing concept search over public notes.

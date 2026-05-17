@@ -2751,7 +2751,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
 
   return (
     <section className="plugin-settings-content">
-      <div className="plugin-policy-list is-obsidian-like">
+      <div className="plugin-policy-list is-extension-panel">
         <PluginPolicyRow
           icon={<ShieldCheck size={17} />}
           title={t("plugin.safeMode")}

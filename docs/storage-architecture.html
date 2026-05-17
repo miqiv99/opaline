@@ -15,7 +15,7 @@
 
         <section lang="zh-Hans" aria-label="中文简介">
           <h2>中文概要</h2>
-          <p>这一页说明 Opaline 的本地存储和架构分层。HTML 文件是用户内容的真实来源，SQLite 只保存索引、反链、标签、最近访问、搜索缓存和可重建的派生数据。本地历史版本由 Opaline 内置管理，不依赖 Git。</p>
+          <p>这一页说明 Opaline 的本地存储和架构分层。HTML 文件是用户内容的真实来源，SQLite 只保存索引、提及关系、标签、最近访问、搜索缓存和可重建的派生数据。本地历史版本由 Opaline 内置管理，不依赖 Git。</p>
           <p>架构上应该把编辑器层、领域层、格式层和存储适配器分开。Tiptap 是实现细节，Opaline HTML 格式应该比具体编辑器更长寿。</p>
           <ul>
             <li><code>notes/</code> 保存用户真正的 HTML 笔记。</li>
@@ -76,7 +76,7 @@
         <h2>SQLite Stores Derived Data</h2>
         <ul>
           <li>search index</li>
-          <li>backlinks</li>
+          <li>mentions</li>
           <li>outgoing links</li>
           <li>relationship kinds and block-reference metadata</li>
           <li>tags</li>
@@ -95,7 +95,7 @@
           <li>Paths should be user-facing locations that may change.</li>
           <li>Links should store both an <code>href</code> and a stable Opaline target ID when possible.</li>
           <li>Links should also store or derive a relationship kind: file, heading, block, or concept.</li>
-          <li>SQLite can resolve IDs, paths, titles, aliases, backlinks, and broken links.</li>
+          <li>SQLite can resolve IDs, paths, titles, aliases, mentions, and broken links.</li>
         </ul>
 
         <h2>Architecture: Two Phases</h2>
@@ -199,7 +199,7 @@ Plugin host
           <li>AI plugins should clearly distinguish original note content from model-generated suggestions.</li>
         </ul>
 
-        <p>A good early implementation path is to build internal features as plugins first: backlinks, daily notes, Markdown import, HTML cleanup, and AI note summary can all use the same registration system. This tests the plugin API before exposing it to third-party developers.</p>
+        <p>A good early implementation path is to build internal features as plugins first: mentions, daily notes, Markdown import, HTML cleanup, and AI note summary can all use the same registration system. This tests the plugin API before exposing it to external extension developers.</p>
 
         <h2>Layers</h2>
         <h3>Note Format Layer</h3>
@@ -215,7 +215,7 @@ Plugin host
         <ul>
           <li>note identity</li>
           <li>note metadata</li>
-          <li>links and backlinks</li>
+          <li>links and mentions</li>
           <li>tags</li>
           <li>assets</li>
           <li>search indexing</li>

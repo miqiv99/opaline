@@ -2991,7 +2991,7 @@ textarea:focus-visible,
   margin-top: 16px;
 }
 
-.plugin-policy-list.is-obsidian-like {
+.plugin-policy-list.is-extension-panel {
   gap: 0;
   margin: 0;
   border: 1px solid var(--xz-border);
@@ -3011,7 +3011,7 @@ textarea:focus-visible,
   padding: 12px;
 }
 
-.plugin-policy-list.is-obsidian-like .plugin-policy-row {
+.plugin-policy-list.is-extension-panel .plugin-policy-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   border: 0;
@@ -3021,11 +3021,11 @@ textarea:focus-visible,
   padding: 17px 0;
 }
 
-.plugin-policy-list.is-obsidian-like .plugin-policy-row:last-child {
+.plugin-policy-list.is-extension-panel .plugin-policy-row:last-child {
   border-bottom: 0;
 }
 
-.plugin-policy-list.is-obsidian-like .plugin-policy-icon {
+.plugin-policy-list.is-extension-panel .plugin-policy-icon {
   display: none;
 }
 
@@ -3047,7 +3047,7 @@ textarea:focus-visible,
   font-size: 0.96rem;
 }
 
-.plugin-policy-list.is-obsidian-like .plugin-policy-row strong,
+.plugin-policy-list.is-extension-panel .plugin-policy-row strong,
 .plugin-market-card h3 {
   font-size: 1rem;
 }
@@ -4469,12 +4469,12 @@ textarea:focus-visible,
   }
 
   .settings-row-list,
-  .plugin-policy-list.is-obsidian-like {
+  .plugin-policy-list.is-extension-panel {
     padding: 16px 18px;
   }
 
   .settings-choice-row,
-  .plugin-policy-list.is-obsidian-like .plugin-policy-row,
+  .plugin-policy-list.is-extension-panel .plugin-policy-row,
   .plugin-example-row {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
