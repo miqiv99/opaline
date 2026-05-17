@@ -1013,6 +1013,7 @@ export function App() {
     >
       {(view === "note" || view === "graph" || view === "settings") ? (
         <NoteRibbon
+          activeView={view}
           leftCollapsed={leftPanelCollapsed}
           onHome={() => setView("home")}
           onNotes={() => setView("note")}
@@ -1386,16 +1387,31 @@ function EntryChoiceView({
 }) {
   const { t } = useI18n();
   return (
-    <section className="entry-choice" aria-label={t("home.serious")}>
-      <button type="button" className="entry-choice-card" onClick={onSerious}>
-        <NotebookPen size={82} strokeWidth={1.7} />
-        <span>{t("home.serious")}</span>
-      </button>
+    <section className="entry-choice" aria-label="Opaline">
+      <div className="entry-choice-panel">
+        <div className="entry-choice-header">
+          <span className="entry-choice-mark" aria-hidden="true">
+            <img src={leafLogo} alt="" />
+          </span>
+          <div>
+            <strong>Opaline</strong>
+            <span>{t("home.localFirstHint")}</span>
+          </div>
+        </div>
+        <div className="entry-choice-grid">
+          <button type="button" className="entry-choice-card is-primary" onClick={onSerious}>
+            <NotebookPen size={34} strokeWidth={1.8} />
+            <span>{t("home.serious")}</span>
+            <small>{t("home.seriousDesc")}</small>
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
 
 function NoteRibbon({
+  activeView,
   leftCollapsed,
   onHome,
   onNotes,
@@ -1404,6 +1420,7 @@ function NoteRibbon({
   onSettings,
   onImport,
 }: {
+  activeView: AppView;
   leftCollapsed: boolean;
   onHome: () => void;
   onNotes: () => void;
@@ -1421,16 +1438,16 @@ function NoteRibbon({
       <button type="button" onClick={onHome} data-tooltip={t("nav.backHome")} aria-label={t("nav.backHome")}>
         <Home size={18} />
       </button>
-      <button type="button" onClick={onNotes} data-tooltip={t("nav.notes")} aria-label={t("nav.notes")}>
+      <button type="button" className={activeView === "note" ? "is-active" : ""} onClick={onNotes} data-tooltip={t("nav.notes")} aria-label={t("nav.notes")} aria-current={activeView === "note" ? "page" : undefined}>
         <BookOpen size={18} />
       </button>
       <button type="button" onClick={onImport} data-tooltip={t("action.import")} aria-label={t("action.import")}>
         <FileUp size={18} />
       </button>
-      <button type="button" onClick={onGraph} data-tooltip={t("nav.graph")} aria-label={t("nav.graph")}>
+      <button type="button" className={activeView === "graph" ? "is-active" : ""} onClick={onGraph} data-tooltip={t("nav.graph")} aria-label={t("nav.graph")} aria-current={activeView === "graph" ? "page" : undefined}>
         <Network size={18} />
       </button>
-      <button type="button" className="ribbon-bottom" onClick={onSettings} data-tooltip={t("nav.settings")} aria-label={t("nav.settings")}>
+      <button type="button" className={activeView === "settings" ? "ribbon-bottom is-active" : "ribbon-bottom"} onClick={onSettings} data-tooltip={t("nav.settings")} aria-label={t("nav.settings")} aria-current={activeView === "settings" ? "page" : undefined}>
         <Settings size={18} />
       </button>
     </nav>
@@ -1748,7 +1765,10 @@ function NoteListItem({
       onContextMenu={onContextMenu}
       onClick={onOpen}
     >
-      <span>{note.favorite ? "★ " : ""}{note.title}</span>
+      <span className="note-title">
+        {note.favorite ? <Star size={12} fill="currentColor" /> : null}
+        <span>{note.title}</span>
+      </span>
       {showPath ? <small>{note.path}</small> : null}
       {note.tags.length ? <small>{note.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
     </button>
@@ -2040,16 +2060,30 @@ function TodayView({
   return (
     <section className="today-home">
       <div className="today-chat">
+        <div className="today-capture-banner">
+          <NotebookPen size={18} />
+          <div>
+            <strong>{t("today.captureTitle")}</strong>
+            <span>{t("today.captureDesc")}</span>
+          </div>
+        </div>
         <section className="today-thread" aria-label={t("app.title.today")}>
-          {messages.map((message) => (
-            <article key={message.id} className={`today-message is-${message.role}`}>
-              <div>
-                <strong>{message.role === "user" ? t("common.me") : t("common.ai")}</strong>
-                <span>{formatTime(message.createdAt, locale)}</span>
-              </div>
-              <div dangerouslySetInnerHTML={{ __html: paragraphsFromPlainText(message.content) }} />
-            </article>
-          ))}
+          {messages.length ? (
+            messages.map((message) => (
+              <article key={message.id} className={`today-message is-${message.role}`}>
+                <div>
+                  <strong>{message.role === "user" ? t("common.me") : t("common.ai")}</strong>
+                  <span>{formatTime(message.createdAt, locale)}</span>
+                </div>
+                <div dangerouslySetInnerHTML={{ __html: paragraphsFromPlainText(message.content) }} />
+              </article>
+            ))
+          ) : (
+            <div className="today-empty">
+              <strong>{t("today.emptyTitle")}</strong>
+              <span>{t("today.emptyDesc")}</span>
+            </div>
+          )}
         </section>
 
         <textarea
