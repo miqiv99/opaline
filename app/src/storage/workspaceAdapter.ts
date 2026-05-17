@@ -4,6 +4,7 @@ import type {
   ImportedAsset,
   NewNoteInput,
   NoteDocument,
+  NoteHistoryEntry,
   NoteSummary,
   SearchResult,
 } from "../domain/note";
@@ -19,7 +20,10 @@ export interface WorkspaceAdapter {
   createNote(path: string, input: NewNoteInput): Promise<NoteDocument>;
   createDailyNote(path: string): Promise<NoteDocument>;
   readNote(path: string, notePath: string): Promise<NoteDocument>;
-  saveNote(path: string, note: NoteDocument): Promise<NoteDocument>;
+  saveNote(path: string, note: NoteDocument, options?: { createHistory?: boolean }): Promise<NoteDocument>;
+  listNoteHistory(path: string, notePath: string, noteId: string): Promise<NoteHistoryEntry[]>;
+  readNoteHistory(path: string, notePath: string, noteId: string, snapshotId: string): Promise<string>;
+  restoreNoteHistory(path: string, notePath: string, noteId: string, snapshotId: string): Promise<NoteDocument>;
   searchNotes(path: string, query: string): Promise<SearchResult[]>;
   listBacklinks(path: string, noteId: string): Promise<SearchResult[]>;
   graphData(path: string): Promise<GraphData>;

@@ -32,12 +32,13 @@
   .opaline/
     index.sqlite
     settings.json
-    cache/</code></pre>
+    cache/
+    history/</code></pre>
 
         <ul>
           <li><code>notes/</code> 保存用户创作的持久 HTML 笔记。</li>
           <li><code>assets/</code> 保存图片和附件。</li>
-          <li><code>.opaline/</code> 保存可重建的应用元数据和缓存。</li>
+          <li><code>.opaline/</code> 保存可重建的应用元数据、缓存、设置和本地历史。</li>
           <li>删除 <code>.opaline/index.sqlite</code> 不应导致用户内容丢失。</li>
           <li>工作区应该在普通文件浏览器中保持可查看。</li>
           <li>工作区位置属于用户设置，不应该成为首次启动门槛。</li>
@@ -47,6 +48,15 @@
         <blockquote>
           <p>HTML 文件是规范数据源。SQLite 是有用的、快速的、可重建的。</p>
         </blockquote>
+
+        <h2>本地历史版本</h2>
+        <p>Opaline 内置本地历史，用于从误改、误删、重命名和移动等操作中恢复。它不是 Git，也不需要用户安装 Git。快照位于 <code>.opaline/history/</code>，不会污染 <code>notes/</code>，也不会被当成用户主动写作的笔记。</p>
+        <pre><code>.opaline/
+  history/
+    {note_id}/
+      {timestamp}.html</code></pre>
+        <p>第一版默认保留最近 30 天。新建笔记会保存初始快照；手动保存时如果内容和上一个快照不同，会保存新快照；删除、重命名、移动前会先保存快照。恢复历史版本时，Opaline 会先为当前版本再创建一份快照，然后用选中的 HTML 覆盖当前笔记，并重建 SQLite 索引。</p>
+        <p>Git 以后可以作为高级可选工作流，但不是基础用户的历史版本路径。</p>
 
         <h2>文件系统保存持久内容</h2>
         <ul>

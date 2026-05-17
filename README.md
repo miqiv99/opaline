@@ -56,14 +56,15 @@ The current app is no longer only a scaffold. It already has the first usable de
 - `<opaline-script>` exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with `opaline.render()` or call HTTP/HTTPS APIs through `opaline.net.fetch()`. Saved HTML files include a small live runtime so they also try to run in a normal browser, where browser CORS rules still apply.
 - Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.
 - Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.
-- File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.
+- File-pane right-click menu for opening, duplicating, favoriting, copying note paths, and opening local history.
+- Built-in local note history stores HTML snapshots under workspace metadata. It is not Git, and basic users do not need Git installed. The first version keeps snapshots for the last 30 days by default and restores only after preview and confirmation.
 - Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters, current-note neighborhood mode, and edge details.
 
 Still rough:
 
 - Workspace migration is not implemented yet.
 - Ordinary-user UI for creating concept-level links from selected text is not implemented yet.
-- File operations are still limited; rename, delete, move, reveal in system explorer, and history should be added deliberately.
+- File operations still need more polish, especially migration-aware moves and richer history controls.
 - The editor UI still needs more polish so HTML-only advantages feel obvious without exposing raw HTML to users.
 - Known residual issue: block links can open the target note and scroll to the target block, but the visible target highlight is still unreliable in the desktop editor and may not appear. This should be fixed in a focused follow-up.
 
@@ -178,6 +179,7 @@ MyNotes/
     index.sqlite
     settings.json
     cache/
+    history/
 ```
 
 Rules:
@@ -185,8 +187,11 @@ Rules:
 - `notes/` stores durable user-authored HTML.
 - `assets/` stores images and attachments.
 - `.opaline/` stores rebuildable app metadata and cache.
+- `.opaline/history/` stores local HTML snapshots for recovery. It is app-managed history, not a Git repository.
 - Deleting `.opaline/index.sqlite` should not destroy user content.
 - The workspace should remain inspectable in normal file browsers.
+
+Local history snapshots are created for new notes, manual saves when content changes, and risky operations such as delete, rename, and move. Restore previews the old HTML first, then snapshots the current version before replacing the note file. The default retention window is 30 days. Git-friendly workflows may become an advanced optional feature later, but Git is not the basic history path.
 
 ## Note Format
 

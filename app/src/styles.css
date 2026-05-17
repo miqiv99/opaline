@@ -2887,6 +2887,12 @@ button:disabled {
   stroke-linecap: round;
 }
 
+.history-leaf path {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+}
+
 .note-dialog h2 {
   margin: 0 0 4px;
   font-size: 1.2rem;
@@ -3025,6 +3031,153 @@ button:disabled {
   background: linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
   color: white;
   box-shadow: var(--xz-shadow-sm);
+}
+
+.history-dialog {
+  width: min(980px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 270px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 420px;
+  max-height: min(620px, calc(100vh - 230px));
+}
+
+.history-list {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 10px;
+}
+
+.history-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--xz-text-primary);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.history-list button:hover,
+.history-list button.is-active {
+  border-color: var(--xz-green);
+  background: var(--xz-green-soft);
+  color: var(--xz-green-deep);
+}
+
+.history-list button span,
+.history-list button small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-list button small {
+  color: var(--xz-text-secondary);
+  font-size: 0.76rem;
+}
+
+.history-empty,
+.history-preview-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 220px;
+  color: var(--xz-text-secondary);
+  text-align: center;
+}
+
+.history-empty strong {
+  color: var(--xz-text-primary);
+}
+
+.history-preview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--xz-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.history-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--xz-border);
+  padding: 10px 12px;
+}
+
+.history-preview-bar div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.history-preview-bar small {
+  color: var(--xz-text-secondary);
+}
+
+.history-preview-bar button,
+.history-confirm button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.history-preview iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: white;
+}
+
+.history-confirm {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  border: 1px solid rgba(191, 125, 0, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 248, 225, 0.9);
+  padding: 12px;
+}
+
+.history-confirm p {
+  margin: 0;
+}
+
+.history-confirm div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.history-status {
+  margin-top: 10px;
+  border-radius: 12px;
+  background: #fff0f0;
+  color: #cc1a1a;
+  padding: 9px 10px;
 }
 
 /* Math display icon */

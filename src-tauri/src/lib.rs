@@ -1,4 +1,4 @@
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, TimeZone, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
@@ -61,6 +61,17 @@ struct NoteDocument {
     outgoing_links: Vec<LinkInfo>,
     favorite: bool,
     html: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NoteHistoryEntry {
+    id: String,
+    snapshot_id: String,
+    timestamp: String,
+    created_at: String,
+    size: u64,
+    title: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -372,6 +383,7 @@ fn ensure_workspace(path: String) -> Result<(), String> {
     fs::create_dir_all(workspace.join("assets/images")).map_err(to_error)?;
     fs::create_dir_all(workspace.join("assets/files")).map_err(to_error)?;
     fs::create_dir_all(workspace.join(".opaline/cache")).map_err(to_error)?;
+    fs::create_dir_all(workspace.join(".opaline/history")).map_err(to_error)?;
 
     let settings_path = workspace.join(".opaline/settings.json");
     if !settings_path.exists() {
@@ -464,7 +476,11 @@ fn read_note(path: String, note_path: String) -> Result<NoteDocument, String> {
 }
 
 #[tauri::command]
-fn save_note(path: String, note: NoteDocument) -> Result<NoteDocument, String> {
+fn save_note(
+    path: String,
+    note: NoteDocument,
+    create_history: Option<bool>,
+) -> Result<NoteDocument, String> {
     let workspace = workspace_path(&path)?;
     ensure_workspace(path)?;
 
@@ -476,6 +492,9 @@ fn save_note(path: String, note: NoteDocument) -> Result<NoteDocument, String> {
     let conn = open_index(&workspace)?;
     let summary = summary_from_html(&conn, &workspace, &absolute, &html)?;
     upsert_note_index(&conn, &summary, &html)?;
+    if create_history.unwrap_or(true) {
+        create_note_history_snapshot(&workspace, &summary.id, &summary.path, &html, false)?;
+    }
 
     Ok(NoteDocument {
         id: summary.id,
@@ -797,6 +816,82 @@ fn read_file_text(file_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn list_note_history(
+    path: String,
+    note_path: String,
+    note_id: String,
+) -> Result<Vec<NoteHistoryEntry>, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+    let resolved_note_id = resolve_history_note_id(&conn, &workspace, &note_path, &note_id)?;
+    list_note_history_entries(&workspace, &resolved_note_id)
+}
+
+#[tauri::command]
+fn read_note_history(
+    path: String,
+    note_path: String,
+    note_id: String,
+    snapshot_id: String,
+) -> Result<String, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+    let resolved_note_id = resolve_history_note_id(&conn, &workspace, &note_path, &note_id)?;
+    let snapshot = note_history_snapshot_path(&workspace, &resolved_note_id, &snapshot_id)?;
+    fs::read_to_string(snapshot).map_err(to_error)
+}
+
+#[tauri::command]
+fn restore_note_history(
+    path: String,
+    note_path: String,
+    note_id: String,
+    snapshot_id: String,
+) -> Result<NoteDocument, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    let conn = open_index(&workspace)?;
+    let resolved_note_id = resolve_history_note_id(&conn, &workspace, &note_path, &note_id)?;
+    let restore_path = resolve_note_path_for_history(&conn, &note_path, &resolved_note_id)?;
+    let absolute = note_absolute_path(&workspace, &restore_path)?;
+    let snapshot = note_history_snapshot_path(&workspace, &resolved_note_id, &snapshot_id)?;
+    let snapshot_html = fs::read_to_string(snapshot).map_err(to_error)?;
+
+    if absolute.exists() {
+        let current_html = fs::read_to_string(&absolute).map_err(to_error)?;
+        create_note_history_snapshot(
+            &workspace,
+            &resolved_note_id,
+            &restore_path,
+            &current_html,
+            true,
+        )?;
+    }
+
+    let restored_to_write = upsert_meta_content(&snapshot_html, "opaline:updated", &Utc::now().to_rfc3339());
+    write_file_atomically(&absolute, &restored_to_write)?;
+    let restored_html = fs::read_to_string(&absolute).map_err(to_error)?;
+    let summary = summary_from_html(&conn, &workspace, &absolute, &restored_html)?;
+    upsert_note_index(&conn, &summary, &restored_html)?;
+    rebuild_index(&workspace)?;
+
+    Ok(NoteDocument {
+        id: summary.id,
+        path: summary.path,
+        title: summary.title,
+        created_at: summary.created_at,
+        updated_at: summary.updated_at,
+        tags: summary.tags,
+        headings: summary.headings,
+        outgoing_links: summary.outgoing_links,
+        favorite: summary.favorite,
+        html: restored_html,
+    })
+}
+
+#[tauri::command]
 fn rename_note(path: String, note_id: String, new_title: String) -> Result<NoteSummary, String> {
     let workspace = workspace_path(&path)?;
     ensure_workspace(path)?;
@@ -812,6 +907,7 @@ fn rename_note(path: String, note_id: String, new_title: String) -> Result<NoteS
 
     let absolute = note_absolute_path(&workspace, &old_path)?;
     let mut html = fs::read_to_string(&absolute).map_err(to_error)?;
+    create_note_history_snapshot(&workspace, &note_id, &old_path, &html, true)?;
 
     let old_title = title_content(&html).unwrap_or_default();
     html = html.replace(
@@ -863,6 +959,10 @@ fn delete_note(path: String, note_id: String) -> Result<(), String> {
         .map_err(to_error)?;
 
     let absolute = note_absolute_path(&workspace, &note_path)?;
+    if absolute.exists() {
+        let html = fs::read_to_string(&absolute).map_err(to_error)?;
+        create_note_history_snapshot(&workspace, &note_id, &note_path, &html, true)?;
+    }
 
     let _ = fs::remove_file(&absolute);
     let _ = fs::remove_file(absolute.with_extension("html.bak"));
@@ -905,6 +1005,7 @@ fn move_note(path: String, note_id: String, new_directory: String) -> Result<Not
 
     let absolute = note_absolute_path(&workspace, &old_path)?;
     let html = fs::read_to_string(&absolute).map_err(to_error)?;
+    create_note_history_snapshot(&workspace, &note_id, &old_path, &html, true)?;
 
     let file_name = absolute
         .file_name()
@@ -1248,6 +1349,9 @@ pub fn run() {
             list_language_packs,
             open_language_packs_folder,
             read_file_text,
+            list_note_history,
+            read_note_history,
+            restore_note_history,
             rename_note,
             delete_note,
             move_note,
@@ -1686,6 +1790,7 @@ fn create_note_at(
     let conn = open_index(workspace)?;
     let summary = summary_from_html(&conn, workspace, &note_path, &html)?;
     upsert_note_index(&conn, &summary, &html)?;
+    create_note_history_snapshot(workspace, &summary.id, &summary.path, &html, true)?;
 
     Ok(NoteDocument {
         id: summary.id,
@@ -1934,6 +2039,242 @@ fn favorite_for(conn: &Connection, id: &str) -> Result<bool, String> {
         .optional()
         .map_err(to_error)?;
     Ok(favorite.unwrap_or(0) == 1)
+}
+
+const HISTORY_RETENTION_DAYS: i64 = 30;
+const MILLIS_PER_DAY: i64 = 24 * 60 * 60 * 1000;
+
+fn resolve_history_note_id(
+    conn: &Connection,
+    workspace: &Path,
+    note_path: &str,
+    note_id: &str,
+) -> Result<String, String> {
+    let trimmed_id = note_id.trim();
+    if !trimmed_id.is_empty() {
+        return Ok(trimmed_id.to_string());
+    }
+
+    let trimmed_path = note_path.trim();
+    if trimmed_path.is_empty() {
+        return Err("缺少笔记 ID".to_string());
+    }
+
+    let absolute = note_absolute_path(workspace, trimmed_path)?;
+    if absolute.exists() {
+        let html = fs::read_to_string(absolute).map_err(to_error)?;
+        if let Some(id) = meta_content(&html, "opaline:id") {
+            return Ok(id);
+        }
+    }
+
+    conn.query_row(
+        "select id from notes where path = ?1",
+        params![trimmed_path],
+        |row| row.get(0),
+    )
+    .optional()
+    .map_err(to_error)?
+    .ok_or_else(|| "找不到笔记历史".to_string())
+}
+
+fn resolve_note_path_for_history(
+    conn: &Connection,
+    note_path: &str,
+    note_id: &str,
+) -> Result<String, String> {
+    if let Some(path) = conn
+        .query_row(
+            "select path from notes where id = ?1",
+            params![note_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(to_error)?
+    {
+        return Ok(path);
+    }
+
+    let trimmed_path = note_path.trim();
+    if trimmed_path.is_empty() {
+        Err("找不到要恢复的笔记路径".to_string())
+    } else {
+        Ok(trimmed_path.to_string())
+    }
+}
+
+fn create_note_history_snapshot(
+    workspace: &Path,
+    note_id: &str,
+    note_path: &str,
+    html: &str,
+    force: bool,
+) -> Result<Option<NoteHistoryEntry>, String> {
+    if note_id.trim().is_empty() || html.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let history_dir = note_history_dir(workspace, note_id)?;
+    fs::create_dir_all(&history_dir).map_err(to_error)?;
+
+    if !force {
+        if let Some(latest) = latest_note_history_entry(workspace, note_id)? {
+            let latest_path = note_history_snapshot_path(workspace, note_id, &latest.snapshot_id)?;
+            if fs::read_to_string(latest_path).map_err(to_error)? == html {
+                cleanup_note_history(workspace, note_id)?;
+                return Ok(None);
+            }
+        }
+    }
+
+    let timestamp = Utc::now().timestamp_millis();
+    let mut snapshot_id = timestamp.to_string();
+    let mut counter = 2;
+    while history_dir.join(format!("{snapshot_id}.html")).exists() {
+        snapshot_id = format!("{timestamp}-{counter}");
+        counter += 1;
+    }
+
+    let snapshot_path = history_dir.join(format!("{snapshot_id}.html"));
+    fs::write(&snapshot_path, html).map_err(to_error)?;
+    let entry = note_history_entry_from_path(&snapshot_path)?;
+    cleanup_note_history(workspace, note_id)?;
+
+    let _ = note_path;
+    Ok(Some(entry))
+}
+
+fn latest_note_history_entry(
+    workspace: &Path,
+    note_id: &str,
+) -> Result<Option<NoteHistoryEntry>, String> {
+    Ok(list_note_history_entries(workspace, note_id)?.into_iter().next())
+}
+
+fn list_note_history_entries(
+    workspace: &Path,
+    note_id: &str,
+) -> Result<Vec<NoteHistoryEntry>, String> {
+    let history_dir = note_history_dir(workspace, note_id)?;
+    if !history_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(history_dir).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) == Some("html") {
+            entries.push(note_history_entry_from_path(&path)?);
+        }
+    }
+
+    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    Ok(entries)
+}
+
+fn note_history_entry_from_path(path: &Path) -> Result<NoteHistoryEntry, String> {
+    let snapshot_id = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "历史版本文件名无效".to_string())?
+        .to_string();
+    let timestamp_millis = snapshot_timestamp_millis(&snapshot_id).unwrap_or(0);
+    let created_at = if timestamp_millis > 0 {
+        Utc.timestamp_millis_opt(timestamp_millis)
+            .single()
+            .map(|value| value.to_rfc3339())
+            .unwrap_or_else(|| file_timestamp(path))
+    } else {
+        file_timestamp(path)
+    };
+    let html = fs::read_to_string(path).unwrap_or_default();
+    let title = title_content(&html).or_else(|| first_heading_content(&html));
+    let size = fs::metadata(path).map_err(to_error)?.len();
+
+    Ok(NoteHistoryEntry {
+        id: snapshot_id.clone(),
+        snapshot_id,
+        timestamp: timestamp_millis.to_string(),
+        created_at,
+        size,
+        title,
+    })
+}
+
+fn cleanup_note_history(workspace: &Path, note_id: &str) -> Result<(), String> {
+    let history_dir = note_history_dir(workspace, note_id)?;
+    if !history_dir.exists() {
+        return Ok(());
+    }
+
+    let cutoff = Utc::now().timestamp_millis() - HISTORY_RETENTION_DAYS * MILLIS_PER_DAY;
+    for entry in fs::read_dir(history_dir).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("html") {
+            continue;
+        }
+        let Some(snapshot_id) = path.file_stem().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if snapshot_timestamp_millis(snapshot_id).is_some_and(|timestamp| timestamp < cutoff) {
+            let _ = fs::remove_file(path);
+        }
+    }
+    Ok(())
+}
+
+fn note_history_dir(workspace: &Path, note_id: &str) -> Result<PathBuf, String> {
+    let safe_id = safe_history_component(note_id);
+    if safe_id.is_empty() {
+        return Err("笔记 ID 无效".to_string());
+    }
+    Ok(workspace.join(".opaline/history").join(safe_id))
+}
+
+fn note_history_snapshot_path(
+    workspace: &Path,
+    note_id: &str,
+    snapshot_id: &str,
+) -> Result<PathBuf, String> {
+    let snapshot_id = clean_snapshot_id(snapshot_id)?;
+    Ok(note_history_dir(workspace, note_id)?.join(format!("{snapshot_id}.html")))
+}
+
+fn clean_snapshot_id(snapshot_id: &str) -> Result<String, String> {
+    let id = snapshot_id.trim().trim_end_matches(".html");
+    if id.is_empty()
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains("..")
+        || !id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_')
+    {
+        return Err("历史版本 ID 无效".to_string());
+    }
+    Ok(id.to_string())
+}
+
+fn safe_history_component(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn snapshot_timestamp_millis(snapshot_id: &str) -> Option<i64> {
+    snapshot_id
+        .split('-')
+        .next()
+        .and_then(|value| value.parse::<i64>().ok())
 }
 
 fn relative_to_workspace(workspace: &Path, file_path: &Path) -> Result<String, String> {
@@ -2558,6 +2899,7 @@ mod tests {
                 html: saved_html,
                 ..note
             },
+            Some(true),
         )
         .expect("note is saved");
 
@@ -2577,6 +2919,75 @@ mod tests {
 
         let results = search_notes(workspace_string, "research".to_string()).expect("search works");
         assert!(!results.is_empty());
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn note_history_snapshots_and_restores_without_git() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+
+        let note = create_note(
+            workspace_string.clone(),
+            NewNoteInput {
+                title: "history note".to_string(),
+                lang: Some("en".to_string()),
+                body: None,
+                directory: None,
+            },
+        )
+        .expect("note is created");
+
+        let initial_history = list_note_history(
+            workspace_string.clone(),
+            note.path.clone(),
+            note.id.clone(),
+        )
+        .expect("initial history is listed");
+        assert_eq!(initial_history.len(), 1);
+
+        let changed = save_note(
+            workspace_string.clone(),
+            NoteDocument {
+                html: note.html.replace("<p></p>", "<p>changed content</p>"),
+                ..note.clone()
+            },
+            Some(true),
+        )
+        .expect("note is saved");
+
+        let history = list_note_history(
+            workspace_string.clone(),
+            changed.path.clone(),
+            changed.id.clone(),
+        )
+        .expect("history is listed");
+        assert!(history.len() >= 2);
+        let latest = history.first().expect("latest snapshot");
+        let latest_html = read_note_history(
+            workspace_string.clone(),
+            changed.path.clone(),
+            changed.id.clone(),
+            latest.snapshot_id.clone(),
+        )
+        .expect("latest history is read");
+        assert!(latest_html.contains("changed content"));
+
+        let oldest = history.last().expect("oldest snapshot");
+        let restored = restore_note_history(
+            workspace_string.clone(),
+            changed.path.clone(),
+            changed.id.clone(),
+            oldest.snapshot_id.clone(),
+        )
+        .expect("history is restored");
+        assert!(!restored.html.contains("changed content"));
+
+        let post_restore_history =
+            list_note_history(workspace_string, restored.path, restored.id).expect("history remains");
+        assert!(post_restore_history.len() >= 3);
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
     }
@@ -2740,6 +3151,7 @@ mod tests {
                 ),
                 ..alpha
             },
+            Some(true),
         )
         .expect("alpha is saved");
         let _ = save_note(
@@ -2750,6 +3162,7 @@ mod tests {
                     .replace("<p></p>", "<p>unrelated journal text</p>"),
                 ..beta
             },
+            Some(true),
         )
         .expect("beta is saved");
 

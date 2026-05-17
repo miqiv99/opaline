@@ -162,10 +162,11 @@
           <li><code>&lt;opaline-script&gt;</code> exists as an experimental script note. When enabled in Settings, it runs JavaScript inside Opaline and can update the card with <code>opaline.render()</code> or call HTTP/HTTPS APIs through <code>opaline.net.fetch()</code>.</li>
           <li>Rich editor blocks for callouts, two-column layouts, comparison layouts, sidenotes, disclosure blocks, tables, task lists, images, embeds, math, and Mermaid diagrams.</li>
           <li>Editor right-click menus for common formatting, paragraph styles, H1-H6 headings, insert actions, and clipboard actions.</li>
-          <li>File-pane right-click menu for opening, duplicating, favoriting, and copying note paths.</li>
+          <li>File-pane right-click menu for opening, duplicating, favoriting, copying note paths, and opening local history.</li>
+          <li>Built-in local note history stores HTML snapshots in workspace metadata. It is not Git, does not require Git to be installed, keeps the last 30 days by default, and restores only after preview and confirmation.</li>
           <li>Obsidian-inspired serious workspace with a left ribbon, file explorer, collapsible left/right panels, graph preview, and a full graph view with relation-type filters, current-note neighborhood mode, and edge details.</li>
         </ul>
-        <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations are still limited, and the HTML-native editor interactions need more polish.</p>
+        <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations need more polish, and the HTML-native editor interactions need more polish.</p>
         <p>Known residual issue: block links can open the target note and scroll to the target block, but the visible target highlight is still unreliable in the desktop editor and may not appear. This should be fixed in a focused follow-up.</p>
 
         <h2>HTML-Native Differentiators</h2>
@@ -191,12 +192,13 @@
           <li>SQLite for metadata, search indexes, links, backlinks, tags, app state, and optional embeddings</li>
           <li>File system storage for HTML notes and assets</li>
         </ul>
+        <p>Local history lives under <code>.opaline/history/</code> beside other app metadata, not in <code>notes/</code>. Git-friendly workflows may become an advanced optional feature later, but Git is not the basic history path.</p>
 
         <h2>Short-Term Roadmap</h2>
         <ol>
           <li>Polish the serious workspace so the Obsidian-style file pane, side panels, and editor feel coherent.</li>
           <li>Add workspace migration when users change locations.</li>
-          <li>Expand file context actions: rename, delete, move, reveal in system explorer, copy relative/absolute path, and open history.</li>
+          <li>Polish file context actions and add richer controls for local history, including future retention choices such as 7, 30, 90 days, forever, or size caps.</li>
           <li>Improve the graph view beyond the first neighborhood and edge-detail pass: better layout, saved graph presets, and clearer navigation from edges back to exact targets.</li>
           <li>Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.</li>
           <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>

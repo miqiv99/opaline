@@ -12,6 +12,7 @@ import {
   FileText,
   FolderOpen,
   FolderPlus,
+  History,
   Home,
   Lightbulb,
   Link2,
@@ -24,6 +25,7 @@ import {
   Settings,
   ShieldCheck,
   Puzzle,
+  RotateCcw,
   Star,
   ArrowDownAZ,
   FileUp,
@@ -47,7 +49,7 @@ import {
   type InstalledPlugin,
 } from "./editor/pluginRegistry";
 import { markdownTitle } from "./editor/markdownImport";
-import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
+import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-gradient.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
@@ -213,6 +215,7 @@ export function App() {
   const [vaultSortMode, setVaultSortMode] = useState<VaultSortMode>("updated");
   const [allFoldersExpanded, setAllFoldersExpanded] = useState(true);
   const [noteContextMenu, setNoteContextMenu] = useState<{ note: NoteSummary; x: number; y: number } | null>(null);
+  const [historyDialogNote, setHistoryDialogNote] = useState<NoteSummary | null>(null);
   const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
   const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
@@ -539,7 +542,7 @@ export function App() {
         ...workspace.activeNote,
         title: titleFromArticleHtml(nextArticleHtml, workspace.activeNote.title),
         html,
-      });
+      }, { createHistory: !options.silent });
       const notes = await refreshNotes(workspace.path);
       openNoteDocument(workspace.path, notes, saved);
       await refreshBacklinks(workspace.path, saved.id);
@@ -699,6 +702,28 @@ export function App() {
       setStatus(error instanceof Error ? error.message : t("app.status.revealFailed"));
     }
   }, [t, workspace.path]);
+
+  const openHistoryDialog = useCallback((note: NoteSummary) => {
+    setHistoryDialogNote(note);
+  }, []);
+
+  const restoreHistorySnapshot = useCallback(async (note: NoteSummary, snapshot: NoteHistoryEntry) => {
+    if (!workspace.path) return;
+    setIsBusy(true);
+    try {
+      const restored = await workspaceAdapter.restoreNoteHistory(workspace.path, note.path, note.id, snapshot.snapshotId);
+      const notesList = await refreshNotes(workspace.path);
+      openNoteDocument(workspace.path, notesList, restored);
+      await refreshBacklinks(workspace.path, restored.id);
+      setHistoryDialogNote(null);
+      setStatus(t("history.restored", { title: restored.title }));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("history.restoreFailed"));
+      throw error;
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshBacklinks, refreshNotes, t, workspace.path]);
 
   const moveNoteTo = useCallback(async (note: NoteSummary, targetDir: string) => {
     if (!workspace.path) return;
@@ -1188,6 +1213,15 @@ export function App() {
                   <p className="muted">{t("panel.noBacklinks")}</p>
                 )}
               </Section>
+              <Section title={t("panel.history")} icon={<History size={16} />}>
+                <div className="inspector-actions">
+                  <button type="button" onClick={() => openHistoryDialog(workspace.activeNote!)}>
+                    <History size={15} />
+                    {t("history.open")}
+                  </button>
+                </div>
+                <p className="muted">{t("history.retentionHint")}</p>
+              </Section>
               <Section title={t("panel.localGraph")} icon={<Network size={16} />}>
                 <GraphPreview
                   graph={graph}
@@ -1247,10 +1281,18 @@ export function App() {
         onToggleFavorite={(note) => void toggleNoteFavorite(note)}
         onCopyPath={(note) => void copyNotePath(note)}
         onExportMarkdown={(note) => void exportNoteMarkdown(note)}
+        onHistory={(note) => openHistoryDialog(note)}
         onRename={(note) => void renameNote(note)}
         onDelete={(note) => void deleteNote(note)}
         onMove={(note) => void moveNote(note)}
         onReveal={(note) => void revealNoteInExplorer(note)}
+      />
+      <NoteHistoryDialog
+        workspacePath={workspace.path}
+        note={historyDialogNote}
+        busy={isBusy}
+        onClose={() => setHistoryDialogNote(null)}
+        onRestore={restoreHistorySnapshot}
       />
       <WorkspaceMigrationDialog
         open={migrationDialog !== null}
@@ -1662,6 +1704,7 @@ function NoteContextMenu({
   onToggleFavorite,
   onCopyPath,
   onExportMarkdown,
+  onHistory,
   onRename,
   onDelete,
   onMove,
@@ -1674,6 +1717,7 @@ function NoteContextMenu({
   onToggleFavorite: (note: NoteSummary) => void;
   onCopyPath: (note: NoteSummary) => void;
   onExportMarkdown: (note: NoteSummary) => void;
+  onHistory: (note: NoteSummary) => void;
   onRename: (note: NoteSummary) => void;
   onDelete: (note: NoteSummary) => void;
   onMove: (note: NoteSummary) => void;
@@ -1738,8 +1782,184 @@ function NoteContextMenu({
       <button type="button" onClick={() => run(() => onReveal(state.note))}>{t("context.reveal")}</button>
       <button type="button" onClick={() => run(() => onCopyPath(state.note))}>{t("context.copyPath")}</button>
       <button type="button" onClick={() => run(() => onExportMarkdown(state.note))}>{t("context.exportMarkdown")}</button>
+      <button type="button" onClick={() => run(() => onHistory(state.note))}>{t("context.history")}</button>
       <span role="separator" />
       <button type="button" className="menu-danger" onClick={() => run(() => onDelete(state.note))}>{t("context.delete")}</button>
+    </div>
+  );
+}
+
+function NoteHistoryDialog({
+  workspacePath,
+  note,
+  busy,
+  onClose,
+  onRestore,
+}: {
+  workspacePath: string | null;
+  note: NoteSummary | null;
+  busy: boolean;
+  onClose: () => void;
+  onRestore: (note: NoteSummary, snapshot: NoteHistoryEntry) => Promise<void>;
+}) {
+  const { t, locale } = useI18n();
+  const [entries, setEntries] = useState<NoteHistoryEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!workspacePath || !note) {
+      setEntries([]);
+      setSelectedId(null);
+      setPreviewHtml("");
+      setConfirming(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setStatus("");
+    setConfirming(false);
+    workspaceAdapter
+      .listNoteHistory(workspacePath, note.path, note.id)
+      .then((items) => {
+        if (cancelled) return;
+        setEntries(items);
+        setSelectedId(items[0]?.snapshotId ?? null);
+      })
+      .catch((error) => {
+        if (!cancelled) setStatus(error instanceof Error ? error.message : t("history.loadFailed"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [note, t, workspacePath]);
+
+  useEffect(() => {
+    if (!workspacePath || !note || !selectedId) {
+      setPreviewHtml("");
+      return;
+    }
+
+    let cancelled = false;
+    setStatus("");
+    workspaceAdapter
+      .readNoteHistory(workspacePath, note.path, note.id, selectedId)
+      .then((html) => {
+        if (!cancelled) setPreviewHtml(html);
+      })
+      .catch((error) => {
+        if (!cancelled) setStatus(error instanceof Error ? error.message : t("history.previewFailed"));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [note, selectedId, t, workspacePath]);
+
+  if (!note) {
+    return null;
+  }
+
+  const selected = entries.find((entry) => entry.snapshotId === selectedId) ?? null;
+
+  const runRestore = async () => {
+    if (!selected) return;
+    try {
+      await onRestore(note, selected);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("history.restoreFailed"));
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="note-dialog history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="note-dialog-header">
+          <span className="dialog-leaf history-leaf" aria-hidden="true">
+            <History size={25} />
+          </span>
+          <div>
+            <h2 id="history-dialog-title">{t("history.title")}</h2>
+            <p>{note.title}</p>
+          </div>
+        </div>
+
+        <div className="history-layout">
+          <aside className="history-list" aria-label={t("history.listLabel")}>
+            {loading ? <p className="muted">{t("history.loading")}</p> : null}
+            {!loading && entries.length === 0 ? (
+              <div className="history-empty">
+                <Clock3 size={20} />
+                <strong>{t("history.emptyTitle")}</strong>
+                <p>{t("history.emptyDesc")}</p>
+              </div>
+            ) : null}
+            {entries.map((entry) => (
+              <button
+                key={entry.snapshotId}
+                type="button"
+                className={entry.snapshotId === selectedId ? "is-active" : ""}
+                onClick={() => {
+                  setSelectedId(entry.snapshotId);
+                  setConfirming(false);
+                }}
+              >
+                <span>{formatHistoryDate(entry.createdAt, locale)}</span>
+                <small>{entry.title || t("history.untitled")} · {formatBytes(entry.size)}</small>
+              </button>
+            ))}
+          </aside>
+          <section className="history-preview">
+            {selected ? (
+              <>
+                <div className="history-preview-bar">
+                  <div>
+                    <strong>{formatHistoryDate(selected.createdAt, locale)}</strong>
+                    <small>{formatBytes(selected.size)}</small>
+                  </div>
+                  <button type="button" className="dialog-primary" onClick={() => setConfirming(true)} disabled={busy}>
+                    <RotateCcw size={15} />
+                    {t("history.restore")}
+                  </button>
+                </div>
+                <iframe title={t("history.previewTitle")} sandbox="" srcDoc={previewHtml} />
+              </>
+            ) : (
+              <div className="history-preview-empty">{t("history.selectVersion")}</div>
+            )}
+          </section>
+        </div>
+
+        {confirming && selected ? (
+          <div className="history-confirm">
+            <strong>{t("history.confirmTitle")}</strong>
+            <p>{t("history.confirmDesc")}</p>
+            <div>
+              <button type="button" className="dialog-secondary" onClick={() => setConfirming(false)} disabled={busy}>
+                {t("action.cancel")}
+              </button>
+              <button type="button" className="dialog-primary" onClick={() => void runRestore()} disabled={busy}>
+                {busy ? t("action.processing") : t("history.confirmRestore")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {status ? <p className="history-status">{status}</p> : null}
+        <div className="dialog-actions">
+          <button type="button" className="dialog-secondary" onClick={onClose} disabled={busy}>
+            {t("action.close")}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -2366,3 +2586,17 @@ const formatTime = (iso: string, locale = "zh-CN") =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
+
+const formatHistoryDate = (iso: string, locale = "zh-CN") =>
+  new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+};

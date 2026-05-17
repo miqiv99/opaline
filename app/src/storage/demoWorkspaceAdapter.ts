@@ -1,4 +1,4 @@
-import type { AssetImport, NewNoteInput, NoteDocument, NoteSummary } from "../domain/note";
+import type { AssetImport, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary } from "../domain/note";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 const demoWorkspacePath = "demo://workspace";
@@ -45,6 +45,16 @@ const seedNote: NoteDocument = {
 };
 
 let notes: NoteDocument[] = [seedNote];
+let history: Record<string, NoteHistoryEntry[]> = {
+  [seedNote.id]: [{
+    id: seedTime,
+    snapshotId: seedTime,
+    timestamp: `${Date.parse(seedTime)}`,
+    createdAt: seedTime,
+    size: seedNote.html.length,
+    title: seedNote.title,
+  }],
+};
 
 export const demoWorkspaceAdapter: WorkspaceAdapter = {
   async defaultWorkspacePath() {
@@ -84,14 +94,33 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     return note;
   },
 
-  async saveNote(_path: string, note: NoteDocument) {
+  async saveNote(_path: string, note: NoteDocument, options?: { createHistory?: boolean }) {
     const updated: NoteDocument = {
       ...note,
       updatedAt: nowIso(),
     };
 
     notes = notes.map((item) => (item.path === note.path ? updated : item));
+    if (options?.createHistory !== false) addDemoHistory(updated);
     return updated;
+  },
+
+  async listNoteHistory(_path: string, _notePath: string, noteId: string) {
+    return history[noteId] ?? [];
+  },
+
+  async readNoteHistory(_path: string, _notePath: string, noteId: string, snapshotId: string) {
+    const note = notes.find((item) => item.id === noteId);
+    const entry = history[noteId]?.find((item) => item.snapshotId === snapshotId);
+    if (!note || !entry) throw new Error("找不到历史版本");
+    return note.html;
+  },
+
+  async restoreNoteHistory(_path: string, _notePath: string, noteId: string) {
+    const note = notes.find((item) => item.id === noteId);
+    if (!note) throw new Error("找不到笔记");
+    addDemoHistory(note);
+    return note;
   },
 
   async searchNotes(_path: string, query: string) {
@@ -292,7 +321,21 @@ const createDemoNote = (input: NewNoteInput) => {
   };
 
   notes = [note, ...notes];
+  addDemoHistory(note);
   return note;
+};
+
+const addDemoHistory = (note: NoteDocument) => {
+  const createdAt = nowIso();
+  const snapshot: NoteHistoryEntry = {
+    id: createdAt,
+    snapshotId: createdAt,
+    timestamp: `${Date.parse(createdAt)}`,
+    createdAt,
+    size: note.html.length,
+    title: note.title,
+  };
+  history = { ...history, [note.id]: [snapshot, ...(history[note.id] ?? [])] };
 };
 
 const toSummary = (note: NoteDocument): NoteSummary => ({

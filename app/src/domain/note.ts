@@ -16,6 +16,15 @@ export type NoteDocument = NoteSummary & {
   html: string;
 };
 
+export type NoteHistoryEntry = {
+  id: string;
+  snapshotId: string;
+  timestamp: string;
+  createdAt: string;
+  size: number;
+  title?: string | null;
+};
+
 export type WorkspaceState = {
   path: string | null;
   notes: NoteSummary[];

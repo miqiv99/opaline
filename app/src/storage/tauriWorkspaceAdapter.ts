@@ -6,6 +6,7 @@ import type {
   ImportedAsset,
   NewNoteInput,
   NoteDocument,
+  NoteHistoryEntry,
   NoteSummary,
   SearchResult,
 } from "../domain/note";
@@ -51,8 +52,20 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     return invoke<NoteDocument>("read_note", { path, notePath });
   },
 
-  async saveNote(path: string, note: NoteDocument) {
-    return invoke<NoteDocument>("save_note", { path, note });
+  async saveNote(path: string, note: NoteDocument, options?: { createHistory?: boolean }) {
+    return invoke<NoteDocument>("save_note", { path, note, createHistory: options?.createHistory });
+  },
+
+  async listNoteHistory(path: string, notePath: string, noteId: string) {
+    return invoke<NoteHistoryEntry[]>("list_note_history", { path, notePath, noteId });
+  },
+
+  async readNoteHistory(path: string, notePath: string, noteId: string, snapshotId: string) {
+    return invoke<string>("read_note_history", { path, notePath, noteId, snapshotId });
+  },
+
+  async restoreNoteHistory(path: string, notePath: string, noteId: string, snapshotId: string) {
+    return invoke<NoteDocument>("restore_note_history", { path, notePath, noteId, snapshotId });
   },
 
   async searchNotes(path: string, query: string) {
