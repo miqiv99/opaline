@@ -128,6 +128,26 @@ type TodayMessage = {
   createdAt: string;
 };
 
+type AppDialogRequest =
+  | {
+      kind: "text";
+      title: string;
+      message?: string;
+      defaultValue?: string;
+      confirmLabel: string;
+      cancelLabel: string;
+      resolve: (value: string | null) => void;
+    }
+  | {
+      kind: "confirm";
+      title: string;
+      message: string;
+      confirmLabel: string;
+      cancelLabel: string;
+      danger?: boolean;
+      resolve: (value: boolean) => void;
+    };
+
 type NoteTemplate = {
   id: NoteTemplateId;
   title: string;
@@ -218,6 +238,7 @@ export function App() {
   const [historyDialogNote, setHistoryDialogNote] = useState<NoteSummary | null>(null);
   const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
   const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
+  const [appDialog, setAppDialog] = useState<AppDialogRequest | null>(null);
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
   const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
@@ -232,6 +253,34 @@ export function App() {
   const cycleVaultSort = useCallback(() => {
     setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
   }, []);
+
+  const askText = useCallback((options: { title: string; message?: string; defaultValue?: string }) => (
+    new Promise<string | null>((resolve) => {
+      setAppDialog({
+        kind: "text",
+        title: options.title,
+        message: options.message,
+        defaultValue: options.defaultValue,
+        confirmLabel: t("action.confirm"),
+        cancelLabel: t("action.cancel"),
+        resolve,
+      });
+    })
+  ), [t]);
+
+  const askConfirm = useCallback((options: { title: string; message: string; danger?: boolean }) => (
+    new Promise<boolean>((resolve) => {
+      setAppDialog({
+        kind: "confirm",
+        title: options.title,
+        message: options.message,
+        confirmLabel: t("action.confirm"),
+        cancelLabel: t("action.cancel"),
+        danger: options.danger,
+        resolve,
+      });
+    })
+  ), [t]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -398,7 +447,11 @@ export function App() {
   }, [refreshBacklinks, t, workspace.path]);
 
   const createFolder = useCallback(async () => {
-    const raw = window.prompt(t("dialog.folderPromptTitle"), "notes/");
+    const raw = await askText({
+      title: t("dialog.folderPromptTitle"),
+      message: t("dialog.folderPromptHelp"),
+      defaultValue: "notes/",
+    });
     if (!raw) {
       return;
     }
@@ -420,7 +473,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, t, workspace.path]);
+  }, [askText, refreshNotes, t, workspace.path]);
 
   const importMarkdown = useCallback(async () => {
     const selected = await open({
@@ -636,7 +689,10 @@ export function App() {
   }, [t]);
 
   const renameNote = useCallback(async (note: NoteSummary) => {
-    const newTitle = window.prompt(t("dialog.renameTitle"), note.title)?.trim();
+    const newTitle = (await askText({
+      title: t("dialog.renameTitle"),
+      defaultValue: note.title,
+    }))?.trim();
     if (!newTitle || newTitle === note.title) return;
     setIsBusy(true);
     try {
@@ -654,10 +710,15 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [askText, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const deleteNote = useCallback(async (note: NoteSummary) => {
-    if (!window.confirm(t("dialog.deleteConfirm", { title: note.title }))) return;
+    const shouldDelete = await askConfirm({
+      title: t("dialog.deleteTitle"),
+      message: t("dialog.deleteConfirm", { title: note.title }),
+      danger: true,
+    });
+    if (!shouldDelete) return;
     setIsBusy(true);
     try {
       await workspaceAdapter.deleteNote(workspace.path!, note.id);
@@ -672,10 +733,14 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [askConfirm, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const moveNote = useCallback(async (note: NoteSummary) => {
-    const dir = window.prompt(t("dialog.movePrompt"), "notes/")?.trim();
+    const dir = (await askText({
+      title: t("dialog.movePrompt"),
+      message: t("dialog.folderPromptHelp"),
+      defaultValue: "notes/",
+    }))?.trim();
     if (!dir) return;
     setIsBusy(true);
     try {
@@ -693,7 +758,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [askText, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const revealNoteInExplorer = useCallback(async (note: NoteSummary) => {
     try {
@@ -1118,7 +1183,6 @@ export function App() {
         {view === "home" ? (
           <EntryChoiceView
             onSerious={() => setView("note")}
-            onCasual={() => setView("today")}
           />
         ) : view === "graph" ? (
           <GraphView
@@ -1310,16 +1374,15 @@ export function App() {
         }}
         onCancel={() => setMigrationDialog(null)}
       />
+      <AppDialog request={appDialog} onDismiss={() => setAppDialog(null)} />
     </main>
   );
 }
 
 function EntryChoiceView({
   onSerious,
-  onCasual,
 }: {
   onSerious: () => void;
-  onCasual: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -1327,10 +1390,6 @@ function EntryChoiceView({
       <button type="button" className="entry-choice-card" onClick={onSerious}>
         <NotebookPen size={82} strokeWidth={1.7} />
         <span>{t("home.serious")}</span>
-      </button>
-      <button type="button" className="entry-choice-card" onClick={onCasual}>
-        <MessageCircle size={82} strokeWidth={1.7} />
-        <span>{t("home.casual")}</span>
       </button>
     </section>
   );
@@ -2425,6 +2484,75 @@ function Section({ title, icon, children }: { title: string; icon?: ReactNode; c
       <h2>{icon}{title}</h2>
       {children}
     </section>
+  );
+}
+
+function AppDialog({ request, onDismiss }: { request: AppDialogRequest | null; onDismiss: () => void }) {
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    if (request?.kind === "text") {
+      setValue(request.defaultValue ?? "");
+    }
+  }, [request]);
+
+  if (!request) {
+    return null;
+  }
+
+  const cancel = () => {
+    if (request.kind === "text") {
+      request.resolve(null);
+    } else {
+      request.resolve(false);
+    }
+    onDismiss();
+  };
+
+  const confirm = () => {
+    if (request.kind === "text") {
+      request.resolve(value);
+    } else {
+      request.resolve(true);
+    }
+    onDismiss();
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={cancel}>
+      <section
+        className={request.kind === "confirm" && request.danger ? "note-dialog app-dialog is-danger" : "note-dialog app-dialog"}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-dialog-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h2 id="app-dialog-title">{request.title}</h2>
+        {request.message ? <p className="app-dialog-message">{request.message}</p> : null}
+        {request.kind === "text" ? (
+          <label className="dialog-field">
+            <span>{request.title}</span>
+            <input
+              autoFocus
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") confirm();
+                if (event.key === "Escape") cancel();
+              }}
+            />
+          </label>
+        ) : null}
+        <div className="dialog-actions">
+          <button type="button" className="dialog-secondary" onClick={cancel}>
+            {request.cancelLabel}
+          </button>
+          <button type="button" className={request.kind === "confirm" && request.danger ? "dialog-danger" : "dialog-primary"} onClick={confirm}>
+            {request.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 

@@ -626,7 +626,7 @@ button:disabled {
 .entry-choice {
   grid-row: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 360px));
+  grid-template-columns: minmax(220px, 360px);
   gap: 34px;
   place-content: center;
   min-height: 100vh;
@@ -3031,6 +3031,25 @@ button:disabled {
   background: linear-gradient(145deg, var(--xz-green), var(--xz-green-deep));
   color: white;
   box-shadow: var(--xz-shadow-sm);
+}
+
+.app-dialog {
+  width: min(430px, 100%);
+}
+
+.app-dialog-message {
+  margin-top: 10px;
+}
+
+.dialog-danger {
+  border: 1px solid transparent;
+  background: #c9342f;
+  color: white;
+  box-shadow: var(--xz-shadow-sm);
+}
+
+.dialog-danger:hover {
+  background: #a92925;
 }
 
 .history-dialog {
