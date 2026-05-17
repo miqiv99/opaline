@@ -37,8 +37,17 @@ export const useConstrainedMenuPosition = (
     const maxHeight = Math.max(120, window.innerHeight - VIEWPORT_GAP * 2);
     const maxWidth = Math.max(160, window.innerWidth - VIEWPORT_GAP * 2);
     const needsVerticalScroll = rect.height > maxHeight;
-    const left = clamp(anchor.x, VIEWPORT_GAP, window.innerWidth - rect.width - VIEWPORT_GAP);
-    const top = clamp(anchor.y, VIEWPORT_GAP, window.innerHeight - Math.min(rect.height, maxHeight) - VIEWPORT_GAP);
+    const visibleHeight = Math.min(rect.height, maxHeight);
+    const shouldFlipX =
+      anchor.x + rect.width > window.innerWidth - VIEWPORT_GAP &&
+      anchor.x - rect.width + VIEWPORT_GAP >= VIEWPORT_GAP;
+    const shouldFlipY =
+      anchor.y + visibleHeight > window.innerHeight - VIEWPORT_GAP &&
+      anchor.y - visibleHeight + VIEWPORT_GAP >= VIEWPORT_GAP;
+    const preferredLeft = shouldFlipX ? anchor.x - rect.width + VIEWPORT_GAP : anchor.x;
+    const preferredTop = shouldFlipY ? anchor.y - visibleHeight + VIEWPORT_GAP : anchor.y;
+    const left = clamp(preferredLeft, VIEWPORT_GAP, window.innerWidth - rect.width - VIEWPORT_GAP);
+    const top = clamp(preferredTop, VIEWPORT_GAP, window.innerHeight - visibleHeight - VIEWPORT_GAP);
 
     setStyle({
       left,

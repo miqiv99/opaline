@@ -31,7 +31,7 @@ import {
   FileUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent, ReactNode } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { AiSettingsPanel } from "./ai/AiPanel";
 import { getAiAdapter, loadAiSettings } from "./ai/settings";
 import type { NoteSuggestion } from "./editor/OpalineEditor";
@@ -1170,9 +1170,10 @@ export function App() {
                 <button
                   className="right-panel-toggle"
                   type="button"
-                  data-tooltip={rightPanelCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}
+                  data-tooltip={rightPanelCollapsed ? t("action.expandInspector") : t("action.collapseInspector")}
+                  data-tooltip-align="right"
                   onClick={() => setRightPanelCollapsed((value) => !value)}
-                  aria-label={rightPanelCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}
+                  aria-label={rightPanelCollapsed ? t("action.expandInspector") : t("action.collapseInspector")}
                 >
                   {rightPanelCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
                 </button>
@@ -1432,7 +1433,7 @@ function NoteRibbon({
   const { t } = useI18n();
   return (
     <nav className="note-ribbon" aria-label={t("nav.workspace")}>
-      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? t("action.expandFolders") : t("action.collapseFolders")} aria-label={leftCollapsed ? t("action.expandFolders") : t("action.collapseFolders")}>
+      <button type="button" onClick={onToggleLeft} data-tooltip={leftCollapsed ? t("action.expandFileTree") : t("action.collapseFileTree")} aria-label={leftCollapsed ? t("action.expandFileTree") : t("action.collapseFileTree")}>
         {leftCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
       <button type="button" onClick={onHome} data-tooltip={t("nav.backHome")} aria-label={t("nav.backHome")}>
@@ -2131,46 +2132,112 @@ function SettingsView({
 }) {
   const { t } = useI18n();
   const [activePanel, setActivePanel] = useState<SettingsPanelId>("files");
+  const settingsNodes: Array<{
+    id: SettingsPanelId;
+    title: string;
+    description: string;
+    icon: ReactNode;
+    left: string;
+    top: string;
+  }> = [
+    {
+      id: "files",
+      title: t("settings.filesLinks"),
+      description: t("settings.defaultOpenFileDesc"),
+      icon: <FolderOpen size={19} />,
+      left: "50%",
+      top: "18%",
+    },
+    {
+      id: "language",
+      title: t("settings.language"),
+      description: t("settings.interfaceLanguageDesc"),
+      icon: <MessageCircle size={19} />,
+      left: "22%",
+      top: "56%",
+    },
+    {
+      id: "plugins",
+      title: t("settings.plugins"),
+      description: t("plugin.marketDesc"),
+      icon: <Puzzle size={19} />,
+      left: "78%",
+      top: "56%",
+    },
+    {
+      id: "ai",
+      title: t("settings.ai"),
+      description: t("ai.settingsDesc"),
+      icon: <Bot size={19} />,
+      left: "50%",
+      top: "84%",
+    },
+  ];
+  const activeNode = settingsNodes.find((node) => node.id === activePanel) ?? settingsNodes[0];
+  const activeContent =
+    activePanel === "files" ? (
+      <FileLinksSettingsPanel
+        workspacePath={workspacePath}
+        settings={fileLinkSettings}
+        onChange={onFileLinkSettingsChange}
+        onChangeWorkspace={onChangeWorkspace}
+      />
+    ) : activePanel === "language" ? (
+      <LanguageSettingsPanel
+        workspacePath={workspacePath}
+        locale={locale}
+        languageOptions={languageOptions}
+        communityLanguagePacks={communityLanguagePacks}
+        onLocaleChange={onLocaleChange}
+        onLanguagePacksChange={onLanguagePacksChange}
+      />
+    ) : activePanel === "plugins" ? (
+      <LiveComponentsSettingsPanel workspacePath={workspacePath} />
+    ) : (
+      <AiSettingsPanel />
+    );
 
   return (
-    <section className="settings-view settings-panel-view">
-      <aside className="settings-sidebar" aria-label={t("settings.options")}>
-        <strong>{t("settings.options")}</strong>
-        <button type="button" className={activePanel === "files" ? "is-active" : ""} onClick={() => setActivePanel("files")}>
-          <FolderOpen size={17} />{t("settings.filesLinks")}
-        </button>
-        <button type="button" className={activePanel === "language" ? "is-active" : ""} onClick={() => setActivePanel("language")}>
-          <MessageCircle size={17} />{t("settings.language")}
-        </button>
-        <button type="button" className={activePanel === "plugins" ? "is-active" : ""} onClick={() => setActivePanel("plugins")}>
-          <Puzzle size={17} />{t("settings.plugins")}
-        </button>
-        <button type="button" className={activePanel === "ai" ? "is-active" : ""} onClick={() => setActivePanel("ai")}>
-          <Bot size={17} />{t("settings.ai")}
-        </button>
-      </aside>
-      <div className="settings-main-panel">
-        {activePanel === "files" ? (
-          <FileLinksSettingsPanel
-            workspacePath={workspacePath}
-            settings={fileLinkSettings}
-            onChange={onFileLinkSettingsChange}
-            onChangeWorkspace={onChangeWorkspace}
-          />
-        ) : activePanel === "language" ? (
-          <LanguageSettingsPanel
-            workspacePath={workspacePath}
-            locale={locale}
-            languageOptions={languageOptions}
-            communityLanguagePacks={communityLanguagePacks}
-            onLocaleChange={onLocaleChange}
-            onLanguagePacksChange={onLanguagePacksChange}
-          />
-        ) : activePanel === "plugins" ? (
-          <LiveComponentsSettingsPanel workspacePath={workspacePath} />
-        ) : (
-          <AiSettingsPanel />
-        )}
+    <section className="settings-view settings-map-view">
+      <div className="settings-map-canvas" aria-label={t("settings.options")}>
+        <svg className="settings-map-lines" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M50 50 L50 18" />
+          <path d="M50 50 L22 56" />
+          <path d="M50 50 L78 56" />
+          <path d="M50 50 L50 84" />
+        </svg>
+        <div className="settings-map-center" aria-hidden="true">
+          <Settings size={20} />
+          <span>{t("settings.options")}</span>
+        </div>
+        {settingsNodes.map((node) => (
+          <button
+            key={node.id}
+            type="button"
+            className={activePanel === node.id ? "settings-map-node is-active" : "settings-map-node"}
+            style={{ left: node.left, top: node.top } as CSSProperties}
+            onClick={() => setActivePanel(node.id)}
+            aria-pressed={activePanel === node.id}
+          >
+            <span className="settings-map-node-dot">{node.icon}</span>
+            <span className="settings-map-node-label">
+              <strong>{node.title}</strong>
+              <small>{node.description}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="settings-popover" key={activePanel} role="region" aria-label={activeNode.title}>
+        <header className="settings-popover-header">
+          <span className="settings-popover-icon">{activeNode.icon}</span>
+          <div>
+            <strong>{activeNode.title}</strong>
+            <small>{activeNode.description}</small>
+          </div>
+        </header>
+        <div className="settings-popover-body">
+          {activeContent}
+        </div>
       </div>
     </section>
   );
@@ -2430,7 +2497,7 @@ function LiveComponentsSettingsPanel({ workspacePath }: { workspacePath: string 
             <strong>{t("plugin.market")}</strong>
             <small>{t("plugin.marketDesc")}</small>
           </div>
-          <button type="button" className="secondary-action-button is-purple" disabled>{t("action.browse")}</button>
+          <button type="button" className="secondary-action-button" disabled>{t("action.browse")}</button>
         </div>
         <div className="plugin-policy-row">
           <div className="plugin-policy-icon"><FolderOpen size={17} /></div>
