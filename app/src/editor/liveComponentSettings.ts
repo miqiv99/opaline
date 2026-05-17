@@ -39,7 +39,7 @@ export const saveLiveComponentSettings = (settings: LiveComponentSettings) => {
 export const BUILT_IN_WIDGETS = [
   {
     type: "local-graph",
-    label: "本地图谱",
+    label: "本篇关系图",
     description: "显示当前笔记附近的文件、标题、块和概念关系。",
   },
   {

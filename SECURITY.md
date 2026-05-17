@@ -13,7 +13,7 @@ For now, contact the maintainer privately through the contact channel listed on 
 Security-sensitive areas include:
 
 - Local file access and workspace boundaries.
-- Plugin and live script execution.
+- Extension component and live script execution.
 - AI provider configuration and API keys.
 - Import/export behavior.
 - Generated or published HTML.
@@ -21,6 +21,6 @@ Security-sensitive areas include:
 ## Current Alpha Notes
 
 - Builds may be unsigned unless a release explicitly says otherwise.
-- Third-party plugin behavior is experimental.
-- Users should only install plugins and open workspaces they trust.
+- Third-party extension behavior is experimental.
+- Users should only install extensions and open workspaces they trust.
 - API keys are user-provided and should be treated as secrets.

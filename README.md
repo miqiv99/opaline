@@ -38,11 +38,11 @@ The current alpha already includes:
 - ✓ local HTML note creation, loading, editing, saving, and auto-saving
 - ✓ file explorer with note actions
 - ✓ rich editor blocks: headings, lists, tasks, tables, callouts, images, embeds, math, Mermaid, layouts, disclosures, and code
-- ◐ SQLite-backed metadata, search direction, tags, headings, backlinks, outgoing links, and broken-link detection
-- ✓ relationship graph with file, heading, block, and concept-level relationships
+- ◐ SQLite-backed metadata, search direction, tags, headings, links from this note, mentions of this note, and broken-link detection
+- ✓ Relationship map with file, heading, block, and concept-level relationships
 - ✓ local note history snapshots
 - ✓ AI settings for provider, base URL, model, API key, model test, and model fetching
-- ◐ experimental live widgets and plugin folder support
+- ◐ experimental live widgets and extension folder support
 - ✓ interface language support and workspace-local language packs
 
 Legend: ✓ implemented, ◐ partially implemented or still rough, ○ planned.
@@ -96,7 +96,7 @@ Opaline/
 - `assets/` contains images and files.
 - `.opaline/` contains metadata, settings, indexes, cache, and history snapshots.
 
-Local editing does not require a cloud account. Network access can happen when users configure AI providers, fetch model lists, run plugins/scripts, or open external links.
+Local editing does not require a cloud account. Network access can happen when users configure AI providers, fetch model lists, run extensions or scripts, or open external links.
 
 Read more: [docs/data-and-privacy.md](docs/data-and-privacy.md)
 

@@ -1114,7 +1114,7 @@ function WidgetInsertDialog({
       <div className="insert-card widget-insert-card">
         <header>
           <strong>插入组件</strong>
-          <p>从内置组件或 .opaline/plugins 里的插件选择一个组件，填参数后插入到当前笔记。</p>
+          <p>从内置组件或 .opaline/plugins 里的扩展组件选择一个组件，填参数后插入到当前笔记。</p>
         </header>
         <div className="widget-picker-grid">
           <div className="widget-option-list">

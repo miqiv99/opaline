@@ -29,7 +29,7 @@ cargo test
 
 - Opaline is local-first by default.
 - HTML notes are the durable source of truth.
-- SQLite is for rebuildable metadata, indexes, backlinks, app state, and cache.
+- SQLite is for rebuildable metadata, indexes, note mentions, app state, and cache.
 - AI features should propose and explain changes, not silently rewrite user knowledge.
 - Do not introduce a new framework unless the existing stack clearly needs it.
 

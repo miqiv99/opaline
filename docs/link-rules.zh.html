@@ -13,8 +13,8 @@
         <p><a href="../index.html">返回文档入口</a></p>
         <h1>链接规则</h1>
 
-        <h2><code>[[note]]</code> 笔记链接</h2>
-        <p>保存时，Opaline 会把 <code>[[标题]]</code> 编译成普通 HTML 链接。如果能按标题找到目标笔记，保存为：</p>
+        <h2>标题快捷链接</h2>
+        <p>保存时，Opaline 会把标题快捷写法（例如 <code>[[标题]]</code>）编译成普通 HTML 链接。如果能按标题找到目标笔记，保存为：</p>
         <pre><code>&lt;a href="target.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;标题&lt;/a&gt;</code></pre>
         <p>如果找不到目标笔记，保存为 unresolved span，并在索引中标记为断链：</p>
         <pre><code>&lt;span data-opaline-unresolved="标题"&gt;[[标题]]&lt;/span&gt;</code></pre>
@@ -43,22 +43,22 @@
           <li>如果链接文本等于某篇笔记标题，也可以作为兜底解析目标。</li>
         </ul>
 
-        <h2>Block Ref</h2>
+        <h2>块链接</h2>
         <p>块引用通过 URL hash 和 <code>data-opaline-block-ref</code> 表达：</p>
         <pre><code>&lt;a href="target.html#b-intro" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-ref="b-intro" data-opaline-block-id="b-intro"&gt;target#b-intro&lt;/a&gt;</code></pre>
         <p>编辑器会在 Tiptap 状态中保留 <code>data-opaline-block-id</code>，创建块链接前也会补齐缺失 ID。当前索引先解析目标笔记是否存在；跨笔记精确校验 block id 是否存在，仍留给后续索引层实现。</p>
 
-        <h2>活组件与插件</h2>
-        <p>活组件使用受控、可读 HTML 表达。设置页把内置组件、已安装插件组件和实验性脚本笔记分开。</p>
+        <h2>活组件与扩展组件</h2>
+        <p>活组件使用受控、可读 HTML 表达。设置页把内置组件、已安装扩展组件和实验性脚本笔记分开。</p>
         <pre><code>&lt;opaline-widget type="local-graph" title="当前笔记关联范围"&gt;Opaline widget: 当前笔记关联范围&lt;/opaline-widget&gt;
 &lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status" profile="onu-readonly"&gt;Opaline widget: 网络设备状态&lt;/opaline-widget&gt;
 &lt;opaline-script title="实验脚本" language="javascript"&gt;const status = await opaline.net.fetch("http://192.168.1.1/status");&lt;/opaline-script&gt;</code></pre>
-        <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。插件组件由 <code>.opaline/plugins</code> 里的脚本接管，<code>manifest.json</code> 把组件类型映射到脚本文件，笔记只保存参数。<code>&lt;opaline-script&gt;</code> 仍是单篇笔记里的实验性脚本入口。</p>
+        <p>Opaline 可以渲染 <code>query</code>、<code>chart</code>、<code>local-graph</code> 等内置类型。扩展组件由 <code>.opaline/plugins</code> 里的脚本接管，<code>manifest.json</code> 把组件类型映射到脚本文件，笔记只保存参数。<code>&lt;opaline-script&gt;</code> 仍是单篇笔记里的实验性脚本入口。</p>
 
-        <h2>Broken Link</h2>
+        <h2>断链</h2>
         <p>以下情况会被标记为断链：</p>
         <ul>
-          <li><code>[[标题]]</code> 找不到对应笔记。</li>
+          <li>标题快捷链接找不到对应笔记。</li>
           <li>相对 HTML 链接找不到目标笔记。</li>
           <li><code>data-opaline-link</code> 指向的 note id 不存在。</li>
         </ul>

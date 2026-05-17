@@ -25,7 +25,7 @@
         <p>它从一个个人桌面笔记应用起步，但更大的愿景是：笔记应该是持久的本地文档，可以被舒适地编辑、深度搜索、相互链接、发布为网页，并最终由 AI 带引用地查询。</p>
 
         <h2>核心理念</h2>
-        <p>本地 Markdown 工具证明了纯文本文件可以成为严肃的个人知识库。Opaline 探索的是一个相关但不同的赌注：</p>
+        <p>本地文件已经证明：个人知识可以由用户自己拥有，并长期留在文件系统里。Opaline 探索的是一个相关但不同的赌注：</p>
 
         <blockquote>
           <p>富知识笔记应该以干净的本地 HTML 保存，因此每篇笔记从一开始就是可阅读的文档、可发布的网页、也是 AI 辅助整理的结构化知识源。</p>
@@ -42,26 +42,26 @@
         <p>在 HTML 中，段落知道自己的语言：<code>&lt;p lang="zh"&gt;中文&lt;/p&gt;&lt;p lang="en"&gt;English&lt;/p&gt;</code>。在 Markdown 中，两个相邻段落只是纯文本，没有解析器能区分语言。这对双语搜索（"只搜我的英文笔记"）、拼写检查、屏幕阅读器、以及需要知道段落语言再去做嵌入的 AI 检索来说，是质的区别。</p>
 
         <h3>稳定的块标识</h3>
-        <p>HTML 允许每个章节带持久 ID：<code>&lt;section id="b-db-choice" data-opaline-block&gt;</code>。你可以链接到它，调整顺序和编辑后链接仍然有效，反链解析正确。Markdown 没有块标识的概念——块引用依赖脆弱的文本匹配或标题自动生成的 slug，标题一改链接就断。</p>
+        <p>HTML 允许每个章节带持久 ID：<code>&lt;section id="b-db-choice" data-opaline-block&gt;</code>。你可以链接到它，调整顺序和编辑后链接仍然有效，Opaline 仍能显示谁提到它。Markdown 没有块标识的概念——块引用依赖脆弱的文本匹配或标题自动生成的 slug，标题一改链接就断。</p>
 
         <h3>富文档原生元素</h3>
-        <p>定义列表、图表说明、旁注、折叠部件——<code>&lt;dl&gt;</code>、<code>&lt;figure&gt;</code>、<code>&lt;aside&gt;</code>、<code>&lt;details&gt;</code> 都是标准 HTML。在 Markdown 中，每一样都需要不同的插件或直接写 raw HTML 来绕过。</p>
+        <p>定义列表、图表说明、旁注、折叠部件——<code>&lt;dl&gt;</code>、<code>&lt;figure&gt;</code>、<code>&lt;aside&gt;</code>、<code>&lt;details&gt;</code> 都是标准 HTML。在 Markdown 中，每一样都需要不同的扩展语法或直接写 raw HTML 来绕过。</p>
 
         <h3>无损往返</h3>
         <p>Markdown → HTML → Markdown 是有损的。哪个 flavor？哪些扩展？你写的 <code>---</code> 是水平线还是 YAML frontmatter？HTML → 编辑 → HTML 没有转换步骤，因此不会有任何丢失。</p>
 
         <p>这些不是在说 Markdown 不好。而是说 Markdown 为<em>书写</em>优化，HTML 为<em>成为文档本身</em>优化。Opaline 的赌注是：对于长期知识来说，文档格式比打字速记法更重要。</p>
 
-        <h2>与现有 Markdown 工具的关系</h2>
-        <p>现有本地 Markdown 工具证明了市场：本地文件、wiki 链接和扩展生态可以成为严肃的知识工具。Opaline 不是在复制这条路线。</p>
+        <h2>Opaline 的格式方向</h2>
+        <p>Opaline 不是在复制另一个笔记应用模型。它从干净 HTML 文档出发，再围绕这些文档能承载的结构去做工作台。</p>
 
         <p>区别是结构性的：</p>
         <ul>
-          <li><strong>Markdown 优先的工具</strong>建立在书写速记法之上，再用插件约定补充查询、标注和可视化布局。这些方案可以很好用，但结构往往不属于基础格式本身。</li>
+          <li><strong>纯文本优先的工作流</strong>很适合快速书写，但更丰富的结构往往需要应用自己的约定，结构不一定属于基础文件格式本身。</li>
           <li><strong>Opaline</strong> 的赌注是：从更丰富的格式出发，让<em>核心</em>不依赖扩展语法也能做更多事：结构化元数据可以是原生 HTML，<code>&lt;aside&gt;</code> 可以表达标注块，块也可以直接携带稳定 ID。</li>
         </ul>
 
-        <p>真正要问的不是“应不应该从另一个应用切换”，而是“我的知识工作有没有复杂到 Markdown 的天花板已经开始限制我了”。Opaline 是为感觉到那个天花板的人准备的。</p>
+        <p>真正要问的是：我的笔记是否需要成为有稳定结构、可浏览器阅读、可本地搜索、也能给 AI 提供明确来源边界的持久文档。</p>
 
         <h2>第一用户</h2>
         <p>第一用户是作者，而不是公开读者。Opaline 应该服务于随着时间积累知识的人：研究者、写作者、开发者、学生、产品思考者和技术创作者。</p>
@@ -94,7 +94,7 @@ Diandanr = 发布、网站生成、分发和平台功能</code></pre>
         <h2>阶段性目标</h2>
         <ul>
           <li><strong>短期：</strong>让个人打开应用后不用先想目录和分类，也能把真实内容交给 Opaline。</li>
-          <li><strong>中期：</strong>让“今天”对话自然沉淀成本地 HTML 日记，并让笔记能被搜索、链接、整理和 AI 检索。</li>
+          <li><strong>中期：</strong>让“今天”记录自然沉淀成本地 HTML 今日记录，并让笔记能被搜索、链接、整理和 AI 检索。</li>
           <li><strong>长期：</strong>让公开笔记成为可阅读、可引用、可追问的知识网络。</li>
         </ul>
         <p>Opaline 的第一性问题不是"能做多少功能"，而是"能不能长期保存和理解用户自己的知识"。</p>

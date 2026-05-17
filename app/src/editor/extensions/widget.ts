@@ -220,7 +220,7 @@ const createWidgetNodeView = (
     if (enabled && !builtIn) {
       const output = document.createElement("div");
       output.className = "opaline-live-output";
-      output.textContent = pluginScript ? "正在运行插件组件..." : "没有安装提供这个组件的插件。请在设置里打开插件文件夹并导入插件。";
+      output.textContent = pluginScript ? "正在运行扩展组件..." : "没有安装提供这个组件的扩展。请在设置里打开扩展文件夹并导入扩展。";
       dom.append(output);
       if (pluginScript) {
         startPluginWidget(current, pluginScript, output);
@@ -249,14 +249,14 @@ const createWidgetNodeView = (
         if (typeof result !== "undefined") {
           renderValue(output, result);
         } else if (output.textContent === "运行中...") {
-          output.textContent = "插件组件已运行，没有返回内容。";
+          output.textContent = "扩展组件已运行，没有返回内容。";
         }
       })
       .catch((error) => {
         if (runToken !== requestToken) return;
         output.classList.add("is-error");
         output.classList.remove("is-loading");
-        output.textContent = error instanceof Error ? error.message : "插件组件运行失败";
+        output.textContent = error instanceof Error ? error.message : "扩展组件运行失败";
       });
   };
 
@@ -291,7 +291,7 @@ const createWidgetEditor = (attrs: WidgetAttrs, onSave: (patch: Partial<WidgetAt
   const endpointInput = field("接口路径", attrs.endpoint || "/status");
   const refreshInput = field("刷新间隔", attrs.refresh || "5s");
   const profileInput = field("Profile", attrs.profile || "onu-readonly");
-  const pluginInput = field("插件", attrs.plugin || "network-tools");
+  const pluginInput = field("扩展", attrs.plugin || "network-tools");
 
   const save = document.createElement("button");
   save.type = "button";
@@ -370,7 +370,7 @@ const createPluginWidgetApi = (
       const timer = window.setInterval(() => {
         void Promise.resolve(callback()).catch((error) => {
           output.classList.add("is-error");
-          output.textContent = error instanceof Error ? error.message : "定时插件组件运行失败";
+          output.textContent = error instanceof Error ? error.message : "定时扩展组件运行失败";
         });
       }, Math.max(500, ms));
       timers.add(timer);
@@ -381,7 +381,7 @@ const createPluginWidgetApi = (
         timers.delete(timer);
         void Promise.resolve(callback()).catch((error) => {
           output.classList.add("is-error");
-          output.textContent = error instanceof Error ? error.message : "延时插件组件运行失败";
+          output.textContent = error instanceof Error ? error.message : "延时扩展组件运行失败";
         });
       }, Math.max(0, ms));
       timers.add(timer);
@@ -612,26 +612,26 @@ const formatBody = (body: string, contentType: string) => {
 const widgetLabel = (type: string) => {
   if (type === "query") return "Query";
   if (type === "chart") return "Chart";
-  if (type === "local-graph") return "Local graph";
+  if (type === "local-graph") return "Note map";
   if (type === "network-status") return "Network status";
-  return type || "Plugin widget";
+  return type || "Extension widget";
 };
 
 const widgetStatus = (type: string, enabled: boolean, builtIn: boolean, pluginName?: string) => {
   if (!enabled && builtIn) return "Built-in widget disabled";
-  if (!enabled) return "Plugin widget not enabled";
-  if (!builtIn && pluginName) return `Plugin widget · ${pluginName}`;
-  return builtIn ? "Controlled widget" : "Trusted plugin widget";
+  if (!enabled) return "Extension widget not enabled";
+  if (!builtIn && pluginName) return `Extension widget · ${pluginName}`;
+  return builtIn ? "Controlled widget" : "Trusted extension widget";
 };
 
 const widgetDescription = (type: string, query: string, target: string, enabled: boolean, builtIn: boolean) => {
-  if (!enabled && !builtIn) return "This note declares a plugin widget, but trusted plugin widgets are disabled in Settings.";
+  if (!enabled && !builtIn) return "This note declares an extension widget, but trusted extension widgets are disabled in Settings.";
   if (!enabled) return "This built-in widget is stored as readable HTML, but controlled widgets are disabled in Settings.";
   if (type === "local-graph") return "Shows the current note's local relationship neighborhood when opened in Opaline.";
   if (type === "query") return query ? `Saved query: ${query}` : "Saved query placeholder.";
   if (type === "chart") return query ? `Chart source: ${query}` : "Chart placeholder.";
   if (type === "network-status") return target ? `Live LAN request target: ${target}.` : "Edit this widget and fill a LAN device target.";
-  return "This widget is stored as readable HTML and requires a trusted plugin to render.";
+  return "This widget is stored as readable HTML and requires a trusted extension to render.";
 };
 
 const escapeHtml = (value: string) =>

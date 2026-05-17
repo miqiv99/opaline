@@ -13,10 +13,10 @@ Initial public alpha preparation.
 - Default local workspace under the user's documents folder.
 - Focused note workspace with file pane, editor, inspector, and relationship views.
 - Tiptap-based rich editor with headings, lists, links, images, tables, tasks, callouts, layouts, math, Mermaid, embeds, block IDs, and widgets.
-- SQLite-backed metadata, search, backlinks, tags, headings, and link scanning.
+- SQLite-backed metadata, search, note mentions, tags, headings, and link scanning.
 - Local note history snapshots.
 - AI settings for provider, base URL, model, API key, model tests, and model fetching.
-- Experimental live widgets and plugin folder support.
+- Experimental live widgets and extension folder support.
 
 Known alpha limitations:
 

@@ -288,7 +288,7 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
   },
 
   async openPluginsFolder() {
-    window.alert("演示模式不能打开本地插件文件夹。桌面版会打开 .opaline/plugins。");
+    window.alert("演示模式不能打开本地扩展文件夹。桌面版会打开 .opaline/plugins。");
   },
 
   async listInstalledPlugins() {

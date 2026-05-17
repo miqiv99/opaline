@@ -28,7 +28,7 @@ Network access can happen when the user explicitly configures or uses features s
 
 - AI providers.
 - Model list fetching.
-- Live scripts or plugins that call network APIs.
+- Live scripts or extensions that call network APIs.
 - Opening external links.
 
 ## AI Keys
@@ -37,11 +37,11 @@ AI provider settings are user-configured. API keys should be treated as secrets.
 
 Public alpha builds should not be used with sensitive production credentials unless the user has reviewed the code and understands the risk.
 
-## Plugins and Scripts
+## Extensions and Scripts
 
-Live scripts and third-party plugins are experimental. They can expand what notes can do, but they also increase risk.
+Live scripts and third-party extensions are experimental. They can expand what notes can do, but they also increase risk.
 
-Only install plugins from sources you trust. Keep plugin behavior explicit, visible, and reversible.
+Only install extensions from sources you trust. Keep extension behavior explicit, visible, and reversible.
 
 ## Backups
 

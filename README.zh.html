@@ -164,11 +164,11 @@
           <li>AI 设置支持 provider、自定义 API 地址、模型名、API Key、显式保存、测试模型和抓取模型。</li>
           <li>已有 Opaline HTML Profile 的基础清洗、解析和测试。</li>
           <li>SQLite 已开始参与搜索和元数据管理方向。</li>
-          <li>已梳理普通 <code>&lt;a&gt;</code>、<code>[[note links]]</code>、block ref、提及关系、出链和 broken link 的规则。</li>
+          <li>已梳理普通 <code>&lt;a&gt;</code>、标题快捷链接、块链接、谁提到本篇、本篇关联和断链规则。</li>
           <li>关系数据模型和关系图已经区分文件级、标题级、块级、概念级关系。</li>
           <li>编辑器可以复制当前块链接，也可以从当前笔记中选择标题或块并插入稳定 ID 链接。</li>
-          <li>已加入扩展组件设置：插件保护模式、扩展安装情况、刷新按钮，以及打开 <code>.opaline/plugins</code> 扩展文件夹的入口。</li>
-          <li><code>&lt;opaline-widget&gt;</code> 可以保存内置组件，也可以声明已安装插件提供的组件，例如 <code>network-status</code>。笔记只保存 <code>type</code>、<code>target</code>、<code>endpoint</code>、<code>refresh</code> 等参数；脚本放在工作区插件文件夹里。</li>
+          <li>已加入扩展组件设置：扩展保护模式、扩展安装情况、刷新按钮，以及打开 <code>.opaline/plugins</code> 扩展文件夹的入口。</li>
+          <li><code>&lt;opaline-widget&gt;</code> 可以保存内置组件，也可以声明已安装扩展提供的组件，例如 <code>network-status</code>。笔记只保存 <code>type</code>、<code>target</code>、<code>endpoint</code>、<code>refresh</code> 等参数；脚本放在工作区扩展文件夹里。</li>
           <li><code>&lt;opaline-script&gt;</code> 已作为实验性脚本笔记加入；在设置里启用后会在 Opaline 内运行 JS，并可通过 <code>opaline.render()</code> 更新卡片输出、通过 <code>opaline.net.fetch()</code> 请求 HTTP/HTTPS 接口。</li>
           <li>编辑器支持 callout、双栏、对照、旁注、折叠块、表格、任务列表、图片、嵌入、数学公式和 Mermaid 图表。</li>
           <li>编辑器右键菜单已经把常用格式、段落、H1-H6 标题、插入和剪贴板操作收进分层菜单。</li>
@@ -181,7 +181,7 @@
 
         <h2>HTML 原生差异点</h2>
         <ul>
-          <li><strong>活组件 / Web Component：</strong>设置页保留内置组件和实验性脚本笔记开关，第三方组件改为从 <code>.opaline/plugins/&lt;plugin-id&gt;/</code> 读取。插件 <code>manifest.json</code> 把 <code>network-status</code> 等组件类型映射到脚本文件；笔记只保存 <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code> 这样的参数声明。</li>
+          <li><strong>活组件 / Web Component：</strong>设置页保留内置组件和实验性脚本笔记开关，第三方组件改为从 <code>.opaline/plugins/&lt;extension-id&gt;/</code> 读取。扩展 <code>manifest.json</code> 把 <code>network-status</code> 等组件类型映射到脚本文件；笔记只保存 <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code> 这样的参数声明。</li>
           <li><strong>DOM 级原子链接：</strong>标题、段落、表格、引用块等保留 <code>data-opaline-block-id</code>，编辑器提供复制当前块链接和插入标题/块链接的入口。</li>
           <li><strong>动态关系图：</strong>关系图区分文件、标题、块、概念关系，可以聚焦当前笔记关联范围，并点击边查看关系详情。</li>
         </ul>

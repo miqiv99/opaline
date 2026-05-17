@@ -30,7 +30,7 @@
         <p>It starts as a personal desktop note app, but the larger idea is broader: notes should be durable local documents that can be edited comfortably, searched deeply, linked together, published as webpages, and eventually queried by AI with clear citations.</p>
 
         <h2>Core Thesis</h2>
-        <p>Local Markdown tools proved that plain files can become a serious personal knowledge base. Opaline explores a related but different bet:</p>
+        <p>Plain local files proved that personal knowledge can stay user-owned and durable. Opaline explores a related but different bet:</p>
 
         <blockquote>
           <p>Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.</p>
@@ -47,7 +47,7 @@
         <p>In HTML, a paragraph knows what language it is: <code>&lt;p lang="zh"&gt;中文&lt;/p&gt;&lt;p lang="en"&gt;English&lt;/p&gt;</code>. In Markdown, two adjacent paragraphs are just text. No parser can tell which is which. This matters for bilingual search ("search only my English notes"), spellcheck, screen readers, and AI retrieval that needs to know the language of a passage before embedding it.</p>
 
         <h3>Stable block identity</h3>
-        <p>HTML allows every section to carry a persistent ID: <code>&lt;section id="b-db-choice" data-opaline-block&gt;</code>. You can link to it, it survives reordering and editing, and backlinks resolve correctly. Markdown has no concept of block identity — block references rely on fragile text matching or auto-generated slugs that break when headings change.</p>
+        <p>HTML allows every section to carry a persistent ID: <code>&lt;section id="b-db-choice" data-opaline-block&gt;</code>. You can link to it, it survives reordering and editing, and Opaline can still show which notes mention it. Markdown has no concept of block identity — block references rely on fragile text matching or auto-generated slugs that break when headings change.</p>
 
         <h3>Rich document primitives</h3>
         <p>Definition lists, figure captions, asides, disclosure widgets — <code>&lt;dl&gt;</code>, <code>&lt;figure&gt;</code>, <code>&lt;aside&gt;</code>, <code>&lt;details&gt;</code> are standard HTML. In Markdown, each of these needs a different plugin or raw HTML escape hatch.</p>
@@ -57,16 +57,16 @@
 
         <p>None of this means Markdown is bad. It means Markdown is optimized for <em>writing</em>, while HTML is optimized for <em>being the document</em>. Opaline bets that for long-term knowledge, the document format matters more than the typing shorthand.</p>
 
-        <h2>Relationship to Existing Markdown Tools</h2>
-        <p>Existing local Markdown tools proved the market: local files, wiki-links, and extension ecosystems can become serious knowledge tools. Opaline is not trying to copy that model.</p>
+        <h2>Opaline's Format Direction</h2>
+        <p>Opaline is not trying to copy another note app model. It starts from clean HTML documents and builds the workspace around the structure those documents can carry.</p>
 
         <p>The difference is structural:</p>
         <ul>
-          <li><strong>Markdown-first tools</strong> build on a writing shorthand and extend it with plugin-specific conventions for queries, callouts, and visual layouts. These can work well, but the structure often lives outside the base format.</li>
+          <li><strong>Plain-text-first workflows</strong> are great for fast writing, but richer structure often lives in app-specific conventions outside the base file format.</li>
           <li><strong>Opaline</strong> bets that starting from a richer format lets the <em>core</em> do more without relying on extension syntax: structured metadata can be native HTML, <code>&lt;aside&gt;</code> can represent callouts, and blocks can carry stable IDs directly.</li>
         </ul>
 
-        <p>The real question is not "should I switch from another app" — it's "is my knowledge work complex enough that Markdown's ceiling is starting to matter." Opaline is for people who feel that ceiling.</p>
+        <p>The real question is whether your notes need to become durable documents with stable structure, browser readability, local search, and AI-ready source boundaries.</p>
         <p>The first user is the author, not the public reader. Opaline should serve people who accumulate knowledge over time: researchers, writers, developers, students, product thinkers, and technical creators.</p>
 
         <h2>First Product Loop</h2>

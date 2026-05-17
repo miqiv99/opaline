@@ -175,12 +175,12 @@ const liveRuntimeScript = `
     if (!widget.querySelector(":scope > .opaline-live-runtime-label")) {
       const label = document.createElement("div");
       label.className = "opaline-live-runtime-label";
-      label.textContent = code ? "Plugin widget" : "Opaline widget";
+      label.textContent = code ? "Extension widget" : "Opaline widget";
       widget.prepend(label);
     }
     const output = outputFor(widget);
     if (!code) {
-      output.textContent = "No installed plugin script is embedded for this widget type.";
+      output.textContent = "No installed extension script is embedded for this widget type.";
       return;
     }
     const timers = new Set();
