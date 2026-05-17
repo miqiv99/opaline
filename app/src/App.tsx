@@ -28,6 +28,7 @@ import {
   RotateCcw,
   Star,
   ArrowDownAZ,
+  BarChart3,
   FileUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -65,15 +66,22 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
 const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
-type SettingsPanelId = "files" | "plugins" | "ai" | "language";
+type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
   newNoteLocation: "vault-root" | "current-folder" | "journal";
 };
+type StatsSettings = {
+  heatmapThresholds: [number, number, number, number];
+};
 
+const STATS_SETTINGS_STORAGE_KEY = "opaline-stats-settings";
 const defaultFileLinkSettings = (): FileLinkSettings => ({
   defaultOpenFile: "last",
   newNoteLocation: "vault-root",
+});
+const defaultStatsSettings = (): StatsSettings => ({
+  heatmapThresholds: [1, 10, 30, 60],
 });
 
 const loadFileLinkSettings = (): FileLinkSettings => {
@@ -94,6 +102,37 @@ const loadFileLinkSettings = (): FileLinkSettings => {
 
 const saveFileLinkSettings = (settings: FileLinkSettings) => {
   localStorage.setItem(FILE_LINK_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+};
+
+const normalizeStatsThresholds = (value: unknown): StatsSettings["heatmapThresholds"] => {
+  const defaults = defaultStatsSettings().heatmapThresholds;
+  const source = Array.isArray(value) ? value : defaults;
+  const thresholds = defaults.map((fallback, index) => {
+    const parsed = Number(source[index]);
+    return Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : fallback;
+  }) as StatsSettings["heatmapThresholds"];
+
+  for (let index = 1; index < thresholds.length; index += 1) {
+    thresholds[index] = Math.max(thresholds[index], thresholds[index - 1] + 1);
+  }
+
+  return thresholds;
+};
+
+const loadStatsSettings = (): StatsSettings => {
+  if (typeof localStorage === "undefined") return defaultStatsSettings();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STATS_SETTINGS_STORAGE_KEY) || "null") as Partial<StatsSettings> | null;
+    return {
+      heatmapThresholds: normalizeStatsThresholds(parsed?.heatmapThresholds),
+    };
+  } catch {
+    return defaultStatsSettings();
+  }
+};
+
+const saveStatsSettings = (settings: StatsSettings) => {
+  localStorage.setItem(STATS_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 };
 
 const loadLastActiveNote = (): { path?: string } | null => {
@@ -119,7 +158,7 @@ const normalizeInternalNotePath = (value: string) =>
     .replace(/^notes\//, "");
 
 type NoteTemplateId = "blank" | "idea" | "project-log" | "reading" | "debugging";
-type AppView = "home" | "today" | "note" | "settings" | "graph";
+type AppView = "home" | "today" | "note" | "settings" | "graph" | "stats";
 type VaultSortMode = "updated" | "title";
 type TodayMessage = {
   id: string;
@@ -238,6 +277,7 @@ export function App() {
   const [historyDialogNote, setHistoryDialogNote] = useState<NoteSummary | null>(null);
   const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
   const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
+  const [statsSettings, setStatsSettings] = useState<StatsSettings>(() => loadStatsSettings());
   const [appDialog, setAppDialog] = useState<AppDialogRequest | null>(null);
   const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
@@ -310,6 +350,9 @@ export function App() {
     if (view === "graph") {
       return t("app.title.graph");
     }
+    if (view === "stats") {
+      return t("app.title.stats");
+    }
     if (!workspace.activeNote) {
       return t("app.title.noOpenNote");
     }
@@ -332,6 +375,18 @@ export function App() {
     setFileLinkSettings((current) => {
       const next = { ...current, ...patch };
       saveFileLinkSettings(next);
+      return next;
+    });
+  }, []);
+
+  const updateStatsSettings = useCallback((patch: Partial<StatsSettings>) => {
+    setStatsSettings((current) => {
+      const next = {
+        ...current,
+        ...patch,
+        heatmapThresholds: normalizeStatsThresholds(patch.heatmapThresholds ?? current.heatmapThresholds),
+      };
+      saveStatsSettings(next);
       return next;
     });
   }, []);
@@ -1006,12 +1061,13 @@ export function App() {
     setSavedArticleHtml(nextArticleHtml);
     setView("note");
   };
+  const isVaultView = view === "note" || view === "graph" || view === "stats" || view === "settings";
 
   return (
     <main
-      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${(view === "note" || view === "graph" || view === "settings") ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
+      className={`app-shell ${view === "home" ? "is-home-mode" : ""} ${isVaultView ? "is-note-mode" : ""} ${leftPanelCollapsed ? "is-left-collapsed" : ""} ${rightPanelCollapsed ? "is-right-collapsed" : ""}`}
     >
-      {(view === "note" || view === "graph" || view === "settings") ? (
+      {isVaultView ? (
         <NoteRibbon
           activeView={view}
           leftCollapsed={leftPanelCollapsed}
@@ -1019,13 +1075,14 @@ export function App() {
           onNotes={() => setView("note")}
           onToggleLeft={() => setLeftPanelCollapsed((value) => !value)}
           onGraph={() => setView("graph")}
+          onStats={() => setView("stats")}
           onSettings={() => setView("settings")}
           onImport={importMarkdown}
         />
       ) : null}
-      {view === "home" || ((view === "note" || view === "graph" || view === "settings") && leftPanelCollapsed) ? null : (
-      <aside className={`sidebar ${(view === "note" || view === "graph" || view === "settings") ? "is-vault-sidebar" : ""}`}>
-        {(view === "note" || view === "graph" || view === "settings") ? null : (
+      {view === "home" || (isVaultView && leftPanelCollapsed) ? null : (
+      <aside className={`sidebar ${isVaultView ? "is-vault-sidebar" : ""}`}>
+        {isVaultView ? null : (
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
             <img src={leafLogo} alt="" />
@@ -1038,7 +1095,7 @@ export function App() {
         )}
 
         <div className="sidebar-actions">
-          {(view === "note" || view === "graph" || view === "settings") ? null : (
+          {isVaultView ? null : (
             <button type="button" onClick={() => setView("home")} disabled={isBusy} data-tooltip={t("action.home")} aria-label={t("action.home")}>
               <Home size={17} />
               <span>{t("action.home")}</span>
@@ -1052,13 +1109,13 @@ export function App() {
             <FilePlus2 size={17} />
             <span>{t("action.create")}</span>
           </button>
-          {(view !== "note" && view !== "graph" && view !== "settings") ? (
+          {!isVaultView ? (
             <button type="button" onClick={importMarkdown} disabled={isBusy} data-tooltip={t("action.import")} aria-label={t("action.import")}>
               <FileUp size={17} />
               <span>{t("action.import")}</span>
             </button>
           ) : null}
-          {(view === "note" || view === "graph" || view === "settings") ? (
+          {isVaultView ? (
             <>
               <button type="button" onClick={createFolder} disabled={isBusy} data-tooltip={t("action.createFolder")} aria-label={t("action.createFolder")}>
                 <FolderPlus size={17} />
@@ -1107,7 +1164,7 @@ export function App() {
           </div>
         ) : null}
 
-        {(view === "note" || view === "graph" || view === "settings") ? (
+        {isVaultView ? (
           <VaultExplorer
             notes={workspace.notes}
             favorites={favoriteNotes}
@@ -1197,16 +1254,20 @@ export function App() {
             }}
             onBack={() => setView(workspace.activeNote ? "note" : "home")}
           />
+        ) : view === "stats" ? (
+          <StatsView notes={workspace.notes} settings={statsSettings} />
         ) : view === "settings" ? (
           <SettingsView
             workspacePath={workspace.path}
             fileLinkSettings={fileLinkSettings}
+            statsSettings={statsSettings}
             locale={locale}
             languageOptions={languageOptions}
             communityLanguagePacks={communityLanguagePacks}
             onLocaleChange={setLocale}
             onLanguagePacksChange={setCommunityLanguagePacks}
             onFileLinkSettingsChange={updateFileLinkSettings}
+            onStatsSettingsChange={updateStatsSettings}
             onChangeWorkspace={async () => {
               const newPath = await workspaceAdapter.chooseWorkspace();
               if (!newPath) return;
@@ -1418,6 +1479,7 @@ function NoteRibbon({
   onNotes,
   onToggleLeft,
   onGraph,
+  onStats,
   onSettings,
   onImport,
 }: {
@@ -1427,6 +1489,7 @@ function NoteRibbon({
   onNotes: () => void;
   onToggleLeft: () => void;
   onGraph: () => void;
+  onStats: () => void;
   onSettings: () => void;
   onImport: () => void;
 }) {
@@ -1447,6 +1510,9 @@ function NoteRibbon({
       </button>
       <button type="button" className={activeView === "graph" ? "is-active" : ""} onClick={onGraph} data-tooltip={t("nav.graph")} aria-label={t("nav.graph")} aria-current={activeView === "graph" ? "page" : undefined}>
         <Network size={18} />
+      </button>
+      <button type="button" className={activeView === "stats" ? "is-active" : ""} onClick={onStats} data-tooltip={t("nav.stats")} aria-label={t("nav.stats")} aria-current={activeView === "stats" ? "page" : undefined}>
+        <BarChart3 size={18} />
       </button>
       <button type="button" className={activeView === "settings" ? "ribbon-bottom is-active" : "ribbon-bottom"} onClick={onSettings} data-tooltip={t("nav.settings")} aria-label={t("nav.settings")} aria-current={activeView === "settings" ? "page" : undefined}>
         <Settings size={18} />
@@ -1502,6 +1568,141 @@ function SeriousEmptyView({
       </section>
 
     </section>
+  );
+}
+
+type StatsDay = {
+  date: Date;
+  dateKey: string;
+  created: number;
+  updated: number;
+  total: number;
+};
+
+type StatsWeekCell = StatsDay | null;
+
+function StatsView({ notes, settings }: { notes: NoteSummary[]; settings: StatsSettings }) {
+  const { t, locale } = useI18n();
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toLocalDateKey(new Date()));
+
+  const stats = useMemo(() => buildYearStats(notes, selectedYear), [notes, selectedYear]);
+  const selectedDay = stats.daysByKey.get(selectedDateKey) ?? stats.recentDays[0] ?? stats.days[0];
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+
+  const selectYear = (year: number) => {
+    setSelectedYear(year);
+    setSelectedDateKey(year === currentYear ? toLocalDateKey(new Date()) : toLocalDateKey(new Date(year, 0, 1)));
+  };
+
+  return (
+    <section className="stats-view" aria-labelledby="stats-title">
+      <div className="stats-hero">
+        <div>
+          <p>{t("stats.subtitle")}</p>
+          <h2 id="stats-title">{t("stats.yearTitle", { year: selectedYear })}</h2>
+        </div>
+        <div className="stats-year-switcher" aria-label={t("stats.yearSwitcher")}>
+          {yearOptions.map((year) => (
+            <button
+              key={year}
+              type="button"
+              className={selectedYear === year ? "is-active" : ""}
+              onClick={() => selectYear(year)}
+              aria-pressed={selectedYear === year}
+            >
+              {year}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="stats-summary-grid">
+        <StatsMetric label={t("stats.created")} value={stats.yearCreated} />
+        <StatsMetric label={t("stats.updated")} value={stats.yearUpdated} />
+        <StatsMetric label={t("stats.total")} value={stats.yearTotal} />
+      </div>
+
+      <div className="stats-heatmap-card">
+        <div className="stats-heatmap-header">
+          <strong>{t("stats.heatmapTitle")}</strong>
+          <span>{t("stats.heatmapHint")}</span>
+        </div>
+        <div className="stats-heatmap-scroll" tabIndex={0}>
+          <div className="stats-month-row" style={{ "--stats-week-count": stats.weeks.length } as CSSProperties}>
+            {stats.weeks.map((week, index) => (
+              <span key={`month-${index}`}>{monthLabelForWeek(week, locale)}</span>
+            ))}
+          </div>
+          <div className="stats-heatmap-grid" style={{ "--stats-week-count": stats.weeks.length } as CSSProperties}>
+            <div className="stats-weekday-labels" aria-hidden="true">
+              {weekdayLabels(locale).map((day, index) => (
+                <span key={`${day}-${index}`}>{index % 2 === 1 ? day : ""}</span>
+              ))}
+            </div>
+            {stats.weeks.map((week, weekIndex) => (
+              <div className="stats-week" key={`week-${weekIndex}`}>
+                {week.map((day, dayIndex) => (
+                  day ? (
+                    <button
+                      key={day.dateKey}
+                      type="button"
+                      className={`stats-day-cell is-level-${activityLevel(day.total, settings.heatmapThresholds)} ${selectedDay?.dateKey === day.dateKey ? "is-selected" : ""}`}
+                      onClick={() => setSelectedDateKey(day.dateKey)}
+                      aria-label={activityLabel(day, locale, t)}
+                      aria-pressed={selectedDay?.dateKey === day.dateKey}
+                    >
+                      <span className="stats-day-tooltip">{activityLabel(day, locale, t)}</span>
+                    </button>
+                  ) : (
+                    <span key={`empty-${weekIndex}-${dayIndex}`} className="stats-day-cell is-empty" />
+                  )
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="stats-selected-day">
+          <span>{t("stats.selectedDate")}</span>
+          <strong>{selectedDay ? formatStatsDate(selectedDay.date, locale) : t("stats.emptyDate")}</strong>
+          <small>{selectedDay ? activityCompactLabel(selectedDay, t) : t("stats.noActivity")}</small>
+        </div>
+      </div>
+
+      <div className="stats-recent-card">
+        <div className="stats-heatmap-header">
+          <strong>{t("stats.recentActivity")}</strong>
+          <span>{t("stats.recentHint")}</span>
+        </div>
+        {stats.recentDays.length ? (
+          <div className="stats-recent-list">
+            {stats.recentDays.map((day) => (
+              <button
+                key={day.dateKey}
+                type="button"
+                className={selectedDay?.dateKey === day.dateKey ? "is-selected" : ""}
+                onClick={() => setSelectedDateKey(day.dateKey)}
+              >
+                <span>{formatStatsDate(day.date, locale)}</span>
+                <strong>{activityCompactLabel(day, t)}</strong>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="stats-empty">{t("stats.noActivityInYear")}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function StatsMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stats-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -2112,22 +2313,26 @@ function TodayView({
 function SettingsView({
   workspacePath,
   fileLinkSettings,
+  statsSettings,
   locale,
   languageOptions,
   communityLanguagePacks,
   onLocaleChange,
   onLanguagePacksChange,
   onFileLinkSettingsChange,
+  onStatsSettingsChange,
   onChangeWorkspace,
 }: {
   workspacePath: string | null;
   fileLinkSettings: FileLinkSettings;
+  statsSettings: StatsSettings;
   locale: string;
   languageOptions: LanguageOption[];
   communityLanguagePacks: ReturnType<typeof useI18n>["communityLanguagePacks"];
   onLocaleChange: (locale: string) => void;
   onLanguagePacksChange: ReturnType<typeof useI18n>["setCommunityLanguagePacks"];
   onFileLinkSettingsChange: (patch: Partial<FileLinkSettings>) => void;
+  onStatsSettingsChange: (patch: Partial<StatsSettings>) => void;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
   const { t } = useI18n();
@@ -2154,23 +2359,31 @@ function SettingsView({
       description: t("settings.interfaceLanguageDesc"),
       icon: <MessageCircle size={19} />,
       left: "22%",
-      top: "56%",
+      top: "50%",
+    },
+    {
+      id: "stats",
+      title: t("settings.stats"),
+      description: t("settings.statsDesc"),
+      icon: <BarChart3 size={19} />,
+      left: "78%",
+      top: "50%",
     },
     {
       id: "plugins",
       title: t("settings.plugins"),
       description: t("plugin.marketDesc"),
       icon: <Puzzle size={19} />,
-      left: "78%",
-      top: "56%",
+      left: "28%",
+      top: "82%",
     },
     {
       id: "ai",
       title: t("settings.ai"),
       description: t("ai.settingsDesc"),
       icon: <Bot size={19} />,
-      left: "50%",
-      top: "84%",
+      left: "72%",
+      top: "82%",
     },
   ];
   const activeNode = settingsNodes.find((node) => node.id === activePanel) ?? settingsNodes[0];
@@ -2181,6 +2394,11 @@ function SettingsView({
         settings={fileLinkSettings}
         onChange={onFileLinkSettingsChange}
         onChangeWorkspace={onChangeWorkspace}
+      />
+    ) : activePanel === "stats" ? (
+      <StatsSettingsPanel
+        settings={statsSettings}
+        onChange={onStatsSettingsChange}
       />
     ) : activePanel === "language" ? (
       <LanguageSettingsPanel
@@ -2202,9 +2420,10 @@ function SettingsView({
       <div className="settings-map-canvas" aria-label={t("settings.options")}>
         <svg className="settings-map-lines" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
           <path d="M50 50 L50 18" />
-          <path d="M50 50 L22 56" />
-          <path d="M50 50 L78 56" />
-          <path d="M50 50 L50 84" />
+          <path d="M50 50 L22 50" />
+          <path d="M50 50 L78 50" />
+          <path d="M50 50 L28 82" />
+          <path d="M50 50 L72 82" />
         </svg>
         <div className="settings-map-center" aria-hidden="true">
           <Settings size={20} />
@@ -2295,6 +2514,56 @@ function FileLinksSettingsPanel({
         <button type="button" className="secondary-action-button" onClick={onChangeWorkspace}>
           {t("action.change")}
         </button>
+      </div>
+    </section>
+  );
+}
+
+function StatsSettingsPanel({
+  settings,
+  onChange,
+}: {
+  settings: StatsSettings;
+  onChange: (patch: Partial<StatsSettings>) => void;
+}) {
+  const { t } = useI18n();
+  const updateThreshold = (index: number, value: string) => {
+    const next = [...settings.heatmapThresholds] as StatsSettings["heatmapThresholds"];
+    next[index] = Number(value);
+    onChange({ heatmapThresholds: normalizeStatsThresholds(next) });
+  };
+  const labels = [
+    t("settings.statsLevel1"),
+    t("settings.statsLevel2"),
+    t("settings.statsLevel3"),
+    t("settings.statsLevel4"),
+  ];
+
+  return (
+    <section className="settings-row-list">
+      <div className="settings-choice-row settings-threshold-row">
+        <div>
+          <strong>{t("settings.statsHeatmapThresholds")}</strong>
+          <small>{t("settings.statsHeatmapThresholdsDesc")}</small>
+        </div>
+        <div className="stats-threshold-grid">
+          {settings.heatmapThresholds.map((threshold, index) => (
+            <label key={labels[index]}>
+              <span>
+                <i className={`stats-threshold-swatch is-level-${index + 1}`} aria-hidden="true" />
+                {labels[index]}
+              </span>
+              <input
+                type="number"
+                min={index === 0 ? 1 : settings.heatmapThresholds[index - 1] + 1}
+                step={1}
+                value={threshold}
+                onChange={(event) => updateThreshold(index, event.target.value)}
+                aria-label={labels[index]}
+              />
+            </label>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -2809,6 +3078,106 @@ const appendDailyEntry = (
 
   return article.innerHTML;
 };
+
+const buildYearStats = (notes: NoteSummary[], year: number) => {
+  const counts = new Map<string, { created: number; updated: number }>();
+  const addCount = (iso: string, field: "created" | "updated") => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime()) || date.getFullYear() !== year) return;
+    const dateKey = toLocalDateKey(date);
+    const current = counts.get(dateKey) ?? { created: 0, updated: 0 };
+    current[field] += 1;
+    counts.set(dateKey, current);
+  };
+
+  for (const note of notes) {
+    addCount(note.createdAt, "created");
+    addCount(note.updatedAt, "updated");
+  }
+
+  const days: StatsDay[] = [];
+  const daysByKey = new Map<string, StatsDay>();
+  for (let date = new Date(year, 0, 1); date.getFullYear() === year; date.setDate(date.getDate() + 1)) {
+    const dayDate = new Date(date);
+    const dateKey = toLocalDateKey(dayDate);
+    const dayCounts = counts.get(dateKey) ?? { created: 0, updated: 0 };
+    const day = {
+      date: dayDate,
+      dateKey,
+      created: dayCounts.created,
+      updated: dayCounts.updated,
+      total: dayCounts.created + dayCounts.updated,
+    };
+    days.push(day);
+    daysByKey.set(dateKey, day);
+  }
+
+  const weeks: StatsWeekCell[][] = [];
+  const start = new Date(year, 0, 1);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(year, 11, 31);
+  end.setDate(end.getDate() + (6 - end.getDay()));
+  for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 7)) {
+    const week: StatsWeekCell[] = [];
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      const current = new Date(date);
+      current.setDate(date.getDate() + dayIndex);
+      week.push(current.getFullYear() === year ? daysByKey.get(toLocalDateKey(current)) ?? null : null);
+    }
+    weeks.push(week);
+  }
+
+  return {
+    days,
+    daysByKey,
+    weeks,
+    recentDays: days.filter((day) => day.total > 0).sort((a, b) => b.dateKey.localeCompare(a.dateKey)).slice(0, 36),
+    yearCreated: days.reduce((sum, day) => sum + day.created, 0),
+    yearUpdated: days.reduce((sum, day) => sum + day.updated, 0),
+    yearTotal: days.reduce((sum, day) => sum + day.total, 0),
+  };
+};
+
+const toLocalDateKey = (date: Date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const activityLevel = (total: number, thresholds: StatsSettings["heatmapThresholds"]) => {
+  if (total <= 0) return 0;
+  for (let index = thresholds.length - 1; index >= 0; index -= 1) {
+    if (total >= thresholds[index]) return index + 1;
+  }
+  return 0;
+};
+
+const formatStatsDate = (date: Date, locale = "zh-CN") =>
+  new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  }).format(date);
+
+const weekdayLabels = (locale = "zh-CN") => {
+  const sunday = new Date(2024, 0, 7);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(sunday);
+    date.setDate(sunday.getDate() + index);
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+  });
+};
+
+const monthLabelForWeek = (week: StatsWeekCell[], locale = "zh-CN") => {
+  const labeledDay = week.find((day) => day && (day.date.getDate() === 1 || (day.date.getMonth() === 0 && day.date.getDate() <= 7)));
+  return labeledDay ? new Intl.DateTimeFormat(locale, { month: "short" }).format(labeledDay.date) : "";
+};
+
+const activityCompactLabel = (day: StatsDay, t: ReturnType<typeof useI18n>["t"]) =>
+  `${t("stats.createdCount", { count: day.created })} · ${t("stats.updatedCount", { count: day.updated })} · ${t("stats.totalCount", { count: day.total })}`;
+
+const activityLabel = (day: StatsDay, locale: string, t: ReturnType<typeof useI18n>["t"]) =>
+  `${formatStatsDate(day.date, locale)}: ${activityCompactLabel(day, t)}`;
 
 const formatTime = (iso: string, locale = "zh-CN") =>
   new Intl.DateTimeFormat(locale, {
