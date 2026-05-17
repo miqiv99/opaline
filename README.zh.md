@@ -33,17 +33,19 @@ Opaline 不是要保存任意浏览器或编辑器吐出的脏 HTML。项目会�
 
 当前 alpha 已经包含：
 
-- Tauri 2 + React + Tiptap 桌面应用
-- 自动初始化默认工作区到系统文档目录
-- 本地 HTML 笔记的创建、读取、编辑、保存和自动保存
-- 文件树和笔记右键操作
-- 富文本编辑块：标题、列表、任务、表格、callout、图片、嵌入、数学公式、Mermaid、布局、折叠块和代码块
-- SQLite 元数据、搜索方向、标签、标题、反链、出链和断链检测
-- 文件级、标题级、块级、概念级关系图
-- 本地笔记历史快照
-- AI 设置：provider、API 地址、模型、API Key、模型测试和模型抓取
-- 实验性活组件和插件文件夹
-- 界面语言切换和工作区本地语言包
+- ✓ Tauri 2 + React + Tiptap 桌面应用
+- ✓ 自动初始化默认工作区到系统文档目录
+- ✓ 本地 HTML 笔记的创建、读取、编辑、保存和自动保存
+- ✓ 文件树和笔记右键操作
+- ✓ 富文本编辑块：标题、列表、任务、表格、callout、图片、嵌入、数学公式、Mermaid、布局、折叠块和代码块
+- ◐ SQLite 元数据、搜索方向、标签、标题、反链、出链和断链检测
+- ✓ 文件级、标题级、块级、概念级关系图
+- ✓ 本地笔记历史快照
+- ✓ AI 设置：provider、API 地址、模型、API Key、模型测试和模型抓取
+- ◐ 实验性活组件和插件文件夹
+- ✓ 界面语言切换和工作区本地语言包
+
+图例：✓ 已实现，◐ 部分实现或仍需打磨，○ 计划中。
 
 公开 alpha 目前优先进入“认真记记”的专注工作区。早期“随便记记 / Today”入口暂时隐藏，先把核心笔记工作台打磨稳定。
 
@@ -107,7 +109,7 @@ Opaline/
 - [存储与架构](docs/storage-architecture.zh.html)
 - [搜索、AI 和发布](docs/search-ai-publish.zh.html)
 - [链接规则](docs/link-rules.zh.html)
-- [路线图](docs/roadmap.zh.html)
+- [路线图](docs/roadmap.zh.html)：包含实现状态图标
 - [构建与发布说明](docs/release.md)
 - [更新记录](CHANGELOG.md)
 - [贡献指南](CONTRIBUTING.md)

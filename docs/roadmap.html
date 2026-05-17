@@ -13,6 +13,13 @@
         <p><a href="../README.html">Back to README</a></p>
         <h1>Roadmap and Non-Goals</h1>
 
+        <h2>Status Legend</h2>
+        <ul class="status-legend">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Implemented in the current alpha.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Partially implemented or still rough.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Planned for later.</span></li>
+        </ul>
+
         <section lang="zh-Hans" aria-label="中文简介">
           <h2>中文概要</h2>
           <p>这一页说明阶段路线和暂时不做的事情。早期重点是可信的本地 HTML 笔记、搜索、链接和 SQLite 索引。AI、发布、公开知识网络、移动端和插件系统都应该排在后面。</p>
@@ -27,40 +34,40 @@
         </section>
 
         <h2>Phase 0: Foundation</h2>
-        <ul>
-          <li>Initialize Tauri and React.</li>
-          <li>Choose package manager and formatter.</li>
-          <li>Add Tiptap editor baseline.</li>
-          <li>Add SQLite integration.</li>
-          <li>Define the first Opaline HTML Profile.</li>
-          <li>Decide default workspace conventions and remember user-selected locations.</li>
-          <li>Add basic test and build commands.</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Initialize Tauri and React.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Choose package manager and formatter.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Add Tiptap editor baseline.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Add SQLite integration.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Define the first Opaline HTML Profile.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Decide default workspace conventions and remember user-selected locations.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Add basic test and build commands.</span></li>
         </ul>
 
         <h2>Phase 1: Trustworthy Local Notes</h2>
-        <ul>
-          <li>Auto-initialize a default local workspace.</li>
-          <li>Allow workspace location changes from Settings.</li>
-          <li>Create a note.</li>
-          <li>Edit with Tiptap.</li>
-          <li>Save as clean HTML.</li>
-          <li>Load existing HTML notes.</li>
-          <li>Auto-save changes.</li>
-          <li>Add built-in local history for notes, independent of Git, with 30-day default retention and preview-before-restore.</li>
-          <li>Rebuild SQLite metadata from files.</li>
-          <li>Show file tree and recent notes.</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Auto-initialize a default local workspace.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Allow workspace location changes from Settings; migration still needs polish.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Create a note.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Edit with Tiptap.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Save as clean HTML; the profile still needs more validation.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Load existing HTML notes.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Auto-save changes.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Add built-in local history for notes, independent of Git, with 30-day default retention and preview-before-restore.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Rebuild SQLite metadata from files.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Show file tree and recent notes.</span></li>
         </ul>
 
         <h2>Phase 2: Search and Navigation</h2>
-        <ul>
-          <li>Title search.</li>
-          <li>Body search.</li>
-          <li>Heading extraction.</li>
-          <li>Tag extraction.</li>
-          <li>Recent notes.</li>
-          <li>Favorites.</li>
-          <li>Basic command palette.</li>
-          <li>Broken file detection.</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Title search.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Body search.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Heading extraction.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Tag extraction.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Recent notes.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Favorites.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Basic command palette.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Broken file detection.</span></li>
         </ul>
 
         <h2>Phase 3: Knowledge Links</h2>
@@ -156,7 +163,7 @@
           <li>a full public forum</li>
           <li>a social recommendation feed</li>
           <li>a plugin marketplace</li>
-          <li>Notion-style databases</li>
+          <li>advanced structured database-style notes</li>
           <li>complex project management</li>
           <li>mobile-first editing</li>
           <li>hosted sync</li>

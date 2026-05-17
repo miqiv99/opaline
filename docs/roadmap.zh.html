@@ -19,41 +19,48 @@
         <p><a href="../index.html">文档入口</a> · <a href="roadmap.html">English</a></p>
         <h1>路线图和暂不做的事</h1>
 
+        <h2>状态图例</h2>
+        <ul class="status-legend">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>当前 alpha 已实现。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>部分实现，仍需打磨。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>后续计划。</span></li>
+        </ul>
+
         <h2>阶段 0：地基</h2>
-        <ul>
-          <li>初始化 Tauri 和 React。</li>
-          <li>选定包管理器和代码格式化工具。</li>
-          <li>接入 Tiptap 编辑器基线。</li>
-          <li>接入 SQLite。</li>
-          <li>定义第一版 Opaline HTML Profile。</li>
-          <li>确定默认工作区目录约定，并记住用户手动选择的位置。</li>
-          <li>添加基础测试和构建命令。</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>初始化 Tauri 和 React。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>选定包管理器和代码格式化工具。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>接入 Tiptap 编辑器基线。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>接入 SQLite。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>定义第一版 Opaline HTML Profile。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>确定默认工作区目录约定，并记住用户手动选择的位置。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>添加基础测试和构建命令。</span></li>
         </ul>
 
         <h2>阶段 1：可信的本地笔记</h2>
-        <ul>
-          <li>启动时自动初始化默认本地工作区。</li>
-          <li>设置页支持更改工作区位置。</li>
-          <li>创建笔记。</li>
-          <li>用 Tiptap 编辑。</li>
-          <li>保存为干净 HTML。</li>
-          <li>加载已有 HTML 笔记。</li>
-          <li>自动保存更改。</li>
-          <li>加入不依赖 Git 的内置本地历史版本，默认保留 30 天，并要求恢复前先预览。</li>
-          <li>从文件重建 SQLite 元数据。</li>
-          <li>显示文件树和最近笔记。</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>启动时自动初始化默认本地工作区。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>设置页支持更改工作区位置；迁移流程仍需打磨。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>创建笔记。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>用 Tiptap 编辑。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>保存为干净 HTML；格式校验还需要继续加强。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>加载已有 HTML 笔记。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>自动保存更改。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>加入不依赖 Git 的内置本地历史版本，默认保留 30 天，并要求恢复前先预览。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>从文件重建 SQLite 元数据。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>显示文件树和最近笔记。</span></li>
         </ul>
 
         <h2>阶段 2：搜索和导航</h2>
-        <ul>
-          <li>标题搜索。</li>
-          <li>正文搜索。</li>
-          <li>标题提取。</li>
-          <li>标签提取。</li>
-          <li>最近笔记。</li>
-          <li>收藏。</li>
-          <li>基础命令面板。</li>
-          <li>断链检测。</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>标题搜索。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>正文搜索。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>标题提取。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>标签提取。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>最近笔记。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>收藏。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>基础命令面板。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>断链检测。</span></li>
         </ul>
 
         <h2>阶段 3：知识链接</h2>
@@ -149,7 +156,7 @@
           <li>完整的公开论坛</li>
           <li>社交推荐信息流</li>
           <li>插件市场</li>
-          <li>Notion 风格数据库</li>
+          <li>复杂结构化数据库笔记</li>
           <li>复杂项目管理</li>
           <li>移动端优先编辑</li>
           <li>托管同步</li>

@@ -33,17 +33,19 @@ Opaline is not trying to save arbitrary browser/editor HTML. The project defines
 
 The current alpha already includes:
 
-- Tauri 2 + React + Tiptap desktop app
-- automatic default workspace under the user's documents folder
-- local HTML note creation, loading, editing, saving, and auto-saving
-- file explorer with note actions
-- rich editor blocks: headings, lists, tasks, tables, callouts, images, embeds, math, Mermaid, layouts, disclosures, and code
-- SQLite-backed metadata, search direction, tags, headings, backlinks, outgoing links, and broken-link detection
-- relationship graph with file, heading, block, and concept-level relationships
-- local note history snapshots
-- AI settings for provider, base URL, model, API key, model test, and model fetching
-- experimental live widgets and plugin folder support
-- interface language support and workspace-local language packs
+- ✓ Tauri 2 + React + Tiptap desktop app
+- ✓ automatic default workspace under the user's documents folder
+- ✓ local HTML note creation, loading, editing, saving, and auto-saving
+- ✓ file explorer with note actions
+- ✓ rich editor blocks: headings, lists, tasks, tables, callouts, images, embeds, math, Mermaid, layouts, disclosures, and code
+- ◐ SQLite-backed metadata, search direction, tags, headings, backlinks, outgoing links, and broken-link detection
+- ✓ relationship graph with file, heading, block, and concept-level relationships
+- ✓ local note history snapshots
+- ✓ AI settings for provider, base URL, model, API key, model test, and model fetching
+- ◐ experimental live widgets and plugin folder support
+- ✓ interface language support and workspace-local language packs
+
+Legend: ✓ implemented, ◐ partially implemented or still rough, ○ planned.
 
 The public alpha currently opens into the focused workspace. The earlier casual Today entry is hidden while the core note workspace is polished.
 
@@ -107,7 +109,7 @@ Read more: [docs/data-and-privacy.md](docs/data-and-privacy.md)
 - [Storage and architecture](docs/storage-architecture.html)
 - [Search, AI, and publishing](docs/search-ai-publish.html)
 - [Link rules](docs/link-rules.html)
-- [Roadmap](docs/roadmap.html)
+- [Roadmap](docs/roadmap.html) with implementation status icons
 - [Build and release notes](docs/release.md)
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)

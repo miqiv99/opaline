@@ -87,3 +87,43 @@ pre code {
   background: transparent;
   padding: 0;
 }
+
+.status-legend,
+.status-list {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.status-legend {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 1rem 0;
+}
+
+.status-list li,
+.status-legend li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.status-icon {
+  display: inline-flex;
+  width: 1.35rem;
+  flex: 0 0 1.35rem;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.status-icon.done {
+  color: #168a54;
+}
+
+.status-icon.partial {
+  color: #b56a00;
+}
+
+.status-icon.planned {
+  color: var(--muted);
+}
