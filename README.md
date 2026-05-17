@@ -6,6 +6,13 @@ Opaline is a local-first desktop knowledge workspace that stores notes as clean 
 
 The goal is simple: your notes should remain useful outside the app. Each note is a normal local HTML document that can be opened in a browser, indexed by the app, linked to other notes, and eventually published or queried with AI using clear sources.
 
+## Preview
+
+![Opaline demo: create, edit, search, map, and settings](docs/media/opaline-promo.gif)
+
+- [Watch the short demo video](docs/media/opaline-demo.webm)
+- Screenshots: [home](docs/media/opaline-01-home.png), [workspace](docs/media/opaline-02-workspace.png), [editor](docs/media/opaline-04-editor.png), [relationship map](docs/media/opaline-07-map.png), [settings](docs/media/opaline-08-settings.png)
+
 ## Status
 
 Opaline is currently a **public alpha**.

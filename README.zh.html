@@ -91,6 +91,22 @@
         background: transparent;
         padding: 0;
       }
+
+      .preview-media {
+        margin: 2rem 0;
+      }
+
+      .preview-media img {
+        display: block;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
+      .preview-links {
+        margin-top: 0.9rem;
+        color: var(--muted);
+      }
     </style>
   </head>
   <body>
@@ -106,6 +122,20 @@
         <blockquote>
           <p>Opaline 的核心想法是：笔记应该以干净的本地 HTML 保存，因此每篇笔记从一开始就是可阅读的文档、可发布的网页、也可以成为 AI 辅助检索和整理的结构化知识源。</p>
         </blockquote>
+
+        <h2>预览</h2>
+        <figure class="preview-media">
+          <img src="docs/media/opaline-promo.gif" alt="Opaline 演示：创建笔记、编辑、搜索、关系图和设置">
+          <figcaption class="preview-links">
+            <a href="docs/media/opaline-demo.webm">观看短演示视频</a>
+            · 截图：
+            <a href="docs/media/opaline-01-home.png">首页</a>、
+            <a href="docs/media/opaline-02-workspace.png">工作区</a>、
+            <a href="docs/media/opaline-04-editor.png">编辑器</a>、
+            <a href="docs/media/opaline-07-map.png">关系图</a>、
+            <a href="docs/media/opaline-08-settings.png">设置</a>
+          </figcaption>
+        </figure>
 
         <h2>文档导航</h2>
         <p>拆分文档现已提供完整中英双语版本。中文版为全中文浏览，英文版保留完整技术细节。每页内可互相切换。</p>

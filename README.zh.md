@@ -6,6 +6,13 @@ Opaline 是一个本地优先的桌面知识工作台，笔记以干净 HTML 文
 
 它的目标很直接：你的笔记不应该被锁在某个应用或数据库里。每篇笔记都是本地 HTML 文档，可以用浏览器打开，可以被应用索引，可以和其他笔记建立链接，未来也可以发布成网页，或让 AI 基于明确来源进行检索和回答。
 
+## 预览
+
+![Opaline 演示：创建、编辑、搜索、关系图和设置](docs/media/opaline-promo.gif)
+
+- [观看短演示视频](docs/media/opaline-demo.webm)
+- 截图：[首页](docs/media/opaline-01-home.png)、[工作区](docs/media/opaline-02-workspace.png)、[编辑器](docs/media/opaline-04-editor.png)、[关系图](docs/media/opaline-07-map.png)、[设置](docs/media/opaline-08-settings.png)
+
 ## 当前状态
 
 Opaline 当前是 **公开 alpha**。
