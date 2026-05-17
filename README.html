@@ -106,6 +106,10 @@
         <h1>Opaline</h1>
         <p class="subtitle">A local-first knowledge workspace built around clean HTML as the native note format.</p>
 
+        <p><strong>Public alpha:</strong> Opaline is suitable for testing and early feedback, but it is not yet a stable daily-driver release. Windows is the primary active development target; macOS builds should be produced and tested on macOS.</p>
+
+        <p>Release and community documents: <a href="docs/release.html">release notes</a>, <a href="docs/data-and-privacy.html">data and privacy</a>, <a href="docs/sponsorship.html">sponsorship</a>, <a href="CHANGELOG.md">changelog</a>, <a href="CONTRIBUTING.md">contributing</a>, and <a href="SECURITY.md">security</a>.</p>
+
         <blockquote>
           <p>Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.</p>
         </blockquote>
@@ -123,6 +127,7 @@
             <li><a href="docs/search-ai-publish.html">Search, AI, and publishing</a></li>
             <li><a href="docs/link-rules.html">Link rules</a> · <a href="docs/link-rules.zh.html" lang="zh-Hans">链接规则</a></li>
             <li><a href="docs/roadmap.html">Roadmap and non-goals</a></li>
+            <li><a href="docs/release.html">Build and release</a> · <a href="docs/data-and-privacy.html">Data and privacy</a> · <a href="docs/sponsorship.html">Sponsorship</a></li>
           </ul>
         </nav>
 
@@ -134,10 +139,10 @@
         <p>The long-term direction can grow toward public knowledge sites and reader-facing AI search, but only after the local knowledge system is trustworthy.</p>
 
         <h2>Current Product Loop</h2>
-        <p>The current prototype splits users from the first screen. <strong>认真记记</strong> opens a focused knowledge workspace for deliberate note work. <strong>随便记记</strong> opens Today, where users can talk first and let Opaline turn the conversation into a durable daily HTML note.</p>
+        <p>The current prototype starts with <strong>认真记记</strong>, a focused knowledge workspace for deliberate note work. The earlier casual Today entry is currently hidden while the serious workspace is polished for the public alpha.</p>
         <ul>
           <li>Opaline auto-initializes a default workspace in the user's documents folder under <code>Opaline</code>.</li>
-          <li>The Today page is a minimal conversation surface: user turns are written to the daily HTML note before AI replies.</li>
+          <li>Users create and edit clean local HTML notes in the focused workspace.</li>
           <li>The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.</li>
           <li>The right inspector contains note operations, outline, outgoing links, mentions, and a compact relationship-map preview.</li>
           <li>Settings owns workspace location, AI provider, custom API base URL, model, API key, model testing, model fetching, and the live-component/plugin policy.</li>
@@ -150,7 +155,7 @@
           <li>Tauri + React + Tiptap app shell.</li>
           <li>Automatic default workspace under the user's documents folder.</li>
           <li>Local HTML note creation, loading, editing, saving, and auto-saving.</li>
-          <li>Today conversation capture that stores user and AI turns in the daily HTML note.</li>
+          <li>Daily journal creation remains available from the app, while the old casual Today entry is hidden for the public alpha.</li>
           <li>AI settings with provider selection, custom API base URL, model, API key, explicit save, model testing, and model fetching.</li>
           <li>Clean Opaline HTML Profile helpers and tests.</li>
           <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
@@ -177,7 +182,7 @@
         </ul>
 
         <h2>Today Conversation</h2>
-        <p>Today is a low-friction capture surface, not a disposable chat shell. The user's raw text is appended to today's HTML journal first. If AI is configured, the assistant reply is appended too. Search, links, summaries, and later note extraction can then build on that saved local record.</p>
+        <p>Today is an experimental low-friction capture surface, not a disposable chat shell. It is currently hidden in the public alpha while the focused workspace is polished. The intended model is that the user's raw text is appended to today's HTML journal first. If AI is configured, the assistant reply is appended too.</p>
 
         <h2>Why HTML</h2>
         <p>HTML is not the goal by itself. The goal is durable rich knowledge. HTML is attractive because it is readable, publishable, structured, AI-friendly, interaction-friendly, multilingual, and portable.</p>
@@ -211,7 +216,7 @@
 
         <h2>License</h2>
         <p>Copyright (c) 2026 Enjun Lu.</p>
-        <p>Opaline is licensed under the PolyForm Noncommercial License 1.0.0. Noncommercial use is permitted under the terms in <a href="LICENSE">LICENSE</a>. Commercial use requires a separate commercial license from the author.</p>
+        <p>Opaline is licensed under the PolyForm Noncommercial License 1.0.0. Noncommercial use is permitted under the terms in <a href="LICENSE">LICENSE</a>. Commercial use requires a separate commercial license from the author. Sponsorship is not a commercial license.</p>
       </article>
     </main>
   </body>

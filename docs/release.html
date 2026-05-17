@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Build and Release Notes</title>
+    <meta name="opaline:doc" content="release">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <h1>Build and Release Notes</h1>
+        <p>Opaline is in public alpha. Release builds are currently intended for testing and early feedback.</p>
+
+        <h2>Commands</h2>
+        <pre><code>npm install
+npm run tauri:dev
+npm run tauri:build</code></pre>
+
+        <p>Tauri bundle outputs are written under <code>src-tauri/target/release/bundle/</code>.</p>
+
+        <h2>Platform Notes</h2>
+        <ul>
+          <li>Windows packages should be built on Windows. Unsigned builds may trigger SmartScreen warnings.</li>
+          <li>macOS packages should be built and tested on macOS. Public distribution usually needs signing and notarization.</li>
+          <li>Linux support is future-facing until packages are explicitly tested and documented.</li>
+        </ul>
+
+        <h2>Release Configuration Gaps</h2>
+        <ul>
+          <li>Review the Tauri app identifier.</li>
+          <li>Configure bundle icons.</li>
+          <li>Document whether each release is signed or unsigned.</li>
+          <li>Add release notes, checksums, and migration notes.</li>
+        </ul>
+
+        <p>Markdown version: <a href="release.md">release.md</a></p>
+      </article>
+    </main>
+  </body>
+</html>

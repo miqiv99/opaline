@@ -99,6 +99,10 @@
         <h1>Opaline 中文入口</h1>
         <p class="subtitle">一个以干净 HTML 为原生笔记格式的本地优先知识工作台。</p>
 
+        <p><strong>公开 alpha：</strong>Opaline 适合测试、个人试用和早期反馈，但还不是稳定日用版本。当前主要开发和验证环境是 Windows；macOS 安装包应在 macOS 上构建和测试。</p>
+
+        <p>发布与社区文档：<a href="docs/release.html">构建与发布说明</a>、<a href="docs/data-and-privacy.html">数据与隐私</a>、<a href="docs/sponsorship.html">赞助说明</a>、<a href="CHANGELOG.md">更新记录</a>、<a href="CONTRIBUTING.md">贡献指南</a>、<a href="SECURITY.md">安全政策</a>。</p>
+
         <blockquote>
           <p>Opaline 的核心想法是：笔记应该以干净的本地 HTML 保存，因此每篇笔记从一开始就是可阅读的文档、可发布的网页、也可以成为 AI 辅助检索和整理的结构化知识源。</p>
         </blockquote>
@@ -117,6 +121,7 @@
           <li><a href="docs/search-ai-publish.zh.html">搜索、AI 和发布</a> · <a href="docs/search-ai-publish.html">Search, AI, and Publish</a></li>
           <li><a href="docs/link-rules.zh.html">链接规则</a> · <a href="docs/link-rules.html">Link Rules</a></li>
           <li><a href="docs/roadmap.zh.html">路线图和暂不做的事情</a> · <a href="docs/roadmap.html">Roadmap</a></li>
+          <li><a href="docs/release.html">构建与发布说明</a> · <a href="docs/data-and-privacy.html">数据与隐私</a> · <a href="docs/sponsorship.html">赞助说明</a></li>
         </ul>
 
         <h2>一句话定位</h2>
@@ -141,9 +146,9 @@
         <h2>当前产品闭环</h2>
         <ul>
           <li>启动时自动初始化默认工作区：系统文档目录下的 <code>Opaline</code> 文件夹。</li>
-          <li>初始页只保留两个大入口：“认真记记”和“随便记记”。</li>
+          <li>初始页当前只保留“认真记记”，进入专注的三栏知识工作台。</li>
           <li>“认真记记”进入专注的三栏知识工作台。</li>
-          <li>“随便记记”进入 Today 对话入口，用户输入会先写入当天 HTML 日记，再触发 AI 回应。</li>
+          <li>早期“随便记记 / Today”入口在公开 alpha 中暂时隐藏，优先打磨专注知识工作台。</li>
           <li>认真工作台包含左侧快捷栏、可折叠文件栏、主 HTML 编辑器、可折叠右侧信息栏和小型关系图预览。</li>
           <li>设置页集中管理工作区位置、AI provider、API 地址、模型、API Key、模型测试、模型抓取，以及扩展组件与活组件策略。</li>
           <li>更改工作区位置会被记住；后续需要补“迁移原工作区文件”的确认流程。</li>
@@ -155,7 +160,7 @@
           <li>Tauri + React + Tiptap 桌面应用壳。</li>
           <li>默认工作区自动初始化到系统文档目录下的 <code>Opaline</code> 文件夹。</li>
           <li>本地 HTML 笔记可以创建、读取、编辑、保存和自动保存。</li>
-          <li>Today 对话会把用户和 AI 的内容写入当天 HTML 日记。</li>
+          <li>仍可创建日记；早期“随便记记 / Today”入口在公开 alpha 中暂时隐藏。</li>
           <li>AI 设置支持 provider、自定义 API 地址、模型名、API Key、显式保存、测试模型和抓取模型。</li>
           <li>已有 Opaline HTML Profile 的基础清洗、解析和测试。</li>
           <li>SQLite 已开始参与搜索和元数据管理方向。</li>

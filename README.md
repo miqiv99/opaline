@@ -6,6 +6,47 @@ This Markdown file is kept as the repository landing page. Start from [index.htm
 
 It starts as a personal desktop note app, but the larger idea is broader: notes should be durable local documents that can be edited comfortably, searched deeply, linked together, published as webpages, and eventually queried by AI with clear citations.
 
+## Release Status
+
+Opaline is currently a **public alpha**. It is suitable for testing, personal experiments, and early feedback, but it is not yet a stable daily-driver release.
+
+- Desktop first: Windows is the primary active development target right now.
+- macOS support is planned, but macOS builds should be produced and tested on macOS.
+- Release builds are currently unsigned unless a release explicitly says otherwise.
+- Back up your workspace before testing alpha builds with important notes.
+
+Useful release documents:
+
+- [Build and release notes](docs/release.md)
+- [Data and privacy](docs/data-and-privacy.md)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+
+## Download and Run
+
+For source builds:
+
+```bash
+npm install
+npm run tauri:dev
+```
+
+For a local production build:
+
+```bash
+npm run tauri:build
+```
+
+See [docs/release.md](docs/release.md) for platform-specific packaging notes.
+
+## Support
+
+Opaline is a source-available, noncommercial project. Sponsorship helps fund continued work on the local-first HTML note editor, storage model, search, links, publishing, and AI-assisted knowledge workflows.
+
+Sponsor links will be added after the payment profiles are configured. See [docs/sponsorship.md](docs/sponsorship.md) for the planned GitHub Sponsors and PayPal setup.
+
+Sponsorship is not a commercial license. Commercial use requires a separate license from the author.
+
 Local Markdown tools proved that plain files can become a serious personal knowledge base. Opaline explores a related but different bet:
 
 > Rich knowledge notes should be stored as clean local HTML, so every note is already a readable document, a publishable webpage, and a structured source for AI-assisted organization.
@@ -24,12 +65,11 @@ The long-term direction can grow toward public knowledge sites and reader-facing
 
 ## Current Product Loop
 
-The current prototype now splits users naturally from the first screen:
+The current prototype starts with **认真记记**, a focused knowledge workspace for deliberate note work. The earlier casual Today entry is currently hidden while the serious workspace is polished for the public alpha.
 
-- **认真记记** opens a focused knowledge workspace for users who know what they want to record.
-- **随便记记** opens Today, where users can talk first and let the app turn the conversation into a durable daily HTML note.
-- Today writes the user's raw text into the daily note before AI replies, so casual conversation becomes local knowledge instead of disposable chat.
-- The serious workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.
+- Opaline auto-initializes a default workspace in the user's documents folder under `Opaline`.
+- Users create and edit clean local HTML notes in the focused workspace.
+- The workspace has a left ribbon, collapsible file pane, main HTML editor, and collapsible right inspector.
 - The right inspector now contains note operations, outline, outgoing links, mentions, and a small relationship-map preview.
 - Settings owns workspace location, AI configuration, and the live-component/plugin policy so the note/editor surface stays focused.
 
@@ -43,8 +83,7 @@ The current app is no longer only a scaffold. It already has the first usable de
 - Automatic default workspace under the user's documents folder.
 - Workspace settings for changing the location.
 - Local HTML note creation, loading, editing, saving, and auto-saving.
-- Daily journal creation through Today.
-- Today conversation capture that stores user and AI turns in the daily HTML note.
+- Daily journal creation remains available from the app, while the old casual Today entry is hidden for the public alpha.
 - AI settings with provider selection, custom API base URL, model name, API key, explicit save, model test, and model fetching.
 - Clean Opaline HTML Profile helpers and tests.
 - SQLite-backed metadata/search direction, with FTS participation already introduced for search.
@@ -417,7 +456,7 @@ Private notes should not be sent to cloud models without explicit user permissio
 
 ### Today Conversation
 
-The Today page is not meant to be a full chat product. It is a low-friction capture surface:
+The Today page is an experimental low-friction capture surface, currently hidden in the public alpha while the focused workspace is polished:
 
 1. The user types a thought, complaint, question, or log entry.
 2. Opaline appends the raw user text to today's HTML journal note.
@@ -543,7 +582,7 @@ Goal: make the storage loop reliable.
 
 - Auto-initialize a default workspace under the user's documents folder
 - Create a note
-- Capture rough thoughts through the Today chat entry
+- Keep daily journal creation available
 - Edit with Tiptap
 - Save as clean HTML
 - Load existing HTML notes
@@ -584,7 +623,7 @@ Goal: make notes connect.
 - Outgoing links
 - Broken-link detection
 - Daily notes
-- Today chat that appends user and AI turns into the daily HTML note
+- Optional Today-style capture that appends user and AI turns into the daily HTML note after the focused workspace is stable
 - Basic relationship-map data
 
 Success criteria:
@@ -616,7 +655,7 @@ Success criteria:
 Goal: help users recover and reorganize their own context.
 
 - Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings
-- Continue the Today conversation after recording the user's raw text locally
+- Revisit Today-style conversation capture after recording and retrieval are stable
 - Summarize a note
 - Generate titles
 - Extract tags

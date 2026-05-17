@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opaline Data and Privacy</title>
+    <meta name="opaline:doc" content="data-and-privacy">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <article data-opaline-note>
+        <h1>Data and Privacy</h1>
+        <p>Opaline is designed as a local-first desktop knowledge workspace.</p>
+
+        <h2>Workspace Data</h2>
+        <pre><code>Documents/
+  Opaline/
+    notes/
+    assets/
+    .opaline/</code></pre>
+        <ul>
+          <li><code>notes/</code> stores durable HTML notes.</li>
+          <li><code>assets/</code> stores images and attached files.</li>
+          <li><code>.opaline/</code> stores app metadata, indexes, settings, cache, and history snapshots.</li>
+        </ul>
+
+        <h2>Network and AI</h2>
+        <p>Local note editing does not require a cloud account. Network access can happen when users configure AI providers, fetch model lists, run plugins/scripts, or open external links.</p>
+        <p>AI keys are user-provided secrets. Public alpha builds should not be used with sensitive production credentials unless the user has reviewed the code and understands the risk.</p>
+
+        <h2>Backups</h2>
+        <p>Before testing alpha builds with important notes, back up the workspace folder.</p>
+
+        <p>Markdown version: <a href="data-and-privacy.md">data-and-privacy.md</a></p>
+      </article>
+    </main>
+  </body>
+</html>
