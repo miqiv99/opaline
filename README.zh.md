@@ -86,7 +86,7 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
-更多打包说明：[docs/release.md](docs/release.md)
+更多打包说明：[docs/release.md](docs/release.md)；GitHub 更新配置：[docs/updater-github.md](docs/updater-github.md)
 
 ## 数据与隐私
 
@@ -118,6 +118,7 @@ Opaline/
 - [链接规则](docs/link-rules.zh.html)
 - [路线图](docs/roadmap.zh.html)：包含实现状态图标
 - [构建与发布说明](docs/release.md)
+- [GitHub 更新配置](docs/updater-github.md)
 - [更新记录](CHANGELOG.md)
 - [贡献指南](CONTRIBUTING.md)
 - [安全政策](SECURITY.md)

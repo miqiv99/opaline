@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ChevronsDown,
   Clock3,
+  DownloadCloud,
   FilePlus2,
   FileText,
   FolderOpen,
@@ -62,6 +63,8 @@ import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
 import { useConstrainedMenuPosition } from "./components/useConstrainedMenuPosition";
 import { useI18n, type LanguageOption } from "./i18n";
+import { checkForAppUpdate, getCurrentAppVersion, installAppUpdate, type UpdateProgress } from "./updates/updater";
+import type { Update } from "@tauri-apps/plugin-updater";
 
 const initialState: WorkspaceState = {
   path: null,
@@ -75,7 +78,7 @@ const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
 const DEFAULT_AUTO_SAVE_DELAY_MS = 5000;
 const MIN_AUTO_SAVE_DELAY_MS = 2000;
 const MAX_AUTO_SAVE_DELAY_MS = 300000;
-type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language";
+type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language" | "updates";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
   newNoteLocation: "vault-root" | "current-folder" | "journal";
@@ -2420,48 +2423,56 @@ function SettingsView({
     title: string;
     description: string;
     icon: ReactNode;
-    left: string;
-    top: string;
+    left: number;
+    top: number;
   }> = [
     {
       id: "files",
       title: t("settings.filesLinks"),
       description: t("settings.defaultOpenFileDesc"),
       icon: <FolderOpen size={19} />,
-      left: "50%",
-      top: "18%",
+      left: 50,
+      top: 16,
+    },
+    {
+      id: "updates",
+      title: t("settings.updates"),
+      description: t("settings.updatesDesc"),
+      icon: <DownloadCloud size={19} />,
+      left: 78,
+      top: 30,
     },
     {
       id: "language",
       title: t("settings.language"),
       description: t("settings.interfaceLanguageDesc"),
       icon: <MessageCircle size={19} />,
-      left: "22%",
-      top: "50%",
+      left: 22,
+      top: 50,
     },
     {
       id: "stats",
       title: t("settings.stats"),
       description: t("settings.statsDesc"),
       icon: <BarChart3 size={19} />,
-      left: "78%",
-      top: "50%",
+      left: 78,
+      top: 62,
     },
     {
       id: "plugins",
       title: t("settings.plugins"),
       description: t("plugin.marketDesc"),
       icon: <Puzzle size={19} />,
-      left: "28%",
-      top: "82%",
+      left: 38,
+      top: 84,
     },
     {
       id: "ai",
       title: t("settings.ai"),
       description: t("ai.settingsDesc"),
       icon: <Bot size={19} />,
-      left: "72%",
-      top: "82%",
+      left: 62,
+      top: 84,
     },
   ];
   const activeNode = settingsNodes.find((node) => node.id === activePanel) ?? settingsNodes[0];
@@ -2487,6 +2498,8 @@ function SettingsView({
         onLocaleChange={onLocaleChange}
         onLanguagePacksChange={onLanguagePacksChange}
       />
+    ) : activePanel === "updates" ? (
+      <UpdateSettingsPanel />
     ) : activePanel === "plugins" ? (
       <LiveComponentsSettingsPanel workspacePath={workspacePath} />
     ) : (
@@ -2497,11 +2510,9 @@ function SettingsView({
     <section className="settings-view settings-map-view">
       <div className="settings-map-canvas" aria-label={t("settings.options")}>
         <svg className="settings-map-lines" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d="M50 50 L50 18" />
-          <path d="M50 50 L22 50" />
-          <path d="M50 50 L78 50" />
-          <path d="M50 50 L28 82" />
-          <path d="M50 50 L72 82" />
+          {settingsNodes.map((node) => (
+            <path key={node.id} d={`M50 50 L${node.left} ${node.top}`} />
+          ))}
         </svg>
         <div className="settings-map-center" aria-hidden="true">
           <Settings size={20} />
@@ -2512,7 +2523,7 @@ function SettingsView({
             key={node.id}
             type="button"
             className={activePanel === node.id ? "settings-map-node is-active" : "settings-map-node"}
-            style={{ left: node.left, top: node.top } as CSSProperties}
+            style={{ left: `${node.left}%`, top: `${node.top}%` } as CSSProperties}
             onClick={() => setActivePanel(node.id)}
             aria-pressed={activePanel === node.id}
           >
@@ -2792,6 +2803,125 @@ function LanguageSettingsPanel({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function UpdateSettingsPanel() {
+  const { t } = useI18n();
+  const updateRef = useRef<Update | null>(null);
+  const [currentVersion, setCurrentVersion] = useState("");
+  const [availableVersion, setAvailableVersion] = useState("");
+  const [releaseNotes, setReleaseNotes] = useState("");
+  const [status, setStatus] = useState("");
+  const [progress, setProgress] = useState<UpdateProgress | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getCurrentAppVersion().then((version) => {
+      if (!cancelled) {
+        setCurrentVersion(version);
+      }
+    });
+    return () => {
+      cancelled = true;
+      void updateRef.current?.close().catch(() => undefined);
+    };
+  }, []);
+
+  const describeUpdateError = useCallback((error: unknown, fallbackKey: string) => {
+    const message = error instanceof Error ? error.message : String(error || "");
+    if (/updater|endpoint|pubkey|public key|signature/i.test(message)) {
+      return t("settings.updateSourceNotConfigured", { message });
+    }
+    return t(fallbackKey, { message: message || t("settings.updateUnknownError") });
+  }, [t]);
+
+  const runCheck = useCallback(async () => {
+    setChecking(true);
+    setStatus("");
+    setAvailableVersion("");
+    setReleaseNotes("");
+    void updateRef.current?.close().catch(() => undefined);
+    updateRef.current = null;
+
+    try {
+      const result = await checkForAppUpdate();
+      setCurrentVersion(result.currentVersion);
+      updateRef.current = result.update;
+      if (result.update) {
+        setAvailableVersion(result.update.version);
+        setReleaseNotes(result.update.body ?? "");
+        setStatus(t("settings.updateAvailable", { version: result.update.version }));
+      } else {
+        setStatus(t("settings.noUpdates"));
+      }
+    } catch (error) {
+      setStatus(describeUpdateError(error, "settings.updateCheckFailed"));
+    } finally {
+      setChecking(false);
+    }
+  }, [describeUpdateError, t]);
+
+  const runInstall = useCallback(async () => {
+    if (!updateRef.current) return;
+    setInstalling(true);
+    setStatus(t("settings.installingUpdate"));
+    setProgress(null);
+
+    try {
+      await installAppUpdate(updateRef.current, setProgress);
+      setStatus(t("settings.updateInstalled"));
+    } catch (error) {
+      setStatus(describeUpdateError(error, "settings.updateInstallFailed"));
+    } finally {
+      setInstalling(false);
+    }
+  }, [describeUpdateError, t]);
+
+  const progressText = progress
+    ? progress.totalBytes
+      ? t("settings.updateDownloadProgress", {
+        percent: Math.min(100, Math.round((progress.downloadedBytes / progress.totalBytes) * 100)),
+      })
+      : t("settings.updateDownloading")
+    : "";
+
+  return (
+    <section className="settings-row-list">
+      <div className="settings-choice-row">
+        <div>
+          <strong>{t("settings.currentVersion")}</strong>
+          <small>{t("settings.currentVersionDesc")}</small>
+        </div>
+        <span className="settings-version-badge">{currentVersion || t("settings.versionUnknown")}</span>
+      </div>
+      <div className="settings-choice-row">
+        <div>
+          <strong>{t("settings.updatePolicy")}</strong>
+          <small>{t("settings.updatePolicyDesc")}</small>
+        </div>
+        <button type="button" className="secondary-action-button" onClick={() => void runCheck()} disabled={checking || installing}>
+          {checking ? <RefreshCw size={16} className="spinner" /> : <DownloadCloud size={16} />}
+          <span>{checking ? t("settings.checkingUpdates") : t("settings.checkForUpdates")}</span>
+        </button>
+      </div>
+      {availableVersion ? (
+        <div className="settings-update-card">
+          <div>
+            <strong>{t("settings.updateVersion", { version: availableVersion })}</strong>
+            <small>{releaseNotes || t("settings.updateNotesEmpty")}</small>
+          </div>
+          <button type="button" className="secondary-action-button" onClick={() => void runInstall()} disabled={installing || !updateRef.current}>
+            {installing ? <RefreshCw size={16} className="spinner" /> : <DownloadCloud size={16} />}
+            <span>{installing ? t("settings.installingUpdate") : t("settings.installUpdate")}</span>
+          </button>
+        </div>
+      ) : null}
+      {progressText ? <p className="plugin-status-text">{progressText}</p> : null}
+      {status ? <p className="plugin-status-text">{status}</p> : null}
     </section>
   );
 }

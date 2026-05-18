@@ -86,7 +86,7 @@ Build a local package:
 npm run tauri:build
 ```
 
-More packaging notes: [docs/release.md](docs/release.md)
+More packaging notes: [docs/release.md](docs/release.md); GitHub updater setup: [docs/updater-github.md](docs/updater-github.md)
 
 ## Data and Privacy
 
@@ -118,6 +118,7 @@ Read more: [docs/data-and-privacy.md](docs/data-and-privacy.md)
 - [Link rules](docs/link-rules.html)
 - [Roadmap](docs/roadmap.html) with implementation status icons
 - [Build and release notes](docs/release.md)
+- [GitHub updater setup](docs/updater-github.md)
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

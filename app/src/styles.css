@@ -3053,6 +3053,42 @@ textarea:focus-visible,
   opacity: 0.72;
 }
 
+.settings-version-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid var(--xz-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--xz-text-secondary);
+  padding: 0 12px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.settings-update-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  border-bottom: 1px solid var(--xz-border);
+  padding: 17px 0;
+}
+
+.settings-update-card strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.settings-update-card small {
+  display: block;
+  max-height: 130px;
+  overflow: auto;
+  color: var(--xz-text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .settings-threshold-row {
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
@@ -3333,6 +3369,7 @@ textarea:focus-visible,
 }
 
 .secondary-action-button {
+  gap: 7px;
   white-space: nowrap;
 }
 
