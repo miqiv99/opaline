@@ -40,6 +40,12 @@ import { OpalineEditor } from "./editor/OpalineEditor";
 import { GraphView } from "./editor/GraphView";
 import { articleFromHtmlDocument, replaceArticleInDocument, titleFromArticleHtml } from "./editor/htmlProfile";
 import {
+  createDefaultDocumentStyle,
+  documentStylesEqual,
+  extractDocumentStyleFromHtml,
+  type OpalineDocumentStyle,
+} from "./editor/documentStyle";
+import {
   loadLiveComponentSettings,
   saveLiveComponentSettings,
   type LiveComponentSettings,
@@ -268,6 +274,9 @@ export function App() {
   const [articleHtml, setArticleHtml] = useState("");
   const latestArticleHtmlRef = useRef(articleHtml);
   const [savedArticleHtml, setSavedArticleHtml] = useState("");
+  const [documentStyle, setDocumentStyle] = useState<OpalineDocumentStyle>(() => createDefaultDocumentStyle());
+  const [savedDocumentStyle, setSavedDocumentStyle] = useState<OpalineDocumentStyle>(() => createDefaultDocumentStyle());
+  const latestDocumentStyleRef = useRef(documentStyle);
   const [status, setStatus] = useState(() => t("app.status.preparingWorkspace"));
   const [isBusy, setIsBusy] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -294,7 +303,9 @@ export function App() {
   const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
   const [statsSettings, setStatsSettings] = useState<StatsSettings>(() => loadStatsSettings());
   const [appDialog, setAppDialog] = useState<AppDialogRequest | null>(null);
-  const isDirty = workspace.activeNote !== null && articleHtml !== savedArticleHtml;
+  const isDirty = workspace.activeNote !== null && (
+    articleHtml !== savedArticleHtml || !documentStylesEqual(documentStyle, savedDocumentStyle)
+  );
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
   const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
   const currentTags = workspace.activeNote?.tags ?? [];
@@ -309,6 +320,10 @@ export function App() {
   const updateArticleHtml = useCallback((html: string) => {
     latestArticleHtmlRef.current = html;
     setArticleHtml(html);
+  }, []);
+  const updateDocumentStyle = useCallback((style: OpalineDocumentStyle) => {
+    latestDocumentStyleRef.current = style;
+    setDocumentStyle(style);
   }, []);
   const cycleVaultSort = useCallback(() => {
     setVaultSortMode((mode) => (mode === "updated" ? "title" : "updated"));
@@ -424,10 +439,14 @@ export function App() {
         if (lastSummary) {
           const note = await workspaceAdapter.readNote(path, lastSummary.path);
           const nextArticleHtml = articleFromHtmlDocument(note.html);
+          const nextDocumentStyle = extractDocumentStyleFromHtml(note.html);
           setWorkspace({ path, notes, activeNote: note });
           latestArticleHtmlRef.current = nextArticleHtml;
+          latestDocumentStyleRef.current = nextDocumentStyle;
           setArticleHtml(nextArticleHtml);
           setSavedArticleHtml(nextArticleHtml);
+          setDocumentStyle(nextDocumentStyle);
+          setSavedDocumentStyle(nextDocumentStyle);
           setView("note");
           await refreshBacklinks(path, note.id);
           setStatus(t("app.status.lastFileOpened"));
@@ -649,27 +668,33 @@ export function App() {
     [refreshBacklinks, workspace.notes, workspace.path],
   );
 
-  const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string } = {}) => {
+  const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string; documentStyle?: OpalineDocumentStyle } = {}) => {
     if (!workspace.path || !workspace.activeNote) {
       setStatus(t("app.status.noNoteToSave"));
       return;
     }
 
     const nextArticleHtml = options.articleHtml ?? articleHtml;
+    const nextDocumentStyle = options.documentStyle ?? documentStyle;
     latestArticleHtmlRef.current = nextArticleHtml;
+    latestDocumentStyleRef.current = nextDocumentStyle;
 
-    if (nextArticleHtml === savedArticleHtml) {
+    if (nextArticleHtml === savedArticleHtml && documentStylesEqual(nextDocumentStyle, savedDocumentStyle)) {
       if (!options.silent) {
         setStatus(t("app.status.noUnsavedChanges"));
       }
       return;
     }
 
-    const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes);
+    const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes, nextDocumentStyle);
     if (sameNoteDocumentContent(workspace.activeNote.html, html)) {
       setSavedArticleHtml(nextArticleHtml);
+      setSavedDocumentStyle(nextDocumentStyle);
       setArticleHtml((current) => (
         latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
+      ));
+      setDocumentStyle((current) => (
+        latestDocumentStyleRef.current === nextDocumentStyle ? nextDocumentStyle : current
       ));
       if (!options.silent) {
         setStatus(t("app.status.noUnsavedChanges"));
@@ -691,8 +716,12 @@ export function App() {
           : { ...current, notes }
       ));
       setSavedArticleHtml(nextArticleHtml);
+      setSavedDocumentStyle(nextDocumentStyle);
       setArticleHtml((current) => (
         latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
+      ));
+      setDocumentStyle((current) => (
+        latestDocumentStyleRef.current === nextDocumentStyle ? nextDocumentStyle : current
       ));
       await refreshBacklinks(workspace.path, saved.id);
       setStatus(options.silent ? t("app.status.autoSaved", { title: saved.title }) : t("app.status.saved", { title: saved.title }));
@@ -701,7 +730,7 @@ export function App() {
     } finally {
       setIsSaving(false);
     }
-  }, [articleHtml, refreshBacklinks, refreshNotes, savedArticleHtml, t, workspace.activeNote, workspace.notes, workspace.path]);
+  }, [articleHtml, documentStyle, refreshBacklinks, refreshNotes, savedArticleHtml, savedDocumentStyle, t, workspace.activeNote, workspace.notes, workspace.path]);
 
   const openInternalLink = useCallback(
     async (target: { noteId?: string; notePath?: string; blockId?: string | null; sourceHtml?: string }) => {
@@ -1096,11 +1125,15 @@ export function App() {
 
   const openNoteDocument = (path: string, notes: NoteSummary[], note: NoteDocument) => {
     const nextArticleHtml = articleFromHtmlDocument(note.html);
+    const nextDocumentStyle = extractDocumentStyleFromHtml(note.html);
     localStorage.setItem(ACTIVE_NOTE_STORAGE_KEY, JSON.stringify({ id: note.id, path: note.path, title: note.title }));
     setWorkspace({ path, notes, activeNote: note });
     latestArticleHtmlRef.current = nextArticleHtml;
+    latestDocumentStyleRef.current = nextDocumentStyle;
     setArticleHtml(nextArticleHtml);
     setSavedArticleHtml(nextArticleHtml);
+    setDocumentStyle(nextDocumentStyle);
+    setSavedDocumentStyle(nextDocumentStyle);
     setView("note");
   };
   const isVaultView = view === "note" || view === "graph" || view === "stats" || view === "settings";
@@ -1326,11 +1359,13 @@ export function App() {
           <div className="workbench">
             <OpalineEditor
               content={articleHtml}
+              documentStyle={documentStyle}
               isSaving={isSaving}
               currentNote={workspace.activeNote}
               linkableNotes={workspace.notes}
               scrollToBlockTarget={pendingBlockTarget}
               onChange={updateArticleHtml}
+              onDocumentStyleChange={updateDocumentStyle}
               onSave={(html) => saveNote({ articleHtml: html })}
               onImportAsset={importAsset}
               onSearchNotes={searchNoteSuggestions}

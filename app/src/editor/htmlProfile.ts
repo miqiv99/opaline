@@ -1,5 +1,6 @@
 import { assignBlockIds } from "./extensions/blockId";
 import { loadInstalledPluginsFromCache } from "./pluginRegistry";
+import { upsertDocumentThemeStyle, type OpalineDocumentStyle } from "./documentStyle";
 
 const parser = new DOMParser();
 
@@ -25,6 +26,7 @@ export const replaceArticleInDocument = (
   documentHtml: string,
   articleHtml: string,
   linkableNotes: LinkableNote[] = [],
+  documentStyle?: OpalineDocumentStyle,
 ): string => {
   const document = parser.parseFromString(documentHtml, "text/html");
   const article = document.querySelector("[data-opaline-note]");
@@ -36,6 +38,9 @@ export const replaceArticleInDocument = (
   const cleanArticleHtml = sanitizeArticleHtml(linkedArticleHtml);
   const blockIdArticleHtml = assignBlockIds(cleanArticleHtml);
   targetArticle.innerHTML = blockIdArticleHtml;
+  if (documentStyle) {
+    upsertDocumentThemeStyle(document, documentStyle);
+  }
   syncLiveRuntime(document, blockIdArticleHtml);
 
   if (!article) {

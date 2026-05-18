@@ -27,6 +27,7 @@ import {
   ListOrdered,
   MessageSquareQuote,
   Network,
+  Palette,
   PanelRight,
   Pi,
   Redo2,
@@ -40,7 +41,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { ImportedAsset } from "../domain/note";
 import { SUMMARY_PROMPT, TAG_PROMPT, TITLE_PROMPT } from "../ai/adapter";
 import { getAiAdapter, loadAiSettings } from "../ai/settings";
@@ -55,6 +56,14 @@ import { OpalineScript } from "./extensions/liveScript";
 import { BUILT_IN_WIDGETS, loadLiveComponentSettings } from "./liveComponentSettings";
 import { loadInstalledPluginsFromCache, type InstalledPluginWidget } from "./pluginRegistry";
 import { useI18n } from "../i18n";
+import {
+  documentFontFamilyOptions,
+  documentStyleSlots,
+  documentStyleToCssVariables,
+  updateDocumentStyleSlot,
+  type DocumentStyleSlot,
+  type OpalineDocumentStyle,
+} from "./documentStyle";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -104,11 +113,13 @@ const OpalineLink = Link.extend({
 
 type OpalineEditorProps = {
   content: string;
+  documentStyle: OpalineDocumentStyle;
   isSaving: boolean;
   currentNote: EditorNoteReference | null;
   linkableNotes?: EditorNoteReference[];
   scrollToBlockTarget?: { blockId: string; requestId: number } | null;
   onChange: (html: string) => void;
+  onDocumentStyleChange: (style: OpalineDocumentStyle) => void;
   onSave: (html: string) => void | Promise<void>;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
   onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
@@ -117,11 +128,13 @@ type OpalineEditorProps = {
 
 export function OpalineEditor({
   content,
+  documentStyle,
   isSaving,
   currentNote,
   linkableNotes = [],
   scrollToBlockTarget,
   onChange,
+  onDocumentStyleChange,
   onSave,
   onImportAsset,
   onSearchNotes,
@@ -134,6 +147,7 @@ export function OpalineEditor({
   const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
   const [atomicLinkDialogOpen, setAtomicLinkDialogOpen] = useState(false);
   const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
+  const [stylePanelOpen, setStylePanelOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const linkContextRef = useRef<InternalLinkContext>({
     currentNote,
@@ -142,6 +156,10 @@ export function OpalineEditor({
     onOpenInternalLink,
   });
   const liveComponentSettings = loadLiveComponentSettings();
+  const documentStyleVariables = useMemo(
+    () => documentStyleToCssVariables(documentStyle) as CSSProperties,
+    [documentStyle],
+  );
 
   const editor = useEditor({
     extensions: [
@@ -239,70 +257,79 @@ export function OpalineEditor({
   }
 
   return (
-    <section className="editor-shell" onClick={() => setContextMenu(null)}>
-      <div className="toolbar" aria-label={t("editor.toolbar")}>
-        <IconButton label={t("editor.undo")} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
-          <Undo2 size={17} />
-        </IconButton>
-        <IconButton label={t("editor.redo")} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
-          <Redo2 size={17} />
-        </IconButton>
-        <span className="toolbar-divider" />
-        <IconButton label={t("editor.callout")} onClick={() => insertCallout(editor, t)}>
-          <MessageSquareQuote size={17} />
-        </IconButton>
-        <IconButton label={t("editor.twoColumn")} onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
-          <Columns2 size={17} />
-        </IconButton>
-        <IconButton label={t("editor.compare")} onClick={() => editor.chain().focus().insertCompareLayout().run()}>
-          <TextCursorInput size={17} />
-        </IconButton>
-        <IconButton label={t("editor.sidenote")} onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
-          <PanelRight size={17} />
-        </IconButton>
-        <IconButton label={t("editor.disclosure")} onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
-          <span className="icon-math-display">⌄</span>
-        </IconButton>
-        <span className="toolbar-divider" />
-        <IconButton label={t("editor.mathInline")} onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
-          <Pi size={17} />
-        </IconButton>
-        <IconButton label={t("editor.mathBlock")} onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
-          <span className="icon-math-display">∑</span>
-        </IconButton>
-        <IconButton label={t("editor.mermaid")} onClick={() => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") })}>
-          <GitBranch size={17} />
-        </IconButton>
-        <IconButton label={t("editor.linkAtomic")} onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
-          <LinkIcon size={17} />
-        </IconButton>
-        <IconButton label={t("editor.widget")} onClick={() => setWidgetDialogOpen(true)}>
-          <Network size={17} />
-        </IconButton>
-        <IconButton
-          label={t("editor.script")}
-          onClick={() => editor.chain().focus().insertOpalineScript().run()}
-          disabled={!liveComponentSettings.experimentalScriptsEnabled}
-        >
-          <Code2 size={17} />
-        </IconButton>
-        {onSearchNotes ? (
-          <IconButton label={t("editor.embedNote")} onClick={() => setEmbedDialogOpen(true)}>
-            <FileImage size={17} />
+    <section className="editor-shell" style={documentStyleVariables} onClick={() => setContextMenu(null)}>
+      <div className="editor-topbar">
+        <div className="toolbar" aria-label={t("editor.toolbar")}>
+          <IconButton label={t("editor.undo")} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
+            <Undo2 size={17} />
           </IconButton>
+          <IconButton label={t("editor.redo")} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
+            <Redo2 size={17} />
+          </IconButton>
+          <span className="toolbar-divider" />
+          <IconButton label={t("editor.documentStyle")} active={stylePanelOpen} onClick={() => setStylePanelOpen((value) => !value)}>
+            <Palette size={17} />
+          </IconButton>
+          <span className="toolbar-divider" />
+          <IconButton label={t("editor.callout")} onClick={() => insertCallout(editor, t)}>
+            <MessageSquareQuote size={17} />
+          </IconButton>
+          <IconButton label={t("editor.twoColumn")} onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
+            <Columns2 size={17} />
+          </IconButton>
+          <IconButton label={t("editor.compare")} onClick={() => editor.chain().focus().insertCompareLayout().run()}>
+            <TextCursorInput size={17} />
+          </IconButton>
+          <IconButton label={t("editor.sidenote")} onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
+            <PanelRight size={17} />
+          </IconButton>
+          <IconButton label={t("editor.disclosure")} onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
+            <span className="icon-math-display">⌄</span>
+          </IconButton>
+          <span className="toolbar-divider" />
+          <IconButton label={t("editor.mathInline")} onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
+            <Pi size={17} />
+          </IconButton>
+          <IconButton label={t("editor.mathBlock")} onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
+            <span className="icon-math-display">∑</span>
+          </IconButton>
+          <IconButton label={t("editor.mermaid")} onClick={() => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") })}>
+            <GitBranch size={17} />
+          </IconButton>
+          <IconButton label={t("editor.linkAtomic")} onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
+            <LinkIcon size={17} />
+          </IconButton>
+          <IconButton label={t("editor.widget")} onClick={() => setWidgetDialogOpen(true)}>
+            <Network size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.script")}
+            onClick={() => editor.chain().focus().insertOpalineScript().run()}
+            disabled={!liveComponentSettings.experimentalScriptsEnabled}
+          >
+            <Code2 size={17} />
+          </IconButton>
+          {onSearchNotes ? (
+            <IconButton label={t("editor.embedNote")} onClick={() => setEmbedDialogOpen(true)}>
+              <FileImage size={17} />
+            </IconButton>
+          ) : null}
+          <button
+            className="save-button"
+            data-tooltip={isSaving ? t("action.saving") : t("action.save")}
+            onClick={() => {
+              const html = editor.getHTML();
+              void onSave(html);
+            }}
+            disabled={isSaving}
+          >
+            <Save size={17} />
+            <span>{isSaving ? t("action.saving") : t("action.save")}</span>
+          </button>
+        </div>
+        {stylePanelOpen ? (
+          <DocumentStylePanel style={documentStyle} onChange={onDocumentStyleChange} />
         ) : null}
-        <button
-          className="save-button"
-          data-tooltip={isSaving ? t("action.saving") : t("action.save")}
-          onClick={() => {
-            const html = editor.getHTML();
-            void onSave(html);
-          }}
-          disabled={isSaving}
-        >
-          <Save size={17} />
-          <span>{isSaving ? t("action.saving") : t("action.save")}</span>
-        </button>
       </div>
       <EditorContent editor={editor} className="editor-scroll" />
       <EditorContextMenu
@@ -390,6 +417,75 @@ function IconButton({ label, active = false, disabled = false, children, onClick
     >
       {children}
     </button>
+  );
+}
+
+const editableDocumentStyleSlots = documentStyleSlots;
+
+const documentStyleSlotLabelKeys: Record<DocumentStyleSlot, string> = {
+  body: "editor.styleSlotBody",
+  heading1: "editor.styleSlotHeading1",
+  heading2: "editor.styleSlotHeading2",
+  heading3: "editor.styleSlotHeading3",
+  callout: "editor.styleSlotCallout",
+  code: "editor.styleSlotCode",
+};
+
+function DocumentStylePanel({
+  style,
+  onChange,
+}: {
+  style: OpalineDocumentStyle;
+  onChange: (style: OpalineDocumentStyle) => void;
+}) {
+  const { t } = useI18n();
+  const [slot, setSlot] = useState<DocumentStyleSlot>("body");
+  const selected = style.slots[slot];
+  const fontSize = Number.parseInt(selected.fontSize, 10);
+
+  const updateSelectedSlot = (patch: Partial<typeof selected>) => {
+    onChange(updateDocumentStyleSlot(style, slot, patch));
+  };
+
+  return (
+    <div className="document-style-panel" aria-label={t("editor.documentStyle")}>
+      <label>
+        <span>{t("editor.styleSlot")}</span>
+        <select value={slot} onChange={(event) => setSlot(event.target.value as DocumentStyleSlot)}>
+          {editableDocumentStyleSlots.map((item) => (
+            <option key={item} value={item}>{t(documentStyleSlotLabelKeys[item])}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>{t("editor.styleFontFamily")}</span>
+        <select value={selected.fontFamily} onChange={(event) => updateSelectedSlot({ fontFamily: event.target.value })}>
+          {documentFontFamilyOptions.map((option) => (
+            <option key={option.id} value={option.value}>{t(option.labelKey)}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>{t("editor.styleFontSize")}</span>
+        <input
+          type="number"
+          min={12}
+          max={72}
+          value={Number.isFinite(fontSize) ? fontSize : 16}
+          onChange={(event) => updateSelectedSlot({ fontSize: `${event.target.value || 16}px` })}
+          aria-label={t("editor.styleFontSize")}
+        />
+      </label>
+      <label>
+        <span>{t("editor.styleColor")}</span>
+        <input
+          type="color"
+          value={selected.color}
+          onChange={(event) => updateSelectedSlot({ color: event.target.value })}
+          aria-label={t("editor.styleColor")}
+        />
+      </label>
+    </div>
   );
 }
 
