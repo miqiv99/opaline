@@ -66,6 +66,11 @@ import {
   type DocumentStyleSlot,
   type OpalineDocumentStyle,
 } from "./documentStyle";
+import {
+  canRunEditorCommand,
+  runEditorCommand,
+  type EditorCommandContext,
+} from "./editorCommands";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -262,14 +267,37 @@ export function OpalineEditor({
     return <div className="editor-empty">{t("editor.empty")}</div>;
   }
 
+  const commandContext: EditorCommandContext = {
+    editor,
+    t,
+    documentStyle,
+    onDocumentStyleChange,
+    onImportAsset,
+    openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
+    openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
+    openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
+    openMermaidDialog: () => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") }),
+    openWidgetDialog: () => setWidgetDialogOpen(true),
+    openEmbedDialog: () => setEmbedDialogOpen(true),
+    experimentalScriptsEnabled: liveComponentSettings.experimentalScriptsEnabled,
+  };
+
   return (
     <section className="editor-shell" style={documentStyleVariables} onClick={() => setContextMenu(null)}>
       <div className="editor-topbar">
         <div className="toolbar" aria-label={t("editor.toolbar")}>
-          <IconButton label={t("editor.undo")} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
+          <IconButton
+            label={t("editor.undo")}
+            onClick={() => void runEditorCommand("editor.undo", commandContext)}
+            disabled={!canRunEditorCommand("editor.undo", commandContext)}
+          >
             <Undo2 size={17} />
           </IconButton>
-          <IconButton label={t("editor.redo")} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
+          <IconButton
+            label={t("editor.redo")}
+            onClick={() => void runEditorCommand("editor.redo", commandContext)}
+            disabled={!canRunEditorCommand("editor.redo", commandContext)}
+          >
             <Redo2 size={17} />
           </IconButton>
           <span className="toolbar-divider" />
@@ -277,46 +305,46 @@ export function OpalineEditor({
             <Palette size={17} />
           </IconButton>
           <span className="toolbar-divider" />
-          <IconButton label={t("editor.callout")} onClick={() => insertCallout(editor, t)}>
+          <IconButton label={t("editor.callout")} onClick={() => void runEditorCommand("editor.insertCallout", commandContext)}>
             <MessageSquareQuote size={17} />
           </IconButton>
-          <IconButton label={t("editor.twoColumn")} onClick={() => editor.chain().focus().insertTwoColumnLayout().run()}>
+          <IconButton label={t("editor.twoColumn")} onClick={() => void runEditorCommand("editor.insertTwoColumnLayout", commandContext)}>
             <Columns2 size={17} />
           </IconButton>
-          <IconButton label={t("editor.compare")} onClick={() => editor.chain().focus().insertCompareLayout().run()}>
+          <IconButton label={t("editor.compare")} onClick={() => void runEditorCommand("editor.insertCompareLayout", commandContext)}>
             <TextCursorInput size={17} />
           </IconButton>
-          <IconButton label={t("editor.sidenote")} onClick={() => editor.chain().focus().insertSidenoteLayout().run()}>
+          <IconButton label={t("editor.sidenote")} onClick={() => void runEditorCommand("editor.insertSidenoteLayout", commandContext)}>
             <PanelRight size={17} />
           </IconButton>
-          <IconButton label={t("editor.disclosure")} onClick={() => editor.chain().focus().insertDisclosureBlock().run()}>
+          <IconButton label={t("editor.disclosure")} onClick={() => void runEditorCommand("editor.insertDisclosureBlock", commandContext)}>
             <span className="icon-math-display">⌄</span>
           </IconButton>
           <span className="toolbar-divider" />
-          <IconButton label={t("editor.mathInline")} onClick={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}>
+          <IconButton label={t("editor.mathInline")} onClick={() => void runEditorCommand("editor.insertMathInline", commandContext)}>
             <Pi size={17} />
           </IconButton>
-          <IconButton label={t("editor.mathBlock")} onClick={() => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" })}>
+          <IconButton label={t("editor.mathBlock")} onClick={() => void runEditorCommand("editor.insertMathBlock", commandContext)}>
             <span className="icon-math-display">∑</span>
           </IconButton>
-          <IconButton label={t("editor.mermaid")} onClick={() => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") })}>
+          <IconButton label={t("editor.mermaid")} onClick={() => void runEditorCommand("editor.insertDiagram", commandContext)}>
             <GitBranch size={17} />
           </IconButton>
-          <IconButton label={t("editor.linkAtomic")} onClick={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}>
+          <IconButton label={t("editor.linkAtomic")} onClick={() => void runEditorCommand("editor.createLinkToHeadingBlock", commandContext)}>
             <LinkIcon size={17} />
           </IconButton>
-          <IconButton label={t("editor.widget")} onClick={() => setWidgetDialogOpen(true)}>
+          <IconButton label={t("editor.widget")} onClick={() => void runEditorCommand("editor.insertWidget", commandContext)}>
             <Network size={17} />
           </IconButton>
           <IconButton
             label={t("editor.script")}
-            onClick={() => editor.chain().focus().insertOpalineScript().run()}
-            disabled={!liveComponentSettings.experimentalScriptsEnabled}
+            onClick={() => void runEditorCommand("editor.insertScript", commandContext)}
+            disabled={!canRunEditorCommand("editor.insertScript", commandContext)}
           >
             <Code2 size={17} />
           </IconButton>
           {onSearchNotes ? (
-            <IconButton label={t("editor.embedNote")} onClick={() => setEmbedDialogOpen(true)}>
+            <IconButton label={t("editor.embedNote")} onClick={() => void runEditorCommand("editor.insertNoteEmbed", commandContext)}>
               <FileImage size={17} />
             </IconButton>
           ) : null}
