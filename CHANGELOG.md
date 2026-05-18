@@ -13,14 +13,19 @@ Initial public alpha preparation.
 - Default local workspace under the user's documents folder.
 - Focused note workspace with file pane, editor, inspector, and relationship views.
 - Tiptap-based rich editor with headings, lists, links, images, tables, tasks, callouts, layouts, math, Mermaid, embeds, block IDs, and widgets.
+- Lightweight document style system for body text, headings, callouts, and code blocks.
+- Editor command layer shared by toolbar actions and future AI editing flows.
+- AI editor tool protocol with command schemas, permission metadata, preview metadata, history-snapshot hooks, and rollback hooks.
 - SQLite-backed metadata, search, note mentions, tags, headings, and link scanning.
 - Local note history snapshots.
 - AI settings for provider, base URL, model, API key, model tests, and model fetching.
 - Experimental live widgets and extension folder support.
+- Manual updater UI in Settings. Public update delivery still requires a real updater endpoint, signing key, and release assets.
 
 Known alpha limitations:
 
 - Release builds are unsigned unless a release explicitly says otherwise.
 - Workspace migration still needs a complete user-facing flow.
 - Block-link target highlighting is not yet fully reliable in the desktop editor.
+- Updater configuration is intentionally inert until a real release channel is configured.
 - Public publishing is planned but not included in the first alpha.

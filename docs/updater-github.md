@@ -2,7 +2,20 @@
 
 Opaline uses the Tauri 2 updater plugin for the public alpha update flow. The app only checks when the user clicks the update button in Settings, and installation requires a second explicit button press.
 
-The active `src-tauri/tauri.conf.json` intentionally does not contain a fake update endpoint or fake signing key. Add the real values only when a release repository and signing key are ready.
+The active `src-tauri/tauri.conf.json` intentionally uses an empty updater endpoint list and empty public key instead of fake production values. Add the real values only when a release repository and signing key are ready.
+
+Keep the updater entry as an object even before GitHub is configured:
+
+```json
+"plugins": {
+  "updater": {
+    "pubkey": "",
+    "endpoints": []
+  }
+}
+```
+
+Do not set `plugins.updater` to `null`. The updater plugin is registered in Rust, and Tauri expects `plugins.updater` to deserialize as a config object. A `null` value can make `npm run tauri:dev` start Vite successfully and then panic when the desktop app initializes.
 
 ## One-time setup
 
@@ -12,7 +25,7 @@ The active `src-tauri/tauri.conf.json` intentionally does not contain a fake upd
 npm run tauri signer generate -- -w "$env:USERPROFILE\.tauri\opaline-updater.key"
 ```
 
-2. Copy the generated public key into `src-tauri/tauri.conf.json`.
+2. Copy the generated public key into `src-tauri/tauri.conf.json`, replacing the empty `pubkey`, and add the real endpoint under `endpoints`.
 
 The endpoint below follows GitHub's "latest release" redirect, so it is best for regular published releases. If you mark Opaline alpha builds as GitHub pre-releases, use a stable channel JSON URL that you control instead, because GitHub's latest release endpoint excludes pre-releases.
 

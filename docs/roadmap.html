@@ -86,46 +86,50 @@
         </ul>
 
         <h2>Phase 4: Rich HTML Blocks</h2>
-        <ul>
-          <li>Tables.</li>
-          <li>Task lists.</li>
-          <li>Callouts.</li>
-          <li>Code blocks.</li>
-          <li>Images and attachments.</li>
-          <li>Embeds.</li>
-          <li>Math.</li>
-          <li>Diagrams.</li>
-          <li>Block IDs.</li>
-          <li>Block references.</li>
-          <li>Ordinary-user flows to copy the current block link and insert heading or block links from the editor.</li>
-          <li>Settings expose built-in widgets, installed extension widgets from <code>.opaline/plugins</code>, and experimental script notes; users can import extension folders instead of editing scripts inside Settings.</li>
-          <li>Concept spans and ordinary-user context-menu flows for creating concept relationships.</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Tables.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Task lists.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Callouts.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Code blocks.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Images and attachments.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Embeds.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Math.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Diagrams.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Block IDs.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Block references; target highlighting still needs polish.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Lightweight document styles for body text, headings, callouts, and code blocks.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Ordinary-user flows to copy the current block link and insert heading or block links from the editor.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Settings expose built-in widgets, installed extension widgets from <code>.opaline/plugins</code>, and experimental script notes; users can import extension folders instead of editing scripts inside Settings.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Concept spans exist, but ordinary-user creation flows still need polish.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Core editor actions are routed through an editor command layer.</span></li>
         </ul>
 
         <h2>Phase 5: AI-Assisted Knowledge Work</h2>
-        <ul>
-          <li>Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings.</li>
-          <li>Continue the Today conversation after recording the user's raw text locally.</li>
-          <li>Summarize a note.</li>
-          <li>Generate titles.</li>
-          <li>Extract tags.</li>
-          <li>Suggest related notes.</li>
-          <li>Detect duplicate or overlapping notes.</li>
-          <li>Turn rough writing into outlines.</li>
-          <li>Refactor long notes into smaller linked notes.</li>
-          <li>Ask questions over the workspace with citations.</li>
-          <li>Convert imported Markdown or web pages into clean Opaline HTML.</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings.</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Continue the Today conversation after recording the user's raw text locally.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>AI-visible editor tool protocol with command schemas, permission metadata, preview metadata, history-snapshot hooks, and rollback hooks.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Summarize a note.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Generate titles.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Extract tags.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Suggest related notes.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Detect duplicate or overlapping notes.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Turn rough writing into outlines.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Refactor long notes into smaller linked notes.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Ask questions over the workspace with citations.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Convert imported Markdown or web pages into clean Opaline HTML.</span></li>
         </ul>
 
         <h2>Phase 6: Publish</h2>
-        <ul>
-          <li>Select notes for publishing.</li>
-          <li>Generate static HTML site.</li>
-          <li>Include assets.</li>
-          <li>Include search index.</li>
-          <li>Include mentions and table of contents.</li>
-          <li>Support custom theme basics.</li>
-          <li>Preserve public and private boundaries.</li>
+        <ul class="status-list">
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Manual check-for-updates UI exists in Settings; GitHub release endpoint and updater signing key are not configured yet.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Select notes for publishing.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Generate static HTML site.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Include assets.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Include search index.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Include mentions and table of contents.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Support custom theme basics.</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Preserve public and private boundaries.</span></li>
         </ul>
 
         <h2>Phase 7: Reader Search and Public Knowledge</h2>

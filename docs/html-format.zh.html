@@ -109,6 +109,19 @@ This is English.
           <li>以 Git 友好的 diff 方式一致地序列化文档。</li>
         </ul>
 
+        <h2>文档样式块</h2>
+        <p>Opaline 现在有一套轻量文档样式系统，覆盖正文、H1-H3、标注块和代码块。它刻意不把每个段落都保存成随机内联样式。</p>
+        <p>当笔记使用自定义文档样式时，Opaline 会在文档 head 里写入一个受控主题块：</p>
+        <pre><code>&lt;style data-opaline-theme data-opaline-style-config="{...}"&gt;
+  /* Opaline document style. Edit in Opaline to keep this block valid. */
+  :root {
+    --opaline-body-font-family: system-ui, sans-serif;
+    --opaline-body-font-size: 16px;
+    --opaline-body-color: #1d1d1f;
+  }
+&lt;/style&gt;</code></pre>
+        <p>JSON 配置会由 Opaline 规范化，只允许预设字体族、像素字号和十六进制颜色。删除这个样式块后，笔记会回到默认样式。</p>
+
         <h2>基础笔记结构</h2>
         <pre><code>&lt;!doctype html&gt;
 &lt;html lang="zh-Hans"&gt;

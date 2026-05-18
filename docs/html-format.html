@@ -114,6 +114,19 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
           <li>Serialize documents consistently for Git-friendly diffs.</li>
         </ul>
 
+        <h2>Document Style Block</h2>
+        <p>Opaline now supports a lightweight document style system for body text, H1-H3, callouts, and code blocks. It intentionally avoids saving random inline styles on every paragraph.</p>
+        <p>When a note uses custom document styles, Opaline writes one controlled theme block in the document head:</p>
+        <pre><code>&lt;style data-opaline-theme data-opaline-style-config="{...}"&gt;
+  /* Opaline document style. Edit in Opaline to keep this block valid. */
+  :root {
+    --opaline-body-font-family: system-ui, sans-serif;
+    --opaline-body-font-size: 16px;
+    --opaline-body-color: #1d1d1f;
+  }
+&lt;/style&gt;</code></pre>
+        <p>The JSON config is normalized by Opaline and limited to approved font families, pixel sizes, and hex colors. Removing the style block returns the note to the default style.</p>
+
         <h2>Base Note Structure</h2>
         <pre><code>&lt;!doctype html&gt;
 &lt;html lang="en"&gt;

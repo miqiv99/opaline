@@ -188,6 +188,9 @@
           <li>Daily journal creation remains available from the app, while the old casual Today entry is hidden for the public alpha.</li>
           <li>AI settings with provider selection, custom API base URL, model, API key, explicit save, model testing, and model fetching.</li>
           <li>Clean Opaline HTML Profile helpers and tests.</li>
+          <li>Lightweight document styles for body text, headings, callouts, and code blocks, with font family, font size, and color controls.</li>
+          <li>Editor command layer shared by toolbar actions and future AI editing flows.</li>
+          <li>AI editor tool protocol with command schemas, permission metadata, preview metadata, history-snapshot hooks, and rollback hooks.</li>
           <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
           <li>Link scanning for ordinary links, title shortcut links, block links, note mentions, links from this note, and broken links.</li>
           <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for Relationship map modeling.</li>
@@ -200,8 +203,9 @@
           <li>File-pane right-click menu for opening, duplicating, favoriting, copying note paths, and opening local history.</li>
           <li>Built-in local note history stores HTML snapshots in workspace metadata. It is not Git, does not require Git to be installed, keeps the last 30 days by default, and restores only after preview and confirmation.</li>
           <li>Focused knowledge workspace with a left ribbon, file explorer, collapsible left/right panels, relationship-map preview, and a full relationship view with relation-type filters, current-note context mode, and edge details.</li>
+          <li>Manual update checks are available in Settings; public update delivery still needs a real endpoint, signing key, and release assets.</li>
         </ul>
-        <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations need more polish, and the HTML-native editor interactions need more polish.</p>
+        <p>Still rough: workspace migration is not implemented yet, ordinary-user UI for creating concept-level links from selected text is not implemented yet, file operations need more polish, update delivery is not configured yet, and the HTML-native editor interactions need more polish.</p>
         <p>Known residual issue: block links can open the target note and scroll to the target block, but the visible target highlight is still unreliable in the desktop editor and may not appear. This should be fixed in a focused follow-up.</p>
 
         <h2>HTML-Native Differentiators</h2>
@@ -209,6 +213,8 @@
           <li><strong>Live components / Web Components:</strong> Settings keep built-in widgets and experimental script notes separate, while third-party widgets are loaded from <code>.opaline/plugins/&lt;extension-id&gt;/</code>. An extension <code>manifest.json</code> maps component types such as <code>network-status</code> to script files; notes store parameter declarations such as <code>&lt;opaline-widget type="network-status" target="192.168.1.1" endpoint="/status"&gt;</code>.</li>
           <li><strong>DOM-level atomic links:</strong> blocks keep <code>data-opaline-block-id</code>, and the editor now exposes copy/insert flows for stable heading and block links.</li>
           <li><strong>Dynamic relationship map:</strong> the map keeps file, heading, block, and concept relations separate, can focus on the active note context, and lets users inspect edge details.</li>
+          <li><strong>Document styles:</strong> notes can store one controlled <code>data-opaline-theme</code> block for body, heading, callout, and code styles instead of scattering unstable inline styles through the document.</li>
+          <li><strong>Command-driven editing:</strong> toolbar actions now route through editor commands so future AI plans can call the same safe operations.</li>
         </ul>
 
         <h2>Today Conversation</h2>
@@ -237,6 +243,8 @@
           <li>Improve the relationship-map view beyond the first context and edge-detail pass: better layout, saved map presets, and clearer navigation from edges back to exact targets.</li>
           <li>Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.</li>
           <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>
+          <li>Wire AI-generated operation plans into a reviewed, user-confirmed editing flow.</li>
+          <li>Configure the GitHub updater endpoint, signing key, and release assets before public update delivery.</li>
           <li>Continue hardening the Opaline HTML Profile with parser-based validation and tests.</li>
           <li>Deepen SQLite FTS search, metadata scanning, mentions, and broken-link repair.</li>
           <li>Add AI retrieval over local notes with visible sources before generated answers.</li>

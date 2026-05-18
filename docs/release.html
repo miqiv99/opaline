@@ -20,6 +20,17 @@ npm run tauri:build</code></pre>
 
         <p>Tauri bundle outputs are written under <code>src-tauri/target/release/bundle/</code>.</p>
 
+        <h2>Manual Updates</h2>
+        <p>The Settings page now includes a manual check-for-updates flow built on the Tauri updater plugin.</p>
+        <ul>
+          <li>Opaline checks only when the user clicks the update button.</li>
+          <li>Installing an available update requires a second explicit confirmation.</li>
+          <li>The active updater configuration is intentionally inert until a real release channel exists.</li>
+          <li>Do not set <code>plugins.updater</code> to <code>null</code>; Tauri expects an updater config object and the app can panic during startup if the plugin config is <code>null</code>.</li>
+          <li>Until GitHub release assets, <code>latest.json</code>, and the updater signing key are configured, update checks may report that the update source is not configured.</li>
+        </ul>
+        <p>GitHub updater setup: <a href="updater-github.md">updater-github.md</a></p>
+
         <h2>Platform Notes</h2>
         <ul>
           <li>Windows packages should be built on Windows. Unsigned builds may trigger SmartScreen warnings.</li>
@@ -32,6 +43,8 @@ npm run tauri:build</code></pre>
           <li>Review the Tauri app identifier.</li>
           <li>Configure bundle icons.</li>
           <li>Document whether each release is signed or unsigned.</li>
+          <li>Configure the Tauri updater signing key and endpoint.</li>
+          <li>Upload GitHub Release assets and <code>latest.json</code>.</li>
           <li>Add release notes, checksums, and migration notes.</li>
         </ul>
 

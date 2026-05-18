@@ -45,11 +45,15 @@ The current alpha already includes:
 - ✓ local HTML note creation, loading, editing, saving, and auto-saving
 - ✓ file explorer with note actions
 - ✓ rich editor blocks: headings, lists, tasks, tables, callouts, images, embeds, math, Mermaid, layouts, disclosures, and code
+- ✓ lightweight document style system for body, headings, callouts, and code blocks, including font family, size, and color controls
+- ✓ editor command layer shared by toolbar actions and future AI editing flows
+- ◐ AI editor tool protocol with JSON schemas, permissions, preview metadata, history-snapshot hooks, and rollback hooks
 - ◐ SQLite-backed metadata, search direction, tags, headings, links from this note, mentions of this note, and broken-link detection
 - ✓ Relationship map with file, heading, block, and concept-level relationships
 - ✓ local note history snapshots
 - ✓ AI settings for provider, base URL, model, API key, model test, and model fetching
 - ◐ experimental live widgets and extension folder support
+- ◐ manual update check and install flow; GitHub release endpoint and updater signing key still need real release configuration
 - ✓ interface language support and workspace-local language packs
 
 Legend: ✓ implemented, ◐ partially implemented or still rough, ○ planned.
@@ -62,6 +66,7 @@ The public alpha currently opens into the focused workspace. The earlier casual 
 - Some file operations and history controls need more polish.
 - Creating concept-level links from selected text still needs a friendlier UI.
 - Block-link target highlighting can still be unreliable in the desktop editor.
+- The updater UI exists, but public update delivery is inactive until GitHub release assets, updater endpoint, and signing key are configured.
 - Builds are not yet signed/notarized for broad public distribution.
 - Static publishing is planned but not part of the first alpha.
 

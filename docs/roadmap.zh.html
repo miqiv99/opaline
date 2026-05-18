@@ -79,46 +79,50 @@
         </ul>
 
         <h2>阶段 4：富 HTML 块</h2>
-        <ul>
-          <li>表格。</li>
-          <li>任务列表。</li>
-          <li>标注块。</li>
-          <li>代码块。</li>
-          <li>图片和附件。</li>
-          <li>嵌入。</li>
-          <li>数学公式。</li>
-          <li>图表。</li>
-          <li>块 ID。</li>
-          <li>块引用。</li>
-          <li>普通用户可以在编辑器里复制当前块链接，并插入标题或块链接。</li>
-          <li>设置页区分内置组件、来自 <code>.opaline/plugins</code> 的已安装扩展组件、实验性脚本笔记；用户通过扩展文件夹导入脚本，不在设置页内编辑脚本。</li>
-          <li>概念标记，以及普通用户能从右键菜单创建概念关系的交互。</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>表格。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>任务列表。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>标注块。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>代码块。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>图片和附件。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>嵌入。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>数学公式。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>图表。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>块 ID。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>块链接；目标高亮仍需打磨。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>轻量文档样式系统：正文、标题、标注块和代码块可设置字体族、字号和颜色。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>普通用户可以在编辑器里复制当前块链接，并插入标题或块链接。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>设置页区分内置组件、来自 <code>.opaline/plugins</code> 的已安装扩展组件、实验性脚本笔记；用户通过扩展文件夹导入脚本，不在设置页内编辑脚本。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>概念标记已存在；普通用户创建概念关系的交互仍需打磨。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>核心编辑器操作已接入编辑命令层。</span></li>
         </ul>
 
         <h2>阶段 5：AI 辅助知识工作</h2>
-        <ul>
-          <li>设置页配置 AI provider、自定义 API 地址、模型、API Key、模型测试和模型抓取。</li>
-          <li>用户在“今天”里随手说的话先本地记录，再由 AI 接着回应。</li>
-          <li>总结笔记。</li>
-          <li>生成标题。</li>
-          <li>提取标签。</li>
-          <li>推荐相关笔记。</li>
-          <li>检测重复或重叠笔记。</li>
-          <li>将草稿转为大纲。</li>
-          <li>将长笔记重构为更小的链接笔记。</li>
-          <li>带引用向工作区提问。</li>
-          <li>将导入的 Markdown 或网页转换为干净的 Opaline HTML。</li>
+        <ul class="status-list">
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>设置页配置 AI provider、自定义 API 地址、模型、API Key、模型测试和模型抓取。</span></li>
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>用户在“今天”里随手说的话先本地记录，再由 AI 接着回应。</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>AI 可见的编辑工具协议：包含命令 schema、权限元数据、预览元数据、历史快照钩子和回滚钩子。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>总结笔记。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>生成标题。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>提取标签。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>推荐相关笔记。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>检测重复或重叠笔记。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>将草稿转为大纲。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>将长笔记重构为更小的链接笔记。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>带引用向工作区提问。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>将导入的 Markdown 或网页转换为干净的 Opaline HTML。</span></li>
         </ul>
 
         <h2>阶段 6：发布</h2>
-        <ul>
-          <li>选择要发布的笔记。</li>
-          <li>生成静态 HTML 站点。</li>
-          <li>包含资源文件。</li>
-          <li>包含搜索索引。</li>
-          <li>包含“谁提到本篇”和目录。</li>
-          <li>支持基础自定义主题。</li>
-          <li>保留公开和私密的边界。</li>
+        <ul class="status-list">
+          <li><span class="status-icon partial" aria-hidden="true">◐</span><span>设置页已有手动检查更新入口；GitHub Release 更新源和 updater 签名密钥还未配置。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>选择要发布的笔记。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>生成静态 HTML 站点。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>包含资源文件。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>包含搜索索引。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>包含“谁提到本篇”和目录。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>支持基础自定义主题。</span></li>
+          <li><span class="status-icon planned" aria-hidden="true">○</span><span>保留公开和私密的边界。</span></li>
         </ul>
 
         <h2>阶段 7：读者搜索和公开知识</h2>
