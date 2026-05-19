@@ -1,34 +1,52 @@
 ---
 import "../styles/global.css";
+import { languageLabels, routeFor, siteText, type Lang } from "../i18n";
 
 const {
-  title = "Opaline",
-  description = "Opaline 是本地优先的 HTML 笔记工作台。",
+  lang = "zh",
+  page = "",
+  title,
+  description,
 } = Astro.props;
 
+const currentLang = lang as Lang;
+const text = siteText[currentLang];
+const pageTitle = title ?? text.title;
+const pageDescription = description ?? text.description;
 const navItems = [
-  { href: "/", label: "首页" },
-  { href: "/download", label: "下载" },
-  { href: "/docs", label: "文档" },
-  { href: "/privacy", label: "隐私" },
-  { href: "/license", label: "许可" },
+  { href: routeFor(currentLang), label: text.nav.home, key: "" },
+  { href: routeFor(currentLang, "download"), label: text.nav.download, key: "download" },
+  { href: routeFor(currentLang, "docs"), label: text.nav.docs, key: "docs" },
+  { href: routeFor(currentLang, "privacy"), label: text.nav.privacy, key: "privacy" },
+  { href: routeFor(currentLang, "license"), label: text.nav.license, key: "license" },
 ];
 ---
 
 <!doctype html>
-<html lang="zh-Hans">
+<html lang={text.htmlLang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description} />
-    <title>{title}</title>
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+    <link rel="alternate" hreflang="zh-Hans" href={routeFor("zh", page)} />
+    <link rel="alternate" hreflang="en" href={routeFor("en", page)} />
+    <link rel="alternate" hreflang="x-default" href="/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      window.__setOpalineSiteLanguage = function (lang) {
+        try {
+          localStorage.setItem("opaline-site-language", lang);
+          document.cookie = "opaline_site_language=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+        } catch {}
+      };
+    </script>
   </head>
   <body>
-    <a class="skip-link" href="#main">跳到正文</a>
+    <a class="skip-link" href="#main">{text.skip}</a>
     <header class="site-header">
       <div class="site-shell header-inner">
-        <a class="brand" href="/" aria-label="Opaline 首页">
+        <a class="brand" href={routeFor(currentLang)} aria-label={text.brandHome}>
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 48 48" role="img">
               <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
@@ -37,12 +55,24 @@ const navItems = [
           </span>
           <span>Opaline</span>
         </a>
-        <nav class="site-nav" aria-label="主导航">
+        <nav class="site-nav" aria-label={text.navLabel}>
           {navItems.map((item) => (
-            <a href={item.href} class={Astro.url.pathname === item.href ? "is-active" : ""}>{item.label}</a>
+            <a href={item.href} class={page === item.key ? "is-active" : ""}>{item.label}</a>
           ))}
         </nav>
-        <a class="header-link" href="https://github.com/miqiv99/opaline" rel="noreferrer">GitHub</a>
+        <div class="language-switcher" aria-label={text.switchLabel}>
+          {(["zh", "en"] as Lang[]).map((item) => (
+            <a
+              href={routeFor(item, page)}
+              class={currentLang === item ? "is-active" : ""}
+              onclick={`window.__setOpalineSiteLanguage && window.__setOpalineSiteLanguage('${item}')`}
+              aria-current={currentLang === item ? "true" : undefined}
+            >
+              {languageLabels[item]}
+            </a>
+          ))}
+        </div>
+        <a class="header-link" href="https://github.com/miqiv99/opaline" rel="noreferrer">{text.github}</a>
       </div>
     </header>
     <main id="main">
@@ -50,10 +80,10 @@ const navItems = [
     </main>
     <footer class="site-footer">
       <div class="site-shell footer-inner">
-        <p>Opaline 是源码公开的本地优先 HTML 笔记工作台，采用 PolyForm Noncommercial License 1.0.0。</p>
+        <p>{text.footer}</p>
         <div>
-          <a href="/updates">更新通道</a>
-          <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.0" rel="noreferrer">v0.1.0 Release</a>
+          <a href={routeFor(currentLang, "updates")}>{text.updates}</a>
+          <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.0" rel="noreferrer">{text.release}</a>
         </div>
       </div>
     </footer>

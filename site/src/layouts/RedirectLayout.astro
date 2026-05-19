@@ -1,0 +1,55 @@
+---
+import "../styles/global.css";
+import { siteText } from "../i18n";
+
+const { page = "" } = Astro.props;
+const zhHref = `/zh${page ? `/${page}` : ""}`;
+const enHref = `/en${page ? `/${page}` : ""}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Opaline</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline define:vars={{ zhHref, enHref }}>
+      const stored = (() => {
+        try {
+          return localStorage.getItem("opaline-site-language");
+        } catch {
+          return null;
+        }
+      })();
+      const languages = navigator.languages && navigator.languages.length
+        ? navigator.languages
+        : [navigator.language || ""];
+      const prefersZh = languages.some((language) => {
+        const normalized = language.toLowerCase();
+        return normalized === "zh" || normalized.startsWith("zh-");
+      });
+      const next = stored === "en" || stored === "zh" ? stored : prefersZh ? "zh" : "en";
+      location.replace(next === "zh" ? zhHref : enHref);
+    </script>
+  </head>
+  <body>
+    <main class="redirect-page">
+      <section class="redirect-panel">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img">
+            <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
+            <path d="M14 33.6C19.4 27.6 25.5 22.9 33.4 18.9" />
+          </svg>
+        </span>
+        <h1>{siteText.en.redirect.title} / {siteText.zh.redirect.title}</h1>
+        <p>{siteText.en.redirect.copy}</p>
+        <p>{siteText.zh.redirect.copy}</p>
+        <div class="page-actions">
+          <a class="button primary" href={enHref}>English</a>
+          <a class="button" href={zhHref}>中文</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

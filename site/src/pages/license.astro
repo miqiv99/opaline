@@ -1,32 +1,5 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import RedirectLayout from "../layouts/RedirectLayout.astro";
 ---
 
-<BaseLayout title="Opaline 许可" description="Opaline 使用 PolyForm Noncommercial License 1.0.0。">
-  <section class="page-hero">
-    <div class="site-shell">
-      <p class="eyebrow">License</p>
-      <h1>源码公开，非商业许可</h1>
-      <p class="page-intro">
-        Opaline 使用 PolyForm Noncommercial License 1.0.0。这不是商业可自由使用的许可证，请以 LICENSE 为准。
-      </p>
-      <div class="page-actions">
-        <a class="button primary" href="https://github.com/miqiv99/opaline/blob/main/LICENSE" rel="noreferrer">阅读 LICENSE</a>
-        <a class="button" href="https://github.com/miqiv99/opaline" rel="noreferrer">查看仓库</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="site-shell content-grid">
-      <article class="license-box">
-        <h2>非商业使用</h2>
-        <p>非商业使用遵循 PolyForm Noncommercial License 1.0.0 的许可证条款。</p>
-      </article>
-      <article class="license-box">
-        <h2>商业使用</h2>
-        <p>商业使用需要向作者单独获得商业授权。请先确认你的使用场景是否属于商业用途。</p>
-      </article>
-    </div>
-  </section>
-</BaseLayout>
+<RedirectLayout page="license" />
