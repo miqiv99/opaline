@@ -58,7 +58,7 @@ import {
 } from "./editor/pluginRegistry";
 import { markdownTitle } from "./editor/markdownImport";
 import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
-import leafLogo from "./assets/opaline-leaf-gradient.svg";
+import leafLogo from "./assets/opaline-leaf-mark.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
 import { useConstrainedMenuPosition } from "./components/useConstrainedMenuPosition";
