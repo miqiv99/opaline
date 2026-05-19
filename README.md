@@ -114,6 +114,7 @@ Read more: [docs/data-and-privacy.md](docs/data-and-privacy.md)
 
 ## Documentation
 
+- [Website subproject](site/README.md) for the Cloudflare Pages static site
 - [Chinese README](README.zh.md)
 - [Document portal](index.html)
 - [HTML README](README.html)

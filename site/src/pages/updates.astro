@@ -1,0 +1,28 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Opaline 更新通道" description="Opaline 未来 Cloudflare Pages updater manifest 说明。">
+  <section class="page-hero">
+    <div class="site-shell">
+      <p class="eyebrow">Updater manifest placeholder</p>
+      <h1>未来可在这里托管更新清单</h1>
+      <p class="page-intro">
+        Cloudflare Pages 可以在未来托管 Tauri updater 的 channel manifest，但当前 public alpha 不生成假的 <code>latest.json</code>。
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell content-stack">
+      <article class="update-box">
+        <h2>当前状态</h2>
+        <p>Opaline 的手动更新 UI 已存在，但真实更新分发仍需要 Tauri updater 签名 key、真实 release asset 和有效 manifest。</p>
+      </article>
+      <article class="update-box">
+        <h2>预留路径</h2>
+        <p>本站只创建 <code>/updates/alpha/README.txt</code> 作为说明。启用更新前，不要发布指向不存在安装包的 <code>latest.json</code>。</p>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

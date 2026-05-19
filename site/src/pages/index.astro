@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const features = [
+  {
+    title: "本地 HTML 文档",
+    body: "文档以干净 HTML 保存，离开 Opaline 也能用浏览器打开。"
+  },
+  {
+    title: "关系图和本篇关联",
+    body: "从文档、标题、块和概念关系理解材料之间的连接。"
+  },
+  {
+    title: "AI 可配置",
+    body: "AI provider、API 地址、模型和 API Key 由用户配置，数据优先留在本地。"
+  },
+  {
+    title: "源码公开，非商业许可",
+    body: "仓库公开可读，非商业使用遵循 PolyForm Noncommercial License 1.0.0。"
+  }
+];
+
+const shots = [
+  ["/media/opaline-workspace.png", "工作台：文档树、最近文档和本地状态"],
+  ["/media/opaline-editor.png", "编辑器：HTML 文档、样式工具和本篇关联"],
+  ["/media/opaline-map.png", "关系图：文档与概念之间的连接"],
+  ["/media/opaline-settings.png", "设置：AI、语言、扩展组件和更新入口"]
+];
+---
+
+<BaseLayout
+  title="Opaline - 本地优先的 HTML 笔记工作台"
+  description="Opaline 是源码公开、非商业可用的本地优先 HTML 笔记工作台。"
+>
+  <section class="hero">
+    <div class="site-shell hero-grid">
+      <div>
+        <p class="eyebrow">Public alpha · Windows 优先验证</p>
+        <h1>Opaline 是本地优先的 HTML 笔记工作台</h1>
+        <p class="hero-copy">
+          把长期记录保存为用户拥有的本地 HTML 文档，在工作台中编辑、搜索、查看关系图，并逐步接入可解释、可配置的 AI 工作流。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="/download">下载 Windows alpha</a>
+          <a class="button" href="https://github.com/miqiv99/opaline" rel="noreferrer">查看 GitHub</a>
+          <a class="button" href="/docs">阅读文档</a>
+        </div>
+      </div>
+      <figure class="hero-shot">
+        <img src="/media/opaline-editor.png" alt="Opaline 当前编辑器界面截图" width="1440" height="960" loading="eager" />
+        <figcaption class="hero-note">
+          <span>真实产品截图，由当前仓库的 Web 演示视图生成。</span>
+          <span>HTML notes · Local first</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell">
+      <div class="section-header">
+        <h2>从文件开始，而不是从账号开始</h2>
+        <p>Opaline 的第一原则是让文档长期可用。SQLite 负责索引、缓存、状态和关系，耐久内容仍然是工作区里的 HTML 文档、图片和附件。</p>
+      </div>
+      <div class="feature-grid">
+        {features.map((feature) => (
+          <article class="feature">
+            <h3>{feature.title}</h3>
+            <p>{feature.body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell">
+      <div class="section-header">
+        <h2>当前 alpha 已经具备的核心界面</h2>
+        <p>截图来自 Playwright 对当前 Opaline Web 视图的重新采集，没有复用旧的 docs/media 图片。</p>
+      </div>
+      <div class="shot-grid">
+        {shots.map(([src, caption]) => (
+          <figure class="shot">
+            <img src={src} alt={caption} width="1440" height="960" loading="lazy" />
+            <figcaption>{caption}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

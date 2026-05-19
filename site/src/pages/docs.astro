@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const repo = "https://github.com/miqiv99/opaline/blob/main";
+const docs = [
+  ["README.md", `${repo}/README.md`, "英文项目入口、功能状态和源码运行说明。"],
+  ["README.zh.md", `${repo}/README.zh.md`, "中文项目入口、当前状态和本地优先说明。"],
+  ["docs/release.md", `${repo}/docs/release.md`, "构建、发布和 alpha 安全提示。"],
+  ["docs/updater-github.md", `${repo}/docs/updater-github.md`, "GitHub Release updater 配置说明。"],
+  ["docs/data-and-privacy.md", `${repo}/docs/data-and-privacy.md`, "工作区结构、数据边界和网络访问说明。"],
+  ["docs/roadmap.html", "https://github.com/miqiv99/opaline/blob/main/docs/roadmap.html", "英文路线图和实现状态。"],
+  ["docs/roadmap.zh.html", "https://github.com/miqiv99/opaline/blob/main/docs/roadmap.zh.html", "中文路线图和实现状态。"]
+];
+---
+
+<BaseLayout title="Opaline 文档" description="Opaline 官网文档导航。">
+  <section class="page-hero">
+    <div class="site-shell">
+      <p class="eyebrow">Documentation</p>
+      <h1>文档入口</h1>
+      <p class="page-intro">
+        这里保留简短导航，详细内容仍以 GitHub 仓库中的文档为准。
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell content-grid">
+      {docs.map(([title, href, body]) => (
+        <a class="doc-link" href={href} rel="noreferrer">
+          <h2>{title}</h2>
+          <p>{body}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

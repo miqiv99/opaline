@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 .vite/
+.astro/
 coverage/
 
 # Tauri / Rust
@@ -49,6 +50,7 @@ desktop.ini
 *.tsbuildinfo
 
 # Test artifacts
+.playwright-cli/
 playwright-report/
 test-results/
 

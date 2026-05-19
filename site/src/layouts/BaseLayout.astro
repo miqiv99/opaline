@@ -1,0 +1,61 @@
+---
+import "../styles/global.css";
+
+const {
+  title = "Opaline",
+  description = "Opaline 是本地优先的 HTML 笔记工作台。",
+} = Astro.props;
+
+const navItems = [
+  { href: "/", label: "首页" },
+  { href: "/download", label: "下载" },
+  { href: "/docs", label: "文档" },
+  { href: "/privacy", label: "隐私" },
+  { href: "/license", label: "许可" },
+];
+---
+
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+    <header class="site-header">
+      <div class="site-shell header-inner">
+        <a class="brand" href="/" aria-label="Opaline 首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path d="M39.5 8.5C27.6 8.9 15.8 14.2 10.2 23.8C5.1 32.7 11 41 20.6 40.8C31.6 40.6 39.6 30.4 39.5 8.5Z" />
+              <path d="M14 33.6C19.4 27.6 25.5 22.9 33.4 18.9" />
+            </svg>
+          </span>
+          <span>Opaline</span>
+        </a>
+        <nav class="site-nav" aria-label="主导航">
+          {navItems.map((item) => (
+            <a href={item.href} class={Astro.url.pathname === item.href ? "is-active" : ""}>{item.label}</a>
+          ))}
+        </nav>
+        <a class="header-link" href="https://github.com/miqiv99/opaline" rel="noreferrer">GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="site-shell footer-inner">
+        <p>Opaline 是源码公开的本地优先 HTML 笔记工作台，采用 PolyForm Noncommercial License 1.0.0。</p>
+        <div>
+          <a href="/updates">更新通道</a>
+          <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.0" rel="noreferrer">v0.1.0 Release</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
