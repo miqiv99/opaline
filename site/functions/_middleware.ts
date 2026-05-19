@@ -1,18 +1,25 @@
-const SUPPORTED = new Set(["zh", "en"]);
-const LEGACY_PATHS = new Set(["/", "/download", "/docs", "/privacy", "/license", "/updates"]);
+const LEGACY_EN_PREFIX = "/en";
 const ZH_COUNTRIES = new Set(["CN", "HK", "MO", "SG", "TW"]);
 
 export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);
   const firstSegment = url.pathname.split("/").filter(Boolean)[0];
-  if (SUPPORTED.has(firstSegment) || !LEGACY_PATHS.has(url.pathname.replace(/\/$/, "") || "/")) {
+  if (firstSegment === "en") {
+    const target = new URL(context.request.url);
+    target.pathname = url.pathname.slice(LEGACY_EN_PREFIX.length) || "/";
+    return Response.redirect(target.toString(), 302);
+  }
+  if (firstSegment === "zh") {
     return context.next();
   }
 
   const cookieLocale = parseLocaleCookie(context.request.headers.get("cookie") || "");
   const locale = cookieLocale ?? detectLocale(context.request);
+  if (locale === "en") {
+    return context.next();
+  }
   const target = new URL(context.request.url);
-  target.pathname = `/${locale}${url.pathname === "/" ? "" : url.pathname}`;
+  target.pathname = `/zh${url.pathname === "/" ? "" : url.pathname}`;
   return Response.redirect(target.toString(), 302);
 };
 

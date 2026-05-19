@@ -1,16 +1,11 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { languages, siteText, type Lang } from "../../i18n";
+import { siteText } from "../../i18n";
 
-export function getStaticPaths() {
-  return languages.map((lang) => ({ params: { lang } }));
-}
-
-const lang = Astro.params.lang as Lang;
-const text = siteText[lang];
+const text = siteText.zh;
 ---
 
-<BaseLayout lang={lang} page="license" title={`${text.nav.license} - Opaline`} description={text.license.intro}>
+<BaseLayout lang="zh" page="license" title={`${text.license.title} - Opaline`} description={text.license.intro}>
   <section class="page-hero">
     <div class="site-shell">
       <p class="eyebrow">License</p>

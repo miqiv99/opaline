@@ -1,0 +1,48 @@
+---
+import DocLayout from "../../../layouts/DocLayout.astro";
+import { routeFor } from "../../../i18n";
+---
+
+<DocLayout
+  lang="zh"
+  page="docs/html-format"
+  title="HTML 格式"
+  intro="Opaline 使用干净 HTML，让文档在离开应用之后仍然可读、可检查、可迁移。"
+  eyebrow="文档"
+  next={[
+    { href: routeFor("zh", "docs/links"), label: "链接规则" },
+    { href: routeFor("zh", "docs/storage"), label: "存储架构" },
+  ]}
+>
+  <section>
+    <h2>为什么使用干净 HTML</h2>
+    <p>HTML 是 Opaline 的耐久文档格式，因为它可以被浏览器打开，可以被普通工具索引，也更容易迁移到未来的系统。</p>
+    <p>保存后的文档应当保持清楚：标题、段落、列表、链接、图片、表格、代码块、提示块、标签和扩展组件都应当有可预测的 HTML 表达。</p>
+  </section>
+
+  <section>
+    <h2>Opaline HTML Profile</h2>
+    <p>这个 Profile 是编辑器、存储、关系索引和未来发布能力之间的小协议。它优先使用语义化元素，只在需要稳定行为时加入 Opaline 元数据。</p>
+    <ul>
+      <li>标题和段落保持为普通 HTML 元素。</li>
+      <li>稳定块 ID 用于定位可引用片段，不改变可见文本。</li>
+      <li>标签和文档链接在工作台之外打开时仍应可读。</li>
+      <li>扩展组件通过受控属性表达，并尽量留下可读降级内容。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>主题与样式元数据</h2>
+    <p>文档级样式可以保存在 <code>data-opaline-theme</code> 和 <code>data-opaline-style-config</code> 等属性中。即使忽略这些属性，正文也应当仍然有意义。</p>
+    <pre><code>&lt;article data-opaline-theme=&quot;default&quot;
+  data-opaline-style-config=&quot;compact&quot;&gt;
+  &lt;h1&gt;项目记录&lt;/h1&gt;
+  &lt;p&gt;可读的 HTML 正文。&lt;/p&gt;
+&lt;/article&gt;</code></pre>
+  </section>
+
+  <section>
+    <h2>迁移原则</h2>
+    <p>Opaline 专有元数据应当增强工作台体验，而不是让文档离开 Opaline 后不可用。无法以可读 HTML 留存的功能，需要明确降级方案。</p>
+  </section>
+</DocLayout>

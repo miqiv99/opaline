@@ -1,0 +1,46 @@
+---
+import DocLayout from "../../../layouts/DocLayout.astro";
+import { routeFor } from "../../../i18n";
+---
+
+<DocLayout
+  lang="zh"
+  page="docs/links"
+  title="链接规则"
+  intro="Opaline 把链接看作文档、标题、块、文件和概念之间的耐久关系。"
+  eyebrow="文档"
+  next={[
+    { href: routeFor("zh", "docs/html-format"), label: "HTML 格式" },
+    { href: routeFor("zh", "docs/roadmap"), label: "路线图" },
+  ]}
+>
+  <section>
+    <h2>两层链接</h2>
+    <p>普通 HTML 链接是网络原生基础。Opaline 也可以在工作台内识别标题快捷链接和结构化关系。</p>
+    <div class="doc-grid">
+      <article class="doc-card">
+        <h3>标题快捷链接</h3>
+        <p>快速的文档引用可以根据本地文档标题解析，同时保持文本可读。</p>
+      </article>
+      <article class="doc-card">
+        <h3>普通 HTML 链接</h3>
+        <p>标准 <code>&lt;a&gt;</code> 链接让文档保持可迁移，也能直接被浏览器理解。</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>关系层级</h2>
+    <ul>
+      <li><strong>文件级：</strong>一篇文档引用另一篇文档。</li>
+      <li><strong>标题级：</strong>链接指向文档里的某个章节。</li>
+      <li><strong>块级：</strong>稳定块 ID 指向特定段落或组件。</li>
+      <li><strong>概念级：</strong>标签或命名概念连接相关材料。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>工作台视图</h2>
+    <p>本篇关联、谁提到本篇、断链检测和关系图都会使用这些关系。目标是让工作区更容易理解，而不是把意义锁在单一界面里。</p>
+  </section>
+</DocLayout>

@@ -1,0 +1,45 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+import { routeFor } from "../../i18n";
+---
+
+<DocLayout
+  lang="en"
+  page="docs/links"
+  title="Link rules"
+  intro="Opaline treats links as durable relationships between notes, headings, blocks, files, and concepts."
+  next={[
+    { href: routeFor("en", "docs/html-format"), label: "HTML format" },
+    { href: routeFor("en", "docs/roadmap"), label: "Roadmap" },
+  ]}
+>
+  <section>
+    <h2>Two link layers</h2>
+    <p>Ordinary HTML links remain the web-native base. Opaline can also recognize title shortcuts and structured relationships when they are useful inside the workbench.</p>
+    <div class="doc-grid">
+      <article class="doc-card">
+        <h3>Title shortcuts</h3>
+        <p>Fast note-to-note references can be resolved against local document titles while remaining readable text.</p>
+      </article>
+      <article class="doc-card">
+        <h3>HTML links</h3>
+        <p>Standard <code>&lt;a&gt;</code> links keep documents portable and browser-readable.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Relationship levels</h2>
+    <ul>
+      <li><strong>File level:</strong> one document references another document.</li>
+      <li><strong>Heading level:</strong> a link points to a section of a document.</li>
+      <li><strong>Block level:</strong> a stable block ID points to a specific paragraph or component.</li>
+      <li><strong>Concept level:</strong> tags or named ideas connect related material.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Workbench views</h2>
+    <p>Links from this note, Mentions this note, broken-link detection, and the Relationship map all use these relationships. The goal is to make the workspace understandable without locking meaning inside one UI.</p>
+  </section>
+</DocLayout>

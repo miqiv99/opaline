@@ -19,10 +19,11 @@ npm run build
 
 The generated static output is written to `site/dist/` and should not be committed.
 
-The site has localized routes at `/zh/` and `/en/`. Root and legacy paths use a
-small Cloudflare Pages middleware to redirect from the saved language cookie,
-Cloudflare country metadata, or `Accept-Language`; the built HTML also includes a
-browser-language fallback for static previews.
+The site serves English at root paths such as `/docs/` and Chinese at `/zh/`.
+Cloudflare Pages middleware redirects `/en/*` legacy paths back to root English
+paths, and uses the saved language cookie, Cloudflare country metadata, or
+`Accept-Language` to route first-time root visitors. The built HTML also includes
+a browser-language fallback for static previews.
 
 ## Cloudflare Pages
 

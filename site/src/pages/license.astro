@@ -1,5 +1,33 @@
 ---
-import RedirectLayout from "../layouts/RedirectLayout.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { siteText } from "../i18n";
+
+const text = siteText.en;
 ---
 
-<RedirectLayout page="license" />
+<BaseLayout lang="en" page="license" title={`${text.license.title} - Opaline`} description={text.license.intro}>
+  <section class="page-hero">
+    <div class="site-shell">
+      <p class="eyebrow">License</p>
+      <h1>{text.license.title}</h1>
+      <p class="page-intro">{text.license.intro}</p>
+      <div class="page-actions">
+        <a class="button primary" href="https://github.com/miqiv99/opaline/blob/main/LICENSE" rel="noreferrer">{text.license.read}</a>
+        <a class="button" href="https://github.com/miqiv99/opaline" rel="noreferrer">{text.license.repo}</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell content-grid">
+      <article class="license-box">
+        <h2>{text.license.noncommercialTitle}</h2>
+        <p>{text.license.noncommercialCopy}</p>
+      </article>
+      <article class="license-box">
+        <h2>{text.license.commercialTitle}</h2>
+        <p>{text.license.commercialCopy}</p>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

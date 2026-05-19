@@ -1,0 +1,46 @@
+---
+import DocLayout from "../../../layouts/DocLayout.astro";
+import { routeFor } from "../../../i18n";
+---
+
+<DocLayout
+  lang="zh"
+  page="docs/ai"
+  title="搜索、AI 和发布"
+  intro="Opaline 先做好可靠的本地搜索。语义检索、AI 辅助和发布能力都应当可解释、可授权。"
+  eyebrow="文档"
+  next={[
+    { href: routeFor("zh", "privacy"), label: "隐私" },
+    { href: routeFor("zh", "docs/release"), label: "构建与更新" },
+  ]}
+>
+  <section>
+    <h2>关键词搜索优先</h2>
+    <p>关键词搜索是第一层可靠能力，因为它可以本地运行、容易解释，并且直接对应工作区里的 HTML 文档。</p>
+    <p>语义搜索和 AI 检索是后续层。它们可以提升发现效率，但不能隐藏使用了哪些文档、标题或块。</p>
+  </section>
+
+  <section>
+    <h2>可见来源</h2>
+    <p>AI 回答应当标明依赖的工作区材料。当回答引用某篇文档时，用户应当可以打开来源并自行判断可信度。</p>
+    <div class="doc-note">
+      <p>私有文档不应在没有明确用户意图、provider 配置和可见范围的情况下发送到云模型。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>AI 编辑工具协议</h2>
+    <p>AI 辅助编辑应当是命令，而不是静默重写。协议需要包含命令 schema、权限检查、预览、历史快照和回滚路径。</p>
+    <ul>
+      <li>命令说明将改变什么，以及为什么改变。</li>
+      <li>预览在修改文档前展示差异。</li>
+      <li>历史快照让恢复成为可能。</li>
+      <li>回滚机制用于修正错误编辑，维持用户信任。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>发布</h2>
+    <p>发布应当是从本地 HTML 文档出发的明确导出路径。它不应改变工作区真实数据源，也不应静默暴露私有材料。</p>
+  </section>
+</DocLayout>

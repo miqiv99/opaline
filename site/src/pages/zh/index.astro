@@ -1,16 +1,11 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { languages, siteText, type Lang } from "../../i18n";
+import { siteText } from "../../i18n";
 
-export function getStaticPaths() {
-  return languages.map((lang) => ({ params: { lang } }));
-}
-
-const lang = Astro.params.lang as Lang;
-const text = siteText[lang];
+const text = siteText.zh;
 ---
 
-<BaseLayout lang={lang} page="" title={text.title} description={text.description}>
+<BaseLayout lang="zh" page="" title={text.title} description={text.description}>
   <section class="hero">
     <div class="site-shell hero-grid">
       <div>
@@ -18,13 +13,13 @@ const text = siteText[lang];
         <h1>{text.hero.title}</h1>
         <p class="hero-copy">{text.hero.copy}</p>
         <div class="hero-actions">
-          <a class="button primary" href={`/${lang}/download`}>{text.hero.download}</a>
+          <a class="button primary" href="/zh/download">{text.hero.download}</a>
           <a class="button" href="https://github.com/miqiv99/opaline" rel="noreferrer">{text.hero.github}</a>
-          <a class="button" href={`/${lang}/docs`}>{text.hero.docs}</a>
+          <a class="button" href="/zh/docs">{text.hero.docs}</a>
         </div>
       </div>
       <figure class="hero-shot">
-        <img src={lang === "en" ? "/media/opaline-en-editor.png" : "/media/opaline-editor.png"} alt={text.hero.imageAlt} width="1440" height="960" loading="eager" />
+        <img src="/media/opaline-editor.png" alt={text.hero.imageAlt} width="1440" height="960" loading="eager" />
         <figcaption class="hero-note">
           <span>{text.hero.note}</span>
           <span>{text.hero.noteMeta}</span>

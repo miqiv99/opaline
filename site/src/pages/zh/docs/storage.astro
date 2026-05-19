@@ -1,0 +1,42 @@
+---
+import DocLayout from "../../../layouts/DocLayout.astro";
+import { routeFor } from "../../../i18n";
+---
+
+<DocLayout
+  lang="zh"
+  page="docs/storage"
+  title="存储架构"
+  intro="工作区把耐久内容保存为本地文件，把索引、缓存和应用状态视为可重建的辅助数据。"
+  eyebrow="文档"
+  next={[
+    { href: routeFor("zh", "privacy"), label: "数据与隐私" },
+    { href: routeFor("zh", "docs/links"), label: "链接规则" },
+  ]}
+>
+  <section>
+    <h2>本地优先结构</h2>
+    <p>典型工作区包含三个重要区域：<code>notes/</code> 保存 HTML 文档，<code>assets/</code> 保存图片和附件，<code>.opaline/</code> 保存元数据、设置、索引、缓存和历史快照。</p>
+    <p>用户拥有的 HTML 文件是真实数据源。只要可行，Opaline 都应当优先从这些文件重建派生数据。</p>
+  </section>
+
+  <section>
+    <h2>SQLite 负责什么</h2>
+    <ul>
+      <li>元数据和应用状态。</li>
+      <li>搜索索引和关系索引。</li>
+      <li>本篇关联、标签、最近文档和收藏。</li>
+      <li>启用相关功能后的 embedding 与缓存。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>扩展组件</h2>
+    <p>扩展组件应当通过受控 API 工作，而不是直接拥有工作区存储。这样可以把平台能力留在适配层之后，也更容易维持用户信任。</p>
+  </section>
+
+  <section>
+    <h2>实践规则</h2>
+    <p>如果应用消失，文档仍应当有用。如果派生数据库消失，Opaline 应当能从工作区重建足够的状态继续工作。</p>
+  </section>
+</DocLayout>

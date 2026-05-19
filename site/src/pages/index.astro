@@ -1,5 +1,64 @@
 ---
-import RedirectLayout from "../layouts/RedirectLayout.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { siteText } from "../i18n";
+
+const text = siteText.en;
 ---
 
-<RedirectLayout />
+<BaseLayout lang="en" page="" title={text.title} description={text.description}>
+  <section class="hero">
+    <div class="site-shell hero-grid">
+      <div>
+        <p class="eyebrow">{text.hero.eyebrow}</p>
+        <h1>{text.hero.title}</h1>
+        <p class="hero-copy">{text.hero.copy}</p>
+        <div class="hero-actions">
+          <a class="button primary" href="/download">{text.hero.download}</a>
+          <a class="button" href="https://github.com/miqiv99/opaline" rel="noreferrer">{text.hero.github}</a>
+          <a class="button" href="/docs">{text.hero.docs}</a>
+        </div>
+      </div>
+      <figure class="hero-shot">
+        <img src="/media/opaline-en-editor.png" alt={text.hero.imageAlt} width="1440" height="960" loading="eager" />
+        <figcaption class="hero-note">
+          <span>{text.hero.note}</span>
+          <span>{text.hero.noteMeta}</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell">
+      <div class="section-header">
+        <h2>{text.home.fileTitle}</h2>
+        <p>{text.home.fileCopy}</p>
+      </div>
+      <div class="feature-grid">
+        {text.home.features.map(([title, body]) => (
+          <article class="feature">
+            <h3>{title}</h3>
+            <p>{body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell">
+      <div class="section-header">
+        <h2>{text.home.shotsTitle}</h2>
+        <p>{text.home.shotsCopy}</p>
+      </div>
+      <div class="shot-grid">
+        {text.home.shots.map(([src, caption]) => (
+          <figure class="shot">
+            <img src={src} alt={caption} width="1440" height="960" loading="lazy" />
+            <figcaption>{caption}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

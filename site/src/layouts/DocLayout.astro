@@ -1,0 +1,46 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import { routeFor, type Lang } from "../i18n";
+
+const {
+  lang = "en",
+  page,
+  section = "docs",
+  title,
+  intro,
+  eyebrow = "Documentation",
+  next = [],
+} = Astro.props;
+
+const currentLang = lang as Lang;
+const docsHref = routeFor(currentLang, "docs");
+---
+
+<BaseLayout lang={currentLang} page={page} section={section} title={`${title} - Opaline`} description={intro}>
+  <section class="page-hero doc-hero">
+    <div class="site-shell">
+      <p class="eyebrow">{eyebrow}</p>
+      <h1>{title}</h1>
+      <p class="page-intro">{intro}</p>
+      <div class="page-actions">
+        <a class="button" href={docsHref}>{currentLang === "zh" ? "返回文档入口" : "Back to docs"}</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section doc-section-wrap">
+    <div class="site-shell doc-shell">
+      <article class="doc-article">
+        <slot />
+      </article>
+      {next.length ? (
+        <nav class="next-links" aria-label={currentLang === "zh" ? "下一步" : "Next links"}>
+          <strong>{currentLang === "zh" ? "继续阅读" : "Continue reading"}</strong>
+          {next.map((item: { href: string; label: string }) => (
+            <a href={item.href}>{item.label}</a>
+          ))}
+        </nav>
+      ) : null}
+    </div>
+  </section>
+</BaseLayout>

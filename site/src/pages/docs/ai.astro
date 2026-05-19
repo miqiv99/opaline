@@ -1,0 +1,45 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+import { routeFor } from "../../i18n";
+---
+
+<DocLayout
+  lang="en"
+  page="docs/ai"
+  title="Search, AI, and publishing"
+  intro="Opaline starts with reliable local search. Semantic retrieval, AI assistance, and publishing should stay explainable and permissioned."
+  next={[
+    { href: routeFor("en", "privacy"), label: "Privacy" },
+    { href: routeFor("en", "docs/release"), label: "Build and updates" },
+  ]}
+>
+  <section>
+    <h2>Search comes first</h2>
+    <p>Keyword search is the first reliable layer because it works locally, is easy to explain, and maps directly to the HTML documents in the workspace.</p>
+    <p>Semantic search and AI retrieval are later layers. They should improve discovery without hiding which notes, headings, or blocks were used.</p>
+  </section>
+
+  <section>
+    <h2>Visible sources</h2>
+    <p>AI answers should cite the workspace material they relied on. When a response references a note, the user should be able to open that source and decide whether the answer is trustworthy.</p>
+    <div class="doc-note">
+      <p>Private notes should not be sent to a cloud model without clear user intent, provider configuration, and visible scope.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>AI editing protocol</h2>
+    <p>AI-assisted edits should be commands, not hidden rewrites. The protocol should include a command schema, permission checks, preview, history snapshot, and rollback path.</p>
+    <ul>
+      <li>Commands describe what will change and why.</li>
+      <li>Preview shows the diff before the document is changed.</li>
+      <li>History snapshots make recovery possible.</li>
+      <li>Rollback restores user trust when an edit is wrong.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Publishing</h2>
+    <p>Publishing should be a deliberate export path from local HTML documents. It should not change the workspace source of truth or silently expose private material.</p>
+  </section>
+</DocLayout>

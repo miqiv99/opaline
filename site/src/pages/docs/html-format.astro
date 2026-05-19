@@ -1,0 +1,47 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+import { routeFor } from "../../i18n";
+---
+
+<DocLayout
+  lang="en"
+  page="docs/html-format"
+  title="HTML format"
+  intro="Opaline uses clean HTML so notes remain readable, inspectable, and portable outside the app."
+  next={[
+    { href: routeFor("en", "docs/links"), label: "Link rules" },
+    { href: routeFor("en", "docs/storage"), label: "Storage architecture" },
+  ]}
+>
+  <section>
+    <h2>Why clean HTML</h2>
+    <p>HTML is the durable note format because it can be opened by a browser, indexed by ordinary tools, and migrated without needing Opaline to remain installed forever.</p>
+    <p>The app should keep the saved document understandable: headings, paragraphs, lists, links, images, tables, code blocks, callouts, tags, and extension widgets should be represented with predictable HTML.</p>
+  </section>
+
+  <section>
+    <h2>Opaline HTML Profile</h2>
+    <p>The profile is a small agreement between the editor, storage, relationship indexing, and future publishing. It favors semantic elements plus explicit Opaline metadata where the app needs stable behavior.</p>
+    <ul>
+      <li>Headings and paragraphs remain normal HTML elements.</li>
+      <li>Stable block IDs can identify addressable sections without changing visible text.</li>
+      <li>Tags and note links stay readable if the file is opened outside the workbench.</li>
+      <li>Extension widgets use controlled attributes and should leave a readable fallback.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Theme and style metadata</h2>
+    <p>Document-level style settings may be stored in attributes such as <code>data-opaline-theme</code> and <code>data-opaline-style-config</code>. The content should still be meaningful when those attributes are ignored.</p>
+    <pre><code>&lt;article data-opaline-theme=&quot;default&quot;
+  data-opaline-style-config=&quot;compact&quot;&gt;
+  &lt;h1&gt;Project note&lt;/h1&gt;
+  &lt;p&gt;Readable HTML content.&lt;/p&gt;
+&lt;/article&gt;</code></pre>
+  </section>
+
+  <section>
+    <h2>Migration principle</h2>
+    <p>Opaline-specific metadata should enhance the workbench experience without making the note unusable elsewhere. If a feature cannot survive as readable HTML, it needs a deliberate fallback.</p>
+  </section>
+</DocLayout>

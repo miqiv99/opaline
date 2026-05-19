@@ -1,0 +1,52 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+
+const updaterConfig = `{
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": []
+    }
+  }
+}`;
+---
+
+<DocLayout lang="en" page="docs/release" eyebrow="Build and updates" title="Build, release, and updater status" intro="Opaline is in public alpha. Release builds are intended for testing and early feedback." next={[{ href: "/download", label: "Download alpha" }, { href: "/docs/roadmap", label: "Roadmap" }]}>
+  <section>
+    <h2>Current release</h2>
+    <p>The current release is <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.0" rel="noreferrer">v0.1.0 on GitHub</a>. Do not guess asset names on the website; use the Release page as the source of truth.</p>
+    <ul>
+      <li>Windows is the primary active development and validation target.</li>
+      <li>macOS packages should be built and tested on macOS.</li>
+      <li>Linux support is future-facing until explicitly tested and documented.</li>
+      <li>Unsigned packages may trigger platform warnings.</li>
+      <li>Back up your workspace before testing with important notes.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Local build commands</h2>
+    <pre><code>npm install
+npm run tauri:dev
+npm run tauri:build</code></pre>
+    <p>Tauri bundle outputs are written under <code>src-tauri/target/release/bundle/</code>.</p>
+  </section>
+
+  <section>
+    <h2>Manual updater status</h2>
+    <p>Settings includes a manual "check for updates" flow. Opaline checks only when the user clicks the update button, and installing an available update requires a second explicit confirmation.</p>
+    <p>The active updater configuration is intentionally inert until GitHub Release assets, <code>latest.json</code>, and the Tauri updater signing key are configured.</p>
+    <p>Keep <code>plugins.updater</code> as an object. Do not set it to <code>null</code>:</p>
+    <pre><code>{updaterConfig}</code></pre>
+  </section>
+
+  <section>
+    <h2>Before enabling public updates</h2>
+    <ul>
+      <li>Generate and protect the private Tauri updater signing key outside the repository.</li>
+      <li>Upload the installer, matching <code>.sig</code>, and a real <code>latest.json</code> that points at an existing asset.</li>
+      <li>Test update installation with a non-essential workspace before announcing an update.</li>
+      <li>Do not enable automatic background installation during public alpha.</li>
+    </ul>
+  </section>
+</DocLayout>

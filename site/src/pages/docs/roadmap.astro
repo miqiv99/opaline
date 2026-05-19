@@ -1,0 +1,53 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+import { routeFor } from "../../i18n";
+---
+
+<DocLayout
+  lang="en"
+  page="docs/roadmap"
+  title="Roadmap"
+  intro="A public-alpha view of what already works, what is rough, and where Opaline is heading next."
+  next={[
+    { href: routeFor("en", "docs/html-format"), label: "HTML format" },
+    { href: routeFor("en", "docs/storage"), label: "Storage architecture" },
+  ]}
+>
+  <section>
+    <h2>Current alpha</h2>
+    <ul class="status-list">
+      <li><span class="status-icon done">✓</span><span><strong>implemented</strong> Local workspace creation, HTML note editing, recent documents, Today’s log, settings, and language switching.</span></li>
+      <li><span class="status-icon done">✓</span><span><strong>implemented</strong> Relationship surfaces including Links from this note, Mentions this note, and a Relationship map.</span></li>
+      <li><span class="status-icon partial">◐</span><span><strong>partial</strong> Extension widgets, update checking, AI provider settings, and import/export flows exist but need more validation.</span></li>
+      <li><span class="status-icon planned">○</span><span><strong>planned</strong> Stronger workspace migration, richer publishing, semantic retrieval, and safer AI editing workflows.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What is still rough</h2>
+    <p>The alpha is useful for trying the workbench model, but it should not be treated as a finished data system. Back up important workspaces before serious use.</p>
+    <div class="doc-grid">
+      <article class="doc-card">
+        <h3>Packaging</h3>
+        <p>Windows is the primary validation target. macOS still needs native build and test coverage.</p>
+      </article>
+      <article class="doc-card">
+        <h3>Updater</h3>
+        <p>The manual update UI exists, but real updater delivery needs signed assets, a public manifest, and endpoint configuration.</p>
+      </article>
+      <article class="doc-card">
+        <h3>Data safety</h3>
+        <p>HTML remains the durable source, while SQLite indexes and metadata should continue to be rebuildable.</p>
+      </article>
+      <article class="doc-card">
+        <h3>AI workflow</h3>
+        <p>AI must show sources, preview proposed edits, and respect private note boundaries.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Next direction</h2>
+    <p>Near-term work should make the alpha safer to run every day: improve workspace migration, polish relationship navigation, stabilize extension APIs, and document update distribution before enabling automatic updates.</p>
+  </section>
+</DocLayout>

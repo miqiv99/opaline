@@ -1,0 +1,52 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+---
+
+<DocLayout
+  lang="zh"
+  page="privacy"
+  section="privacy"
+  eyebrow="数据与隐私"
+  title="数据优先留在你的工作区"
+  intro="Opaline 是本地优先的桌面知识工作台。本地编辑不需要云账号。"
+  next={[{ href: "/zh/docs/storage", label: "存储架构" }, { href: "/zh/docs/ai", label: "搜索、AI 和发布" }]}
+>
+  <section>
+    <h2>文档保存在哪里</h2>
+    <p>默认情况下，Opaline 会在系统文档目录下创建工作区。耐久内容是普通文件：</p>
+    <pre><code>Documents/
+  Opaline/
+    notes/
+    assets/
+    .opaline/</code></pre>
+    <ul>
+      <li><code>notes/</code> 保存耐久 HTML 文档。</li>
+      <li><code>assets/</code> 保存图片和附件。</li>
+      <li><code>.opaline/</code> 保存元数据、索引、设置、缓存和历史快照。</li>
+    </ul>
+    <p>HTML 文件是真实数据源。SQLite 元数据应尽量能从文档重新构建。</p>
+  </section>
+
+  <section>
+    <h2>网络访问边界</h2>
+    <p>本地编辑不需要云账号。以下场景可能发生网络访问：</p>
+    <ul>
+      <li>配置 AI provider、测试模型或抓取模型列表。</li>
+      <li>运行会调用网络 API 的扩展组件或脚本。</li>
+      <li>打开文档中的外部链接。</li>
+      <li>在设置页手动检查更新。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>API Key 与私有文档</h2>
+    <p>AI provider 设置由用户配置，API Key 应被当作秘密保管。私有文档不应在未经用户明确许可的情况下发送到云模型。</p>
+    <p>Public alpha 构建不建议直接使用敏感生产凭据，除非你已经审阅代码并理解风险。</p>
+  </section>
+
+  <section>
+    <h2>扩展组件与备份</h2>
+    <p>扩展组件和脚本仍是实验能力。只安装你信任来源的扩展，并让扩展行为保持明确、可见、可回退。</p>
+    <p>用重要笔记测试 alpha 版本前，请先备份整个工作区。普通文件夹副本、自己控制的云同步目录，或适合 Git 的私有仓库都可以作为备份方式。</p>
+  </section>
+</DocLayout>

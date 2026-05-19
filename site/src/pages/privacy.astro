@@ -1,5 +1,52 @@
 ---
-import RedirectLayout from "../layouts/RedirectLayout.astro";
+import DocLayout from "../layouts/DocLayout.astro";
 ---
 
-<RedirectLayout page="privacy" />
+<DocLayout
+  lang="en"
+  page="privacy"
+  section="privacy"
+  eyebrow="Data and privacy"
+  title="Your data starts in your workspace"
+  intro="Opaline is designed as a local-first desktop knowledge workbench. Local editing does not require a cloud account."
+  next={[{ href: "/docs/storage", label: "Storage architecture" }, { href: "/docs/ai", label: "Search, AI, and publishing" }]}
+>
+  <section>
+    <h2>Where notes live</h2>
+    <p>By default, Opaline creates a workspace under the user's documents folder. The durable content is ordinary files:</p>
+    <pre><code>Documents/
+  Opaline/
+    notes/
+    assets/
+    .opaline/</code></pre>
+    <ul>
+      <li><code>notes/</code> stores durable HTML notes.</li>
+      <li><code>assets/</code> stores images and attached files.</li>
+      <li><code>.opaline/</code> stores app metadata, indexes, settings, cache, and history snapshots.</li>
+    </ul>
+    <p>HTML files are the source of truth. SQLite metadata should be rebuildable from notes whenever possible.</p>
+  </section>
+
+  <section>
+    <h2>Network behavior</h2>
+    <p>Opaline does not need a cloud account for local note editing. Network access can happen when a user explicitly configures or uses:</p>
+    <ul>
+      <li>AI providers, model tests, or model list fetching.</li>
+      <li>Extension widgets or scripts that call network APIs.</li>
+      <li>External links opened from notes.</li>
+      <li>Manual update checks from Settings.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>AI keys and private notes</h2>
+    <p>AI provider settings are user-configured, and API keys should be treated as secrets. Private notes should not be sent to cloud models without explicit user permission.</p>
+    <p>Public alpha builds should not be used with sensitive production credentials unless the user has reviewed the code and understands the risk.</p>
+  </section>
+
+  <section>
+    <h2>Extensions and backups</h2>
+    <p>Extension widgets and live scripts are experimental. Only install extensions from sources you trust, and keep extension behavior explicit, visible, and reversible.</p>
+    <p>Before testing alpha builds with important notes, back up the full workspace folder. A folder copy, a cloud-synced folder you control, or a private Git repository can all work depending on your notes.</p>
+  </section>
+</DocLayout>

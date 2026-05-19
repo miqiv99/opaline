@@ -1,0 +1,26 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+
+const docs = [
+  ["/docs/html-format", "HTML format", "Why Opaline stores durable notes as clean HTML and what the Opaline HTML Profile preserves."],
+  ["/privacy", "Storage and privacy", "Workspace folders, local-first behavior, API keys, extensions, and backups."],
+  ["/docs/storage", "Storage architecture", "How notes, assets, SQLite metadata, history, and extension boundaries fit together."],
+  ["/docs/links", "Link rules", "Title shortcuts, HTML links, relationship types, backlinks, broken links, and the relationship map."],
+  ["/docs/ai", "Search, AI, and publishing", "Keyword search first, visible sources for AI, editor tool permissions, and publishing direction."],
+  ["/docs/roadmap", "Roadmap", "Current alpha capabilities, rough edges, and what comes next."],
+  ["/docs/release", "Build and updates", "Public alpha release notes, platform caveats, and Tauri updater configuration."],
+];
+---
+
+<DocLayout lang="en" page="docs" eyebrow="Documentation" title="Documentation" intro="A public documentation hub for Opaline's format, storage model, linking rules, AI direction, and release status.">
+  <section>
+    <div class="doc-grid">
+      {docs.map(([href, title, body]) => (
+        <a class="doc-card" href={href}>
+          <h2>{title}</h2>
+          <p>{body}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</DocLayout>

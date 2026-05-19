@@ -1,0 +1,41 @@
+---
+import DocLayout from "../../layouts/DocLayout.astro";
+import { routeFor } from "../../i18n";
+---
+
+<DocLayout
+  lang="en"
+  page="docs/storage"
+  title="Storage architecture"
+  intro="The workspace keeps durable content as local files and treats indexes, cache, and app state as rebuildable support data."
+  next={[
+    { href: routeFor("en", "privacy"), label: "Data and privacy" },
+    { href: routeFor("en", "docs/links"), label: "Link rules" },
+  ]}
+>
+  <section>
+    <h2>Local-first shape</h2>
+    <p>A typical workspace has three important areas: <code>notes/</code> for HTML documents, <code>assets/</code> for images and attachments, and <code>.opaline/</code> for metadata, settings, indexes, cache, and history.</p>
+    <p>The user-owned HTML files are the source of truth. Opaline should prefer rebuilding derived data from those files whenever possible.</p>
+  </section>
+
+  <section>
+    <h2>What SQLite is for</h2>
+    <ul>
+      <li>Metadata and app state.</li>
+      <li>Search indexes and relationship indexes.</li>
+      <li>Backlinks, tags, recent notes, and favorites.</li>
+      <li>Embeddings and cache when those features are enabled.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Extensions</h2>
+    <p>Extension widgets should work through controlled APIs rather than taking direct ownership of workspace storage. That keeps platform-specific access behind adapters and preserves user trust.</p>
+  </section>
+
+  <section>
+    <h2>Practical rule</h2>
+    <p>If the app disappears, the documents should still be useful. If a derived database disappears, Opaline should be able to rebuild enough state from the workspace to keep going.</p>
+  </section>
+</DocLayout>

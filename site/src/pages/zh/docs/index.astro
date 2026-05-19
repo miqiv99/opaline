@@ -1,0 +1,26 @@
+---
+import DocLayout from "../../../layouts/DocLayout.astro";
+
+const docs = [
+  ["/zh/docs/html-format", "HTML 格式", "为什么 Opaline 使用干净 HTML，以及 Opaline HTML Profile 保留哪些语义。"],
+  ["/zh/privacy", "存储与隐私", "工作区目录、本地优先边界、API Key、扩展组件和备份。"],
+  ["/zh/docs/storage", "存储架构", "文档、资源、SQLite 元数据、历史版本和扩展边界如何协作。"],
+  ["/zh/docs/links", "链接规则", "标题快捷链接、HTML 链接、关系类型、本篇关联、谁提到本篇、断链检测和关系图。"],
+  ["/zh/docs/ai", "搜索、AI 和发布", "关键词搜索优先、AI 可见来源、编辑工具权限和发布方向。"],
+  ["/zh/docs/roadmap", "路线图", "当前 alpha 已有能力、仍粗糙的地方和下一步方向。"],
+  ["/zh/docs/release", "构建与更新", "Public alpha 发布说明、平台提醒和 Tauri updater 配置。"],
+];
+---
+
+<DocLayout lang="zh" page="docs" eyebrow="文档" title="文档入口" intro="Opaline 官网文档导航：格式、存储、链接、AI、路线图和发布状态。">
+  <section>
+    <div class="doc-grid">
+      {docs.map(([href, title, body]) => (
+        <a class="doc-card" href={href}>
+          <h2>{title}</h2>
+          <p>{body}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</DocLayout>

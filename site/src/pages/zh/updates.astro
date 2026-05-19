@@ -1,26 +1,21 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { languages, siteText, type Lang } from "../../i18n";
+import { siteText } from "../../i18n";
 
-export function getStaticPaths() {
-  return languages.map((lang) => ({ params: { lang } }));
-}
-
-const lang = Astro.params.lang as Lang;
-const text = siteText[lang];
+const text = siteText.zh;
 ---
 
-<BaseLayout lang={lang} page="updates" title={`${text.updates} - Opaline`} description={text.updatesPage.intro}>
+<BaseLayout lang="zh" page="updates" title={`${text.updatesPage.title} - Opaline`} description={text.updatesPage.intro}>
   <section class="page-hero">
     <div class="site-shell">
-      <p class="eyebrow">Updater manifest placeholder</p>
+      <p class="eyebrow">Updates</p>
       <h1>{text.updatesPage.title}</h1>
       <p class="page-intro">{text.updatesPage.intro}</p>
     </div>
   </section>
 
   <section class="section">
-    <div class="site-shell content-stack">
+    <div class="site-shell content-grid">
       <article class="update-box">
         <h2>{text.updatesPage.statusTitle}</h2>
         <p>{text.updatesPage.statusCopy}</p>

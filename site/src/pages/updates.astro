@@ -1,5 +1,29 @@
 ---
-import RedirectLayout from "../layouts/RedirectLayout.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { siteText } from "../i18n";
+
+const text = siteText.en;
 ---
 
-<RedirectLayout page="updates" />
+<BaseLayout lang="en" page="updates" title={`${text.updatesPage.title} - Opaline`} description={text.updatesPage.intro}>
+  <section class="page-hero">
+    <div class="site-shell">
+      <p class="eyebrow">Updates</p>
+      <h1>{text.updatesPage.title}</h1>
+      <p class="page-intro">{text.updatesPage.intro}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="site-shell content-grid">
+      <article class="update-box">
+        <h2>{text.updatesPage.statusTitle}</h2>
+        <p>{text.updatesPage.statusCopy}</p>
+      </article>
+      <article class="update-box">
+        <h2>{text.updatesPage.pathTitle}</h2>
+        <p>{text.updatesPage.pathCopy}</p>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

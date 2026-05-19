@@ -9,7 +9,10 @@ export const languageLabels: Record<Lang, string> = {
 
 export const routeFor = (lang: Lang, path = "") => {
   const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  return `/${lang}${cleanPath ? `/${cleanPath}` : ""}`;
+  if (lang === "en") {
+    return cleanPath ? `/${cleanPath}` : "/";
+  }
+  return `/zh${cleanPath ? `/${cleanPath}` : ""}`;
 };
 
 export const siteText = {
