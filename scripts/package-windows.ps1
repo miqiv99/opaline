@@ -10,7 +10,7 @@ Set-Location -LiteralPath $repoRoot
 Write-Host "Opaline Windows package" -ForegroundColor Green
 Write-Host "Repository: $repoRoot"
 
-$tauriArgs = @("tauri", "--", "build")
+$tauriArgs = @("run", "tauri", "--", "build")
 if ($NoBundle) {
   $tauriArgs += "--no-bundle"
 }
