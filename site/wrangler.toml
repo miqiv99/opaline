@@ -1,0 +1,9 @@
+name = "opaline"
+compatibility_date = "2026-05-19"
+main = "./src/worker.ts"
+
+[assets]
+binding = "ASSETS"
+directory = "./dist"
+run_worker_first = true
+not_found_handling = "404-page"

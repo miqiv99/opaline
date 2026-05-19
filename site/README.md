@@ -33,5 +33,19 @@ Suggested deployment settings:
 - Build command: `npm run build`
 - Build output: `dist`
 
+## Cloudflare Workers Static Assets
+
+Cloudflare's current Workers and Pages dashboard may create a Worker-backed
+static deployment from a Git repository. Use these settings:
+
+- Path: `site`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Non-production deploy command: `npx wrangler versions upload`
+
+The Worker configuration lives in `wrangler.toml` and uploads Astro's `dist/`
+folder as static assets. `src/worker.ts` mirrors the Pages middleware language
+redirects before serving static assets.
+
 The `/updates/alpha/` folder is reserved for a future updater manifest. Do not add
 a fake `latest.json`; the updater needs real signing keys and release assets.
