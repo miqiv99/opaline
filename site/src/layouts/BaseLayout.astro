@@ -37,6 +37,10 @@ const navItems = [
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script is:inline>
       (function () {
+        try {
+          var fontMode = localStorage.getItem("opaline-site-font") || "system";
+          document.documentElement.dataset.fontMode = fontMode;
+        } catch {}
         var path = location.pathname;
         if (path.indexOf("/zh") === 0 || path.indexOf("/en") === 0) return;
         try {
@@ -89,6 +93,11 @@ const navItems = [
             </a>
           ))}
         </div>
+        <div class="font-switcher" aria-label={currentLang === "zh" ? "字体切换" : "Font switcher"} data-font-switcher>
+          <button type="button" data-font-option="system">{currentLang === "zh" ? "系统" : "System"}</button>
+          <button type="button" data-font-option="serif">{currentLang === "zh" ? "宋体" : "Serif"}</button>
+          <button type="button" data-font-option="mono">{currentLang === "zh" ? "等宽" : "Mono"}</button>
+        </div>
         <a class="header-link" href="https://github.com/miqiv99/opaline" rel="noreferrer">{text.github}</a>
       </div>
     </header>
@@ -104,5 +113,65 @@ const navItems = [
         </div>
       </div>
     </footer>
+    <div class="image-lightbox" data-image-lightbox hidden role="dialog" aria-modal="true" aria-label={currentLang === "zh" ? "查看截图" : "View screenshot"}>
+      <button class="lightbox-close" type="button" data-lightbox-close aria-label={currentLang === "zh" ? "关闭" : "Close"}>×</button>
+      <figure>
+        <img data-lightbox-image alt="" />
+        <figcaption data-lightbox-caption></figcaption>
+      </figure>
+    </div>
+    <script is:inline>
+      (function () {
+        var fontButtons = Array.prototype.slice.call(document.querySelectorAll("[data-font-option]"));
+        function setFontMode(mode) {
+          document.documentElement.dataset.fontMode = mode;
+          try {
+            localStorage.setItem("opaline-site-font", mode);
+          } catch {}
+          fontButtons.forEach(function (button) {
+            var active = button.getAttribute("data-font-option") === mode;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+          });
+        }
+        var currentFont = document.documentElement.dataset.fontMode || "system";
+        setFontMode(currentFont);
+        fontButtons.forEach(function (button) {
+          button.addEventListener("click", function () {
+            setFontMode(button.getAttribute("data-font-option") || "system");
+          });
+        });
+
+        var lightbox = document.querySelector("[data-image-lightbox]");
+        if (!lightbox) return;
+        var lightboxImage = lightbox.querySelector("[data-lightbox-image]");
+        var lightboxCaption = lightbox.querySelector("[data-lightbox-caption]");
+        var closeButton = lightbox.querySelector("[data-lightbox-close]");
+        function closeLightbox() {
+          lightbox.hidden = true;
+          document.body.classList.remove("has-lightbox");
+          if (lightboxImage) {
+            lightboxImage.removeAttribute("src");
+          }
+        }
+        document.addEventListener("click", function (event) {
+          var trigger = event.target.closest("[data-zoom-src]");
+          if (!trigger || !lightboxImage || !lightboxCaption) return;
+          lightboxImage.src = trigger.getAttribute("data-zoom-src");
+          lightboxImage.alt = trigger.getAttribute("data-zoom-alt") || "";
+          lightboxCaption.textContent = trigger.getAttribute("data-zoom-caption") || "";
+          lightbox.hidden = false;
+          document.body.classList.add("has-lightbox");
+          if (closeButton) closeButton.focus();
+        });
+        if (closeButton) closeButton.addEventListener("click", closeLightbox);
+        lightbox.addEventListener("click", function (event) {
+          if (event.target === lightbox) closeLightbox();
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !lightbox.hidden) closeLightbox();
+        });
+      })();
+    </script>
   </body>
 </html>

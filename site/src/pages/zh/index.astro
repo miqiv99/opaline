@@ -7,8 +7,8 @@ const text = siteText.zh;
 
 <BaseLayout lang="zh" page="" title={text.title} description={text.description}>
   <section class="hero">
-    <div class="site-shell hero-grid">
-      <div>
+    <div class="site-shell hero-stack">
+      <div class="hero-content">
         <p class="eyebrow">{text.hero.eyebrow}</p>
         <h1>{text.hero.title}</h1>
         <p class="hero-copy">{text.hero.copy}</p>
@@ -18,8 +18,17 @@ const text = siteText.zh;
           <a class="button" href="/zh/docs">{text.hero.docs}</a>
         </div>
       </div>
-      <figure class="hero-shot">
-        <img src="/media/opaline-editor.png" alt={text.hero.imageAlt} width="1440" height="960" loading="eager" />
+      <figure class="hero-shot hero-shot-wide">
+        <button
+          class="shot-zoom"
+          type="button"
+          data-zoom-src="/media/opaline-editor.png"
+          data-zoom-alt={text.hero.imageAlt}
+          data-zoom-caption={text.hero.note}
+          aria-label="打开产品截图"
+        >
+          <img src="/media/opaline-editor.png" alt={text.hero.imageAlt} width="1440" height="960" loading="eager" />
+        </button>
         <figcaption class="hero-note">
           <span>{text.hero.note}</span>
           <span>{text.hero.noteMeta}</span>
@@ -54,7 +63,9 @@ const text = siteText.zh;
       <div class="shot-grid">
         {text.home.shots.map(([src, caption]) => (
           <figure class="shot">
-            <img src={src} alt={caption} width="1440" height="960" loading="lazy" />
+            <button class="shot-zoom" type="button" data-zoom-src={src} data-zoom-alt={caption} data-zoom-caption={caption} aria-label={`打开截图：${caption}`}>
+              <img src={src} alt={caption} width="1440" height="960" loading="lazy" />
+            </button>
             <figcaption>{caption}</figcaption>
           </figure>
         ))}
