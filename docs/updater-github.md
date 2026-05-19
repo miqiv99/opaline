@@ -2,7 +2,7 @@
 
 Opaline uses the Tauri 2 updater plugin for the public alpha update flow. The app only checks when the user clicks the update button in Settings, and installation requires a second explicit button press.
 
-The active `src-tauri/tauri.conf.json` intentionally uses an empty updater endpoint list and empty public key instead of fake production values. Add the real values only when a release repository and signing key are ready.
+The active `src-tauri/tauri.conf.json` is configured for GitHub Releases at `miqiv99/opaline`. The private signing key stays outside the repository.
 
 Keep the updater entry as an object even before GitHub is configured:
 
@@ -41,7 +41,7 @@ The endpoint below follows GitHub's "latest release" redirect, so it is best for
     "updater": {
       "pubkey": "PASTE_GENERATED_PUBLIC_KEY_HERE",
       "endpoints": [
-        "https://github.com/OWNER/REPO/releases/latest/download/latest.json"
+        "https://github.com/miqiv99/opaline/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "basicUi"
@@ -74,11 +74,11 @@ Example `latest.json`:
 {
   "version": "0.1.1",
   "notes": "Short release notes for Opaline 0.1.1.",
-  "pub_date": "2026-05-18T00:00:00Z",
+  "pub_date": "2026-05-19T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "PASTE_CONTENTS_OF_INSTALLER_SIG_HERE",
-      "url": "https://github.com/OWNER/REPO/releases/download/v0.1.1/Opaline_0.1.1_x64-setup.exe"
+      "url": "https://github.com/miqiv99/opaline/releases/download/v0.1.1/Opaline_0.1.1_x64-setup.exe"
     }
   }
 }

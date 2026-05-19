@@ -25,13 +25,21 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "icon": []
+    "targets": ["nsis"],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
-      "pubkey": "",
-      "endpoints": []
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJGNjQxRUFFRkUwRTM4ODMKUldTRE9BNytyaDVrTHc3cTl2aGQ4NXFMRUF6emVEMjd0NHlhT1U1VEFkZlhsU2hzMERlREtwSVgK",
+      "endpoints": [
+        "https://github.com/miqiv99/opaline/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "basicUi"
+      }
     }
   }
 }

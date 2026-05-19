@@ -52,6 +52,11 @@ desktop.ini
 playwright-report/
 test-results/
 
+# Release staging artifacts
+/latest.json
+/release/
+/releases/
+
 # Temporary files
 tmp/
 temp/
