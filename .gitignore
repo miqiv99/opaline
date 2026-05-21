@@ -51,6 +51,7 @@ desktop.ini
 
 # Test artifacts
 .playwright-cli/
+output/
 playwright-report/
 test-results/
 

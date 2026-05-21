@@ -52,6 +52,7 @@ import { MermaidBlock } from "./extensions/mermaid";
 import { NoteEmbed } from "./extensions/embed";
 import { BlockId, assignBlockIds, listBlockIds } from "./extensions/blockId";
 import { DisclosureBlock, DisclosureContent, DisclosureSummary, LayoutColumn, OpalineLayout } from "./extensions/layout";
+import { OpalineTextStyle, type OpalineTextStyleAttrs } from "./extensions/opalineTextStyle";
 import { OpalineWidget } from "./extensions/widget";
 import { OpalineScript } from "./extensions/liveScript";
 import { BUILT_IN_WIDGETS, loadLiveComponentSettings } from "./liveComponentSettings";
@@ -182,6 +183,7 @@ export function OpalineEditor({
           rel: "noreferrer",
         },
       }),
+      OpalineTextStyle,
       Image,
       Table.configure({
         resizable: true,
@@ -223,7 +225,6 @@ export function OpalineEditor({
           setContextMenu({
             x: event.clientX,
             y: event.clientY,
-            styleSlot: documentStyleSlotFromElement(event.target),
           });
           return true;
         },
@@ -273,6 +274,7 @@ export function OpalineEditor({
     documentStyle,
     onDocumentStyleChange,
     onImportAsset,
+    openWebLinkDialog: () => openLinkDialog(editor, setDialog),
     openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
     openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
     openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
@@ -299,6 +301,75 @@ export function OpalineEditor({
             disabled={!canRunEditorCommand("editor.redo", commandContext)}
           >
             <Redo2 size={17} />
+          </IconButton>
+          <span className="toolbar-divider" />
+          <IconButton
+            label={t("editor.paragraph")}
+            active={editor.isActive("paragraph")}
+            onClick={() => void runEditorCommand("editor.setParagraph", commandContext)}
+          >
+            <span className="toolbar-text-symbol">¶</span>
+          </IconButton>
+          <IconButton
+            label={t("editor.heading1")}
+            active={editor.isActive("heading", { level: 1 })}
+            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 1 })}
+          >
+            <Heading1 size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.heading2")}
+            active={editor.isActive("heading", { level: 2 })}
+            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 2 })}
+          >
+            <Heading2 size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.heading3")}
+            active={editor.isActive("heading", { level: 3 })}
+            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 3 })}
+          >
+            <span className="toolbar-text-symbol">H3</span>
+          </IconButton>
+          <IconButton
+            label={t("editor.bold")}
+            active={editor.isActive("bold")}
+            onClick={() => void runEditorCommand("editor.toggleBold", commandContext)}
+            disabled={!canRunEditorCommand("editor.toggleBold", commandContext)}
+          >
+            <Bold size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.italic")}
+            active={editor.isActive("italic")}
+            onClick={() => void runEditorCommand("editor.toggleItalic", commandContext)}
+            disabled={!canRunEditorCommand("editor.toggleItalic", commandContext)}
+          >
+            <Italic size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.bulletList")}
+            active={editor.isActive("bulletList")}
+            onClick={() => void runEditorCommand("editor.toggleBulletList", commandContext)}
+          >
+            <List size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.orderedList")}
+            active={editor.isActive("orderedList")}
+            onClick={() => void runEditorCommand("editor.toggleOrderedList", commandContext)}
+          >
+            <ListOrdered size={17} />
+          </IconButton>
+          <IconButton
+            label={t("editor.taskList")}
+            active={editor.isActive("taskList")}
+            onClick={() => void runEditorCommand("editor.toggleTaskList", commandContext)}
+          >
+            <CheckSquare size={17} />
+          </IconButton>
+          <IconButton label={t("editor.webLink")} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
+            <LinkIcon size={17} />
           </IconButton>
           <span className="toolbar-divider" />
           <IconButton label={t("editor.documentStyle")} active={stylePanelOpen} onClick={() => setStylePanelOpen((value) => !value)}>
@@ -362,7 +433,7 @@ export function OpalineEditor({
           </button>
         </div>
         {stylePanelOpen ? (
-          <DocumentStylePanel style={documentStyle} onChange={onDocumentStyleChange} />
+          <DocumentStylePanel editor={editor} style={documentStyle} onChange={onDocumentStyleChange} />
         ) : null}
       </div>
       <EditorContent editor={editor} className="editor-scroll" />
@@ -380,8 +451,6 @@ export function OpalineEditor({
           void runEditorAiAction(editor, action, setAiResult);
         }}
         onEmbedNote={() => setEmbedDialogOpen(true)}
-        documentStyle={documentStyle}
-        onDocumentStyleChange={onDocumentStyleChange}
         canLinkNote={Boolean(onSearchNotes)}
         canEmbedNote={Boolean(onSearchNotes)}
       />
@@ -415,7 +484,6 @@ export function OpalineEditor({
 type ContextMenuState = {
   x: number;
   y: number;
-  styleSlot: DocumentStyleSlot;
 };
 
 type InsertDialogState =
@@ -469,9 +537,11 @@ const documentStyleSlotLabelKeys: Record<DocumentStyleSlot, string> = {
 };
 
 function DocumentStylePanel({
+  editor,
   style,
   onChange,
 }: {
+  editor: NonNullable<ReturnType<typeof useEditor>>;
   style: OpalineDocumentStyle;
   onChange: (style: OpalineDocumentStyle) => void;
 }) {
@@ -479,6 +549,8 @@ function DocumentStylePanel({
   const [slot, setSlot] = useState<DocumentStyleSlot>("body");
   const selected = style.slots[slot];
   const fontSize = Number.parseInt(selected.fontSize, 10);
+  const selectedTextStyle = editor.getAttributes("opalineTextStyle") as OpalineTextStyleAttrs;
+  const selectedTextFontSize = Number.parseInt(selectedTextStyle.fontSize ?? "", 10);
 
   const updateSelectedSlot = (patch: Partial<typeof selected>) => {
     onChange(updateDocumentStyleSlot(style, slot, patch));
@@ -486,53 +558,131 @@ function DocumentStylePanel({
 
   return (
     <div className="document-style-panel" aria-label={t("editor.documentStyle")}>
-      <label>
-        <span>{t("editor.styleSlot")}</span>
-        <select value={slot} onChange={(event) => setSlot(event.target.value as DocumentStyleSlot)}>
-          {editableDocumentStyleSlots.map((item) => (
-            <option key={item} value={item}>{t(documentStyleSlotLabelKeys[item])}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>{t("editor.styleFontFamily")}</span>
-        <select value={selected.fontFamily} onChange={(event) => updateSelectedSlot({ fontFamily: event.target.value })}>
-          {documentFontFamilyOptions.map((option) => (
-            <option key={option.id} value={option.value}>{t(option.labelKey)}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>{t("editor.styleFontSize")}</span>
-        <input
-          type="number"
-          min={12}
-          max={72}
-          value={Number.isFinite(fontSize) ? fontSize : 16}
-          onChange={(event) => updateSelectedSlot({ fontSize: `${event.target.value || 16}px` })}
-          aria-label={t("editor.styleFontSize")}
-        />
-      </label>
-      <label>
-        <span>{t("editor.styleColor")}</span>
-        <input
-          type="color"
-          value={selected.color}
-          onChange={(event) => updateSelectedSlot({ color: event.target.value })}
-          aria-label={t("editor.styleColor")}
-        />
-      </label>
-      <button
-        type="button"
-        className="document-style-reset"
-        onClick={() => onChange(createDefaultDocumentStyle())}
-      >
-        <RotateCcw size={16} />
-        <span>{t("editor.resetDocumentStyle")}</span>
-      </button>
+      <div className="document-style-section">
+        <div className="document-style-section-heading">
+          <strong>{t("editor.documentStyleSlots")}</strong>
+          <span>{t("editor.documentStyleSlotsDesc")}</span>
+        </div>
+        <label>
+          <span>{t("editor.styleSlot")}</span>
+          <select value={slot} onChange={(event) => setSlot(event.target.value as DocumentStyleSlot)}>
+            {editableDocumentStyleSlots.map((item) => (
+              <option key={item} value={item}>{t(documentStyleSlotLabelKeys[item])}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t("editor.styleFontFamily")}</span>
+          <select value={selected.fontFamily} onChange={(event) => updateSelectedSlot({ fontFamily: event.target.value })}>
+            {documentFontFamilyOptions.map((option) => (
+              <option key={option.id} value={option.value}>{t(option.labelKey)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t("editor.styleFontSize")}</span>
+          <input
+            type="number"
+            min={12}
+            max={72}
+            value={Number.isFinite(fontSize) ? fontSize : 16}
+            onChange={(event) => updateSelectedSlot({ fontSize: `${event.target.value || 16}px` })}
+            aria-label={t("editor.styleFontSize")}
+          />
+        </label>
+        <label>
+          <span>{t("editor.styleColor")}</span>
+          <input
+            type="color"
+            value={selected.color}
+            onChange={(event) => updateSelectedSlot({ color: event.target.value })}
+            aria-label={t("editor.styleColor")}
+          />
+        </label>
+        <button
+          type="button"
+          className="document-style-reset"
+          onClick={() => onChange(createDefaultDocumentStyle())}
+        >
+          <RotateCcw size={16} />
+          <span>{t("editor.resetDocumentStyle")}</span>
+        </button>
+      </div>
+      <div className="document-style-section">
+        <div className="document-style-section-heading">
+          <strong>{t("editor.selectedTextStyle")}</strong>
+          <span>{t("editor.selectedTextStyleDesc")}</span>
+        </div>
+        <label>
+          <span>{t("editor.styleFontFamily")}</span>
+          <select
+            value={selectedTextStyle.fontFamily ?? ""}
+            onChange={(event) => updateSelectedTextStyle(editor, { fontFamily: event.target.value || null })}
+          >
+            <option value="">{t("editor.selectedTextStyleInherit")}</option>
+            {documentFontFamilyOptions.map((option) => (
+              <option key={option.id} value={option.value}>{t(option.labelKey)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t("editor.styleFontSize")}</span>
+          <input
+            type="number"
+            min={10}
+            max={96}
+            value={Number.isFinite(selectedTextFontSize) ? selectedTextFontSize : 16}
+            onChange={(event) => updateSelectedTextStyle(editor, { fontSize: `${event.target.value || 16}px` })}
+            aria-label={t("editor.styleFontSize")}
+          />
+        </label>
+        <label>
+          <span>{t("editor.styleColor")}</span>
+          <input
+            type="color"
+            value={normalizeColorInput(selectedTextStyle.color)}
+            onChange={(event) => updateSelectedTextStyle(editor, { color: event.target.value })}
+            aria-label={t("editor.styleColor")}
+          />
+        </label>
+        <button
+          type="button"
+          className="document-style-reset"
+          onClick={() => clearSelectedTextStyle(editor)}
+        >
+          <RotateCcw size={16} />
+          <span>{t("editor.clearSelectedTextStyle")}</span>
+        </button>
+      </div>
     </div>
   );
 }
+
+const updateSelectedTextStyle = (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  patch: OpalineTextStyleAttrs,
+) => {
+  const current = editor.getAttributes("opalineTextStyle") as OpalineTextStyleAttrs;
+  const next: OpalineTextStyleAttrs = { ...current, ...patch };
+
+  for (const key of Object.keys(next) as Array<keyof OpalineTextStyleAttrs>) {
+    if (!next[key]) {
+      delete next[key];
+    }
+  }
+
+  if (!Object.keys(next).length) {
+    return clearSelectedTextStyle(editor);
+  }
+
+  return editor.chain().focus().setMark("opalineTextStyle", next).run();
+};
+
+const clearSelectedTextStyle = (editor: NonNullable<ReturnType<typeof useEditor>>) =>
+  editor.chain().focus().unsetMark("opalineTextStyle").run();
+
+const normalizeColorInput = (value?: string | null) =>
+  value && /^#[0-9a-f]{6}$/i.test(value) ? value : "#1f2a24";
 
 const openLinkDialog = (
   editor: NonNullable<ReturnType<typeof useEditor>>,
@@ -1320,8 +1470,6 @@ function EditorContextMenu({
   onMathInline,
   onAiAction,
   onEmbedNote,
-  documentStyle,
-  onDocumentStyleChange,
   canLinkNote,
   canEmbedNote,
 }: {
@@ -1336,8 +1484,6 @@ function EditorContextMenu({
   onMathInline: () => void;
   onAiAction: (action: AiEditorAction) => void;
   onEmbedNote: () => void;
-  documentStyle: OpalineDocumentStyle;
-  onDocumentStyleChange: (style: OpalineDocumentStyle) => void;
   canLinkNote: boolean;
   canEmbedNote: boolean;
 }) {
@@ -1381,7 +1527,6 @@ function EditorContextMenu({
 
   const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, " ");
   const canPaste = typeof navigator !== "undefined" && Boolean(navigator.clipboard?.readText);
-  const styleSlot = state.styleSlot ?? documentStyleSlotFromEditor(editor);
 
   return (
     <div
@@ -1425,11 +1570,7 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextFontControls
-          slot={styleSlot}
-          style={documentStyle}
-          onChange={onDocumentStyleChange}
-        />
+        <ContextFontControls editor={editor} />
       </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="ai"
@@ -1510,30 +1651,24 @@ function EditorContextMenu({
 }
 
 function ContextFontControls({
-  slot,
-  style,
-  onChange,
+  editor,
 }: {
-  slot: DocumentStyleSlot;
-  style: OpalineDocumentStyle;
-  onChange: (style: OpalineDocumentStyle) => void;
+  editor: NonNullable<ReturnType<typeof useEditor>>;
 }) {
   const { t } = useI18n();
-  const selected = style.slots[slot];
-  const fontSize = Number.parseInt(selected.fontSize, 10);
-  const updateSlot = (patch: Partial<typeof selected>) => {
-    onChange(updateDocumentStyleSlot(style, slot, patch));
-  };
+  const selected = editor.getAttributes("opalineTextStyle") as OpalineTextStyleAttrs;
+  const fontSize = Number.parseInt(selected.fontSize ?? "", 10);
 
   return (
     <div className="context-font-controls" role="group" aria-label={t("editor.contextFont")}>
       <p>
         <span>{t("editor.styleAppliesTo")}</span>
-        <strong>{t(documentStyleSlotLabelKeys[slot])}</strong>
+        <strong>{t("editor.selectedTextStyle")}</strong>
       </p>
       <label>
         <span>{t("editor.styleFontFamily")}</span>
-        <select value={selected.fontFamily} onChange={(event) => updateSlot({ fontFamily: event.target.value })}>
+        <select value={selected.fontFamily ?? ""} onChange={(event) => updateSelectedTextStyle(editor, { fontFamily: event.target.value || null })}>
+          <option value="">{t("editor.selectedTextStyleInherit")}</option>
           {documentFontFamilyOptions.map((option) => (
             <option key={option.id} value={option.value}>{t(option.labelKey)}</option>
           ))}
@@ -1546,7 +1681,7 @@ function ContextFontControls({
           min={12}
           max={72}
           value={Number.isFinite(fontSize) ? fontSize : 16}
-          onChange={(event) => updateSlot({ fontSize: `${event.target.value || 16}px` })}
+          onChange={(event) => updateSelectedTextStyle(editor, { fontSize: `${event.target.value || 16}px` })}
           aria-label={t("editor.styleFontSize")}
         />
       </label>
@@ -1554,44 +1689,18 @@ function ContextFontControls({
         <span>{t("editor.styleColor")}</span>
         <input
           type="color"
-          value={selected.color}
-          onChange={(event) => updateSlot({ color: event.target.value })}
+          value={normalizeColorInput(selected.color)}
+          onChange={(event) => updateSelectedTextStyle(editor, { color: event.target.value })}
           aria-label={t("editor.styleColor")}
         />
       </label>
+      <button type="button" onClick={() => clearSelectedTextStyle(editor)}>
+        <RotateCcw size={15} />
+        <span>{t("editor.clearSelectedTextStyle")}</span>
+      </button>
     </div>
   );
 }
-
-const documentStyleSlotFromElement = (target: EventTarget | null): DocumentStyleSlot => {
-  if (!(target instanceof HTMLElement)) {
-    return "body";
-  }
-
-  const match = target.closest<HTMLElement>("[data-opaline-callout], pre, code, h1, h2, h3");
-  if (!match) {
-    return "body";
-  }
-
-  if (match.hasAttribute("data-opaline-callout")) {
-    return "callout";
-  }
-
-  const tagName = match.tagName.toLowerCase();
-  if (tagName === "h1") return "heading1";
-  if (tagName === "h2") return "heading2";
-  if (tagName === "h3") return "heading3";
-  if (tagName === "pre" || tagName === "code") return "code";
-  return "body";
-};
-
-const documentStyleSlotFromEditor = (editor: NonNullable<ReturnType<typeof useEditor>>): DocumentStyleSlot => {
-  if (editor.isActive("heading", { level: 1 })) return "heading1";
-  if (editor.isActive("heading", { level: 2 })) return "heading2";
-  if (editor.isActive("heading", { level: 3 })) return "heading3";
-  if (editor.isActive("codeBlock") || editor.isActive("code")) return "code";
-  return "body";
-};
 
 function ContextMenuItem({
   icon,

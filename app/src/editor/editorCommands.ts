@@ -45,6 +45,7 @@ export type EditorCommandContext = {
   documentStyle: OpalineDocumentStyle;
   onDocumentStyleChange: (style: OpalineDocumentStyle) => void;
   onImportAsset?: (kind: "image" | "file") => Promise<ImportedAsset | null>;
+  openWebLinkDialog?: () => void;
   openAtomicLinkDialog?: () => void;
   openMathInlineDialog?: () => void;
   openMathBlockDialog?: () => void;
@@ -132,6 +133,41 @@ export const editorCommandDefinitions: EditorCommandDefinition[] = [
     canRun: ({ editor }) => editor.can().chain().focus().setParagraph().run(),
     run: ({ editor }) => editor.chain().focus().setParagraph().run(),
     ai: noteWriteAi("opaline_editor_set_paragraph"),
+  },
+  {
+    id: "editor.toggleBulletList",
+    labelKey: "editor.bulletList",
+    category: "block",
+    canRun: ({ editor }) => editor.can().chain().focus().toggleBulletList().run(),
+    run: ({ editor }) => editor.chain().focus().toggleBulletList().run(),
+    ai: noteWriteAi("opaline_editor_toggle_bullet_list"),
+  },
+  {
+    id: "editor.toggleOrderedList",
+    labelKey: "editor.orderedList",
+    category: "block",
+    canRun: ({ editor }) => editor.can().chain().focus().toggleOrderedList().run(),
+    run: ({ editor }) => editor.chain().focus().toggleOrderedList().run(),
+    ai: noteWriteAi("opaline_editor_toggle_ordered_list"),
+  },
+  {
+    id: "editor.toggleTaskList",
+    labelKey: "editor.taskList",
+    category: "block",
+    canRun: ({ editor }) => editor.can().chain().focus().toggleTaskList().run(),
+    run: ({ editor }) => editor.chain().focus().toggleTaskList().run(),
+    ai: noteWriteAi("opaline_editor_toggle_task_list"),
+  },
+  {
+    id: "editor.openWebLink",
+    labelKey: "editor.webLink",
+    category: "link",
+    canRun: ({ openWebLinkDialog }) => Boolean(openWebLinkDialog),
+    run: ({ openWebLinkDialog }) => {
+      openWebLinkDialog?.();
+      return true;
+    },
+    ai: noteWriteAi("opaline_editor_open_web_link"),
   },
   {
     id: "editor.insertCallout",

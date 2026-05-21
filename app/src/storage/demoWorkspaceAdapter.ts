@@ -2,6 +2,8 @@ import type { AssetImport, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSum
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 const demoWorkspacePath = "demo://workspace";
+const DEMO_NOTES_STORAGE_KEY = "opaline-demo-notes";
+const DEMO_HISTORY_STORAGE_KEY = "opaline-demo-history";
 
 const nowIso = () => new Date().toISOString();
 
@@ -44,8 +46,7 @@ const seedNote: NoteDocument = {
   ),
 };
 
-let notes: NoteDocument[] = [seedNote];
-let history: Record<string, NoteHistoryEntry[]> = {
+const seedHistory: Record<string, NoteHistoryEntry[]> = {
   [seedNote.id]: [{
     id: seedTime,
     snapshotId: seedTime,
@@ -55,6 +56,8 @@ let history: Record<string, NoteHistoryEntry[]> = {
     title: seedNote.title,
   }],
 };
+let notes: NoteDocument[] = loadDemoNotes();
+let history: Record<string, NoteHistoryEntry[]> = loadDemoHistory(notes);
 
 export const demoWorkspaceAdapter: WorkspaceAdapter = {
   async defaultWorkspacePath() {
@@ -100,8 +103,12 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
       updatedAt: nowIso(),
     };
 
-    notes = notes.map((item) => (item.path === note.path ? updated : item));
+    const index = notes.findIndex((item) => item.path === note.path || item.id === note.id);
+    notes = index >= 0
+      ? notes.map((item, itemIndex) => (itemIndex === index ? updated : item))
+      : [updated, ...notes];
     if (options?.createHistory !== false) addDemoHistory(updated);
+    persistDemoState();
     return updated;
   },
 
@@ -120,6 +127,7 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     const note = notes.find((item) => item.id === noteId);
     if (!note) throw new Error("找不到笔记");
     addDemoHistory(note);
+    persistDemoState();
     return note;
   },
 
@@ -214,6 +222,7 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
       favorite = !note.favorite;
       return { ...note, favorite };
     });
+    persistDemoState();
     return favorite;
   },
 
@@ -251,6 +260,7 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
         .replace(/<h1>.*?<\/h1>/, `<h1>${newTitle}</h1>`),
     };
     notes = notes.map((n) => (n.id === noteId ? updated : n));
+    persistDemoState();
     return toSummary(updated);
   },
 
@@ -260,6 +270,8 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
       ...n,
       outgoingLinks: n.outgoingLinks.filter((l) => l.targetId !== noteId),
     }));
+    delete history[noteId];
+    persistDemoState();
   },
 
   async moveNote(_path: string, noteId: string, newDirectory: string) {
@@ -268,6 +280,7 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     const dir = newDirectory.replace(/^\/+|\/+$/g, "") || "notes";
     const updated: NoteDocument = { ...note, path: `${dir}/${note.path.split("/").pop()}` };
     notes = notes.map((n) => (n.id === noteId ? updated : n));
+    persistDemoState();
     return toSummary(updated);
   },
 
@@ -322,6 +335,7 @@ const createDemoNote = (input: NewNoteInput) => {
 
   notes = [note, ...notes];
   addDemoHistory(note);
+  persistDemoState();
   return note;
 };
 
@@ -337,6 +351,55 @@ const addDemoHistory = (note: NoteDocument) => {
   };
   history = { ...history, [note.id]: [snapshot, ...(history[note.id] ?? [])] };
 };
+
+function loadDemoNotes() {
+  if (typeof localStorage === "undefined") return [seedNote];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DEMO_NOTES_STORAGE_KEY) || "null");
+    if (Array.isArray(parsed) && parsed.length) {
+      const storedNotes = parsed.filter(isDemoNoteDocument);
+      if (storedNotes.length) return storedNotes;
+    }
+  } catch {
+    // Fall through to the seed note.
+  }
+  return [seedNote];
+}
+
+function loadDemoHistory(currentNotes: NoteDocument[]) {
+  if (typeof localStorage === "undefined") return seedHistory;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DEMO_HISTORY_STORAGE_KEY) || "null");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, NoteHistoryEntry[]>;
+    }
+  } catch {
+    // Fall through to a history snapshot for the available notes.
+  }
+  return currentNotes.reduce<Record<string, NoteHistoryEntry[]>>((acc, note) => {
+    acc[note.id] = seedHistory[note.id] ?? [{
+      id: note.updatedAt,
+      snapshotId: note.updatedAt,
+      timestamp: `${Date.parse(note.updatedAt)}`,
+      createdAt: note.updatedAt,
+      size: note.html.length,
+      title: note.title,
+    }];
+    return acc;
+  }, {});
+}
+
+function persistDemoState() {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(DEMO_NOTES_STORAGE_KEY, JSON.stringify(notes));
+  localStorage.setItem(DEMO_HISTORY_STORAGE_KEY, JSON.stringify(history));
+}
+
+function isDemoNoteDocument(value: unknown): value is NoteDocument {
+  if (!value || typeof value !== "object") return false;
+  const note = value as Partial<NoteDocument>;
+  return Boolean(note.id && note.path && note.title && note.html);
+}
 
 const toSummary = (note: NoteDocument): NoteSummary => ({
   id: note.id,

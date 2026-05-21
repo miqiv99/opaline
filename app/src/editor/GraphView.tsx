@@ -347,6 +347,13 @@ export function GraphView({
         </div>
       </div>
       <div className="graph-canvas" ref={containerRef}>
+        {visibleGraph.edges.length === 0 ? (
+          <div className="graph-empty-guide" role="note">
+            <strong>{t("graph.noRelationsTitle")}</strong>
+            <p>{t("graph.noRelationsDesc")}</p>
+            <span>{t("graph.noRelationsAction")}</span>
+          </div>
+        ) : null}
         <div className="graph-legend" aria-hidden="true">
           {LINK_KINDS.map((kind) => (
             <span key={kind}>

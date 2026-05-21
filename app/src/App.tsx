@@ -657,6 +657,21 @@ export function App() {
     [refreshBacklinks, t, workspace.notes, workspace.path],
   );
 
+  const enterSeriousWorkspace = useCallback(async () => {
+    if (workspace.activeNote) {
+      setView("note");
+      return;
+    }
+
+    const firstNote = workspace.notes[0];
+    if (firstNote) {
+      await openNote(firstNote);
+      return;
+    }
+
+    setView("note");
+  }, [openNote, workspace.activeNote, workspace.notes]);
+
   const openSearchResult = useCallback(
     async (result: SearchResult) => {
       if (!workspace.path) {
@@ -1320,7 +1335,7 @@ export function App() {
 
         {view === "home" ? (
           <EntryChoiceView
-            onSerious={() => setView("note")}
+            onSerious={() => void enterSeriousWorkspace()}
           />
         ) : view === "graph" ? (
           <GraphView
