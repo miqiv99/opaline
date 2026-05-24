@@ -78,6 +78,12 @@ import {
   runEditorCommand,
   type EditorCommandContext,
 } from "./editorCommands";
+import {
+  defaultEditorShortcutSettings,
+  formatShortcut,
+  keyboardShortcutMatches,
+  type EditorShortcutSettings,
+} from "./keyboardShortcuts";
 import "katex/dist/katex.min.css";
 
 export type NoteSuggestion = {
@@ -129,6 +135,7 @@ type OpalineEditorProps = {
   content: string;
   documentStyle: OpalineDocumentStyle;
   isSaving: boolean;
+  keyboardShortcuts?: EditorShortcutSettings;
   currentNote: EditorNoteReference | null;
   linkableNotes?: EditorNoteReference[];
   scrollToBlockTarget?: { blockId: string; requestId: number } | null;
@@ -144,6 +151,7 @@ export function OpalineEditor({
   content,
   documentStyle,
   isSaving,
+  keyboardShortcuts = defaultEditorShortcutSettings,
   currentNote,
   linkableNotes = [],
   scrollToBlockTarget,
@@ -303,26 +311,25 @@ export function OpalineEditor({
         return;
       }
 
-      const key = event.key.toLowerCase();
-      if (!event.altKey && !event.shiftKey && key === "s") {
+      if (keyboardShortcutMatches(event, keyboardShortcuts.save)) {
         event.preventDefault();
         void onSave(editor.getHTML());
         return;
       }
-      if (!event.altKey && !event.shiftKey && key === "b") return runShortcut(event, "editor.toggleBold");
-      if (!event.altKey && !event.shiftKey && key === "i") return runShortcut(event, "editor.toggleItalic");
-      if (!event.altKey && !event.shiftKey && key === "u") return runShortcut(event, "editor.toggleUnderline");
-      if (!event.altKey && !event.shiftKey && key === "k") return runShortcut(event, "editor.openWebLink");
-      if (event.altKey && !event.shiftKey && event.code === "Digit1") return runShortcut(event, "editor.setHeading", { level: 1 });
-      if (event.altKey && !event.shiftKey && event.code === "Digit2") return runShortcut(event, "editor.setHeading", { level: 2 });
-      if (event.altKey && !event.shiftKey && event.code === "Digit3") return runShortcut(event, "editor.setHeading", { level: 3 });
-      if (!event.altKey && event.shiftKey && event.code === "Digit7") return runShortcut(event, "editor.toggleOrderedList");
-      if (!event.altKey && event.shiftKey && event.code === "Digit8") return runShortcut(event, "editor.toggleBulletList");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.bold)) return runShortcut(event, "editor.toggleBold");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.italic)) return runShortcut(event, "editor.toggleItalic");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.underline)) return runShortcut(event, "editor.toggleUnderline");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.webLink)) return runShortcut(event, "editor.openWebLink");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.heading1)) return runShortcut(event, "editor.setHeading", { level: 1 });
+      if (keyboardShortcutMatches(event, keyboardShortcuts.heading2)) return runShortcut(event, "editor.setHeading", { level: 2 });
+      if (keyboardShortcutMatches(event, keyboardShortcuts.heading3)) return runShortcut(event, "editor.setHeading", { level: 3 });
+      if (keyboardShortcutMatches(event, keyboardShortcuts.orderedList)) return runShortcut(event, "editor.toggleOrderedList");
+      if (keyboardShortcutMatches(event, keyboardShortcuts.bulletList)) return runShortcut(event, "editor.toggleBulletList");
     };
 
     editor.view.dom.addEventListener("keydown", onKeyDown);
     return () => editor.view.dom.removeEventListener("keydown", onKeyDown);
-  }, [documentStyle, editor, liveComponentSettings.experimentalScriptsEnabled, onChange, onDocumentStyleChange, onImportAsset, onSave, t]);
+  }, [documentStyle, editor, keyboardShortcuts, liveComponentSettings.experimentalScriptsEnabled, onChange, onDocumentStyleChange, onImportAsset, onSave, t]);
 
   if (!editor) {
     return <div className="editor-empty">{t("editor.empty")}</div>;
@@ -371,28 +378,28 @@ export function OpalineEditor({
             <span className="toolbar-text-symbol">¶</span>
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.heading1"), t("shortcut.ctrlAlt1"))}
+            label={shortcutLabel(t("editor.heading1"), formatShortcut(keyboardShortcuts.heading1))}
             active={editor.isActive("heading", { level: 1 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 1 })}
           >
             <Heading1 size={17} />
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.heading2"), t("shortcut.ctrlAlt2"))}
+            label={shortcutLabel(t("editor.heading2"), formatShortcut(keyboardShortcuts.heading2))}
             active={editor.isActive("heading", { level: 2 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 2 })}
           >
             <Heading2 size={17} />
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.heading3"), t("shortcut.ctrlAlt3"))}
+            label={shortcutLabel(t("editor.heading3"), formatShortcut(keyboardShortcuts.heading3))}
             active={editor.isActive("heading", { level: 3 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 3 })}
           >
             <span className="toolbar-text-symbol">H3</span>
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.bold"), t("shortcut.ctrlB"))}
+            label={shortcutLabel(t("editor.bold"), formatShortcut(keyboardShortcuts.bold))}
             active={editor.isActive("bold")}
             onClick={() => void runEditorCommand("editor.toggleBold", commandContext)}
             disabled={!canRunEditorCommand("editor.toggleBold", commandContext)}
@@ -400,7 +407,7 @@ export function OpalineEditor({
             <Bold size={17} />
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.italic"), t("shortcut.ctrlI"))}
+            label={shortcutLabel(t("editor.italic"), formatShortcut(keyboardShortcuts.italic))}
             active={editor.isActive("italic")}
             onClick={() => void runEditorCommand("editor.toggleItalic", commandContext)}
             disabled={!canRunEditorCommand("editor.toggleItalic", commandContext)}
@@ -408,7 +415,7 @@ export function OpalineEditor({
             <Italic size={17} />
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.underline"), t("shortcut.ctrlU"))}
+            label={shortcutLabel(t("editor.underline"), formatShortcut(keyboardShortcuts.underline))}
             active={editor.isActive("underline")}
             onClick={() => void runEditorCommand("editor.toggleUnderline", commandContext)}
             disabled={!canRunEditorCommand("editor.toggleUnderline", commandContext)}
@@ -473,14 +480,14 @@ export function OpalineEditor({
             ) : null}
           </div>
           <IconButton
-            label={shortcutLabel(t("editor.bulletList"), t("shortcut.ctrlShift8"))}
+            label={shortcutLabel(t("editor.bulletList"), formatShortcut(keyboardShortcuts.bulletList))}
             active={editor.isActive("bulletList")}
             onClick={() => void runEditorCommand("editor.toggleBulletList", commandContext)}
           >
             <List size={17} />
           </IconButton>
           <IconButton
-            label={shortcutLabel(t("editor.orderedList"), t("shortcut.ctrlShift7"))}
+            label={shortcutLabel(t("editor.orderedList"), formatShortcut(keyboardShortcuts.orderedList))}
             active={editor.isActive("orderedList")}
             onClick={() => void runEditorCommand("editor.toggleOrderedList", commandContext)}
           >
@@ -493,7 +500,7 @@ export function OpalineEditor({
           >
             <CheckSquare size={17} />
           </IconButton>
-          <IconButton label={shortcutLabel(t("editor.webLink"), t("shortcut.ctrlK"))} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
+          <IconButton label={shortcutLabel(t("editor.webLink"), formatShortcut(keyboardShortcuts.webLink))} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
             <LinkIcon size={17} />
           </IconButton>
           <span className="toolbar-divider" />
@@ -546,8 +553,8 @@ export function OpalineEditor({
           ) : null}
           <button
             className="save-button"
-            data-tooltip={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), t("shortcut.ctrlS"))}
-            aria-label={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), t("shortcut.ctrlS"))}
+            data-tooltip={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), formatShortcut(keyboardShortcuts.save))}
+            aria-label={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), formatShortcut(keyboardShortcuts.save))}
             onClick={() => {
               const html = editor.getHTML();
               void onSave(html);

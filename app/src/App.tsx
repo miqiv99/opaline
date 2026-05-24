@@ -18,6 +18,7 @@ import {
   FolderPlus,
   History,
   Home,
+  Keyboard,
   Lightbulb,
   Link2,
   Loader2,
@@ -51,6 +52,18 @@ import {
   type OpalineDocumentStyle,
 } from "./editor/documentStyle";
 import {
+  defaultEditorShortcutSettings,
+  formatShortcut,
+  normalizeShortcutSettings,
+  shortcutActions,
+  shortcutConflicts,
+  shortcutFromKeyboardEvent,
+  shortcutSignature,
+  type EditorShortcutSettings,
+  type KeyboardShortcut,
+  type ShortcutActionId,
+} from "./editor/keyboardShortcuts";
+import {
   loadLiveComponentSettings,
   saveLiveComponentSettings,
   type LiveComponentSettings,
@@ -79,12 +92,13 @@ const initialState: WorkspaceState = {
 const WORKSPACE_PATH_STORAGE_KEY = "opaline-workspace-path";
 const ACTIVE_NOTE_STORAGE_KEY = "opaline-active-note";
 const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
+const EDITOR_SHORTCUT_SETTINGS_STORAGE_KEY = "opaline-editor-shortcuts";
 const DEFAULT_AUTO_SAVE_DELAY_MS = 5000;
 const MIN_AUTO_SAVE_DELAY_MS = 2000;
 const MAX_AUTO_SAVE_DELAY_MS = 300000;
 const AUTO_HISTORY_SNAPSHOT_INTERVAL_MS = 10 * 60 * 1000;
 const AUTO_HISTORY_CONTENT_DELTA_CHARS = 2000;
-type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language" | "updates";
+type SettingsPanelId = "files" | "shortcuts" | "stats" | "plugins" | "ai" | "language" | "updates";
 type SaveStatus = "saved" | "dirty" | "saving" | "error";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
@@ -132,6 +146,19 @@ const normalizeAutoSaveDelayMs = (value: unknown) => {
 
 const saveFileLinkSettings = (settings: FileLinkSettings) => {
   localStorage.setItem(FILE_LINK_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+};
+
+const loadEditorShortcutSettings = (): EditorShortcutSettings => {
+  if (typeof localStorage === "undefined") return defaultEditorShortcutSettings;
+  try {
+    return normalizeShortcutSettings(JSON.parse(localStorage.getItem(EDITOR_SHORTCUT_SETTINGS_STORAGE_KEY) || "null"));
+  } catch {
+    return defaultEditorShortcutSettings;
+  }
+};
+
+const saveEditorShortcutSettings = (settings: EditorShortcutSettings) => {
+  localStorage.setItem(EDITOR_SHORTCUT_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 };
 
 const normalizeStatsThresholds = (value: unknown): StatsSettings["heatmapThresholds"] => {
@@ -317,6 +344,7 @@ export function App() {
   const [historyDialogNote, setHistoryDialogNote] = useState<NoteSummary | null>(null);
   const [migrationDialog, setMigrationDialog] = useState<{ oldPath: string; newPath: string } | null>(null);
   const [fileLinkSettings, setFileLinkSettings] = useState<FileLinkSettings>(() => loadFileLinkSettings());
+  const [editorShortcutSettings, setEditorShortcutSettings] = useState<EditorShortcutSettings>(() => loadEditorShortcutSettings());
   const [statsSettings, setStatsSettings] = useState<StatsSettings>(() => loadStatsSettings());
   const [appDialog, setAppDialog] = useState<AppDialogRequest | null>(null);
   const isDirty = workspace.activeNote !== null && (
@@ -442,6 +470,12 @@ export function App() {
       saveFileLinkSettings(next);
       return next;
     });
+  }, []);
+
+  const updateEditorShortcutSettings = useCallback((next: EditorShortcutSettings) => {
+    const normalized = normalizeShortcutSettings(next);
+    setEditorShortcutSettings(normalized);
+    saveEditorShortcutSettings(normalized);
   }, []);
 
   const updateStatsSettings = useCallback((patch: Partial<StatsSettings>) => {
@@ -1507,6 +1541,7 @@ export function App() {
           <SettingsView
             workspacePath={workspace.path}
             fileLinkSettings={fileLinkSettings}
+            editorShortcutSettings={editorShortcutSettings}
             statsSettings={statsSettings}
             locale={locale}
             languageOptions={languageOptions}
@@ -1514,6 +1549,7 @@ export function App() {
             onLocaleChange={setLocale}
             onLanguagePacksChange={setCommunityLanguagePacks}
             onFileLinkSettingsChange={updateFileLinkSettings}
+            onEditorShortcutSettingsChange={updateEditorShortcutSettings}
             onStatsSettingsChange={updateStatsSettings}
             onChangeWorkspace={async () => {
               if (!(await ensureCurrentNoteSafe())) return;
@@ -1533,6 +1569,7 @@ export function App() {
               content={articleHtml}
               documentStyle={documentStyle}
               isSaving={isSaving}
+              keyboardShortcuts={editorShortcutSettings}
               currentNote={workspace.activeNote}
               linkableNotes={workspace.notes}
               scrollToBlockTarget={pendingBlockTarget}
@@ -2563,6 +2600,7 @@ function TodayView({
 function SettingsView({
   workspacePath,
   fileLinkSettings,
+  editorShortcutSettings,
   statsSettings,
   locale,
   languageOptions,
@@ -2570,11 +2608,13 @@ function SettingsView({
   onLocaleChange,
   onLanguagePacksChange,
   onFileLinkSettingsChange,
+  onEditorShortcutSettingsChange,
   onStatsSettingsChange,
   onChangeWorkspace,
 }: {
   workspacePath: string | null;
   fileLinkSettings: FileLinkSettings;
+  editorShortcutSettings: EditorShortcutSettings;
   statsSettings: StatsSettings;
   locale: string;
   languageOptions: LanguageOption[];
@@ -2582,6 +2622,7 @@ function SettingsView({
   onLocaleChange: (locale: string) => void;
   onLanguagePacksChange: ReturnType<typeof useI18n>["setCommunityLanguagePacks"];
   onFileLinkSettingsChange: (patch: Partial<FileLinkSettings>) => void;
+  onEditorShortcutSettingsChange: (settings: EditorShortcutSettings) => void;
   onStatsSettingsChange: (patch: Partial<StatsSettings>) => void;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
@@ -2610,6 +2651,14 @@ function SettingsView({
       icon: <DownloadCloud size={19} />,
       left: 78,
       top: 30,
+    },
+    {
+      id: "shortcuts",
+      title: t("settings.shortcuts"),
+      description: t("settings.shortcutsDesc"),
+      icon: <Keyboard size={19} />,
+      left: 82,
+      top: 48,
     },
     {
       id: "language",
@@ -2657,6 +2706,11 @@ function SettingsView({
       <StatsSettingsPanel
         settings={statsSettings}
         onChange={onStatsSettingsChange}
+      />
+    ) : activePanel === "shortcuts" ? (
+      <ShortcutSettingsPanel
+        settings={editorShortcutSettings}
+        onChange={onEditorShortcutSettingsChange}
       />
     ) : activePanel === "language" ? (
       <LanguageSettingsPanel
@@ -2793,6 +2847,107 @@ function FileLinksSettingsPanel({
           {t("action.change")}
         </button>
       </div>
+    </section>
+  );
+}
+
+function ShortcutSettingsPanel({
+  settings,
+  onChange,
+}: {
+  settings: EditorShortcutSettings;
+  onChange: (settings: EditorShortcutSettings) => void;
+}) {
+  const { t } = useI18n();
+  const [activeCapture, setActiveCapture] = useState<ShortcutActionId | null>(null);
+  const [status, setStatus] = useState("");
+  const conflicts = shortcutConflicts(settings);
+
+  const setShortcut = (actionId: ShortcutActionId, shortcut: KeyboardShortcut) => {
+    const duplicate = shortcutActions.find((action) => (
+      action.id !== actionId && shortcutSignature(settings[action.id]) === shortcutSignature(shortcut)
+    ));
+    if (duplicate) {
+      setStatus(t("settings.shortcutConflict", {
+        action: t(shortcutActions.find((action) => action.id === duplicate.id)?.labelKey ?? duplicate.id),
+      }));
+      return;
+    }
+
+    onChange({ ...settings, [actionId]: shortcut });
+    setStatus(t("settings.shortcutSaved"));
+    setActiveCapture(null);
+  };
+
+  const resetOne = (actionId: ShortcutActionId) => {
+    onChange({ ...settings, [actionId]: defaultEditorShortcutSettings[actionId] });
+    setStatus(t("settings.shortcutReset"));
+  };
+
+  const resetAll = () => {
+    onChange(defaultEditorShortcutSettings);
+    setStatus(t("settings.shortcutsResetAll"));
+  };
+
+  return (
+    <section className="settings-row-list">
+      <div className="settings-choice-row settings-shortcuts-heading">
+        <div>
+          <strong>{t("settings.shortcuts")}</strong>
+          <small>{t("settings.shortcutsHelp")}</small>
+        </div>
+        <button type="button" className="secondary-action-button" onClick={resetAll}>
+          <RotateCcw size={15} />
+          <span>{t("settings.shortcutsReset")}</span>
+        </button>
+      </div>
+      <div className="shortcut-settings-list">
+        {shortcutActions.map((action) => {
+          const shortcut = settings[action.id];
+          const isActive = activeCapture === action.id;
+          const hasConflict = conflicts.some(([left, right]) => left === action.id || right === action.id);
+
+          return (
+            <div className={hasConflict ? "shortcut-settings-row is-conflict" : "shortcut-settings-row"} key={action.id}>
+              <div>
+                <strong>{t(action.labelKey)}</strong>
+                <small>{t(action.descriptionKey)}</small>
+              </div>
+              <div className="shortcut-capture-controls">
+                <input
+                  readOnly
+                  value={isActive ? t("settings.shortcutRecording") : formatShortcut(shortcut)}
+                  aria-label={t("settings.shortcutInputAria", { action: t(action.labelKey) })}
+                  onFocus={() => {
+                    setActiveCapture(action.id);
+                    setStatus(t("settings.shortcutRecordingHelp"));
+                  }}
+                  onBlur={() => setActiveCapture((current) => (current === action.id ? null : current))}
+                  onKeyDown={(event) => {
+                    event.preventDefault();
+                    if (event.key === "Escape") {
+                      setActiveCapture(null);
+                      setStatus("");
+                      return;
+                    }
+                    const next = shortcutFromKeyboardEvent(event);
+                    if (!next) {
+                      setStatus(t("settings.shortcutNeedsCtrl"));
+                      return;
+                    }
+                    setShortcut(action.id, next);
+                  }}
+                />
+                <button type="button" className="secondary-action-button" onClick={() => resetOne(action.id)}>
+                  {t("settings.shortcutResetOne")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {status ? <p className="plugin-status-text">{status}</p> : null}
+      {conflicts.length ? <p className="plugin-status-text is-error">{t("settings.shortcutConflictsFound")}</p> : null}
     </section>
   );
 }
