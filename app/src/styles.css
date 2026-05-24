@@ -2848,7 +2848,7 @@ textarea:focus-visible,
   align-self: start;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 0;
-  width: min(1120px, calc(100% - 56px));
+  width: min(1280px, calc(100% - 64px));
   min-height: 0;
   margin: 20px auto;
   overflow: hidden;
@@ -2866,17 +2866,17 @@ textarea:focus-visible,
 }
 
 .is-note-mode .settings-view.settings-panel-view {
-  width: min(1120px, calc(100% - 56px));
+  width: min(1280px, calc(100% - 64px));
   padding: 0;
 }
 
 .settings-view.settings-map-view {
   align-self: start;
   align-items: stretch;
-  grid-template-columns: minmax(360px, 0.86fr) minmax(420px, 1fr);
-  gap: 22px;
-  width: min(1120px, calc(100% - 56px));
-  min-height: min(570px, calc(100vh - 150px));
+  grid-template-columns: minmax(440px, 0.9fr) minmax(500px, 1fr);
+  gap: 24px;
+  width: min(1280px, calc(100% - 64px));
+  min-height: min(660px, calc(100vh - 128px));
   margin: 22px auto;
   padding: 0;
   animation: xz-fade-up var(--xz-motion-slow) var(--xz-ease-soft) both;
@@ -2884,7 +2884,7 @@ textarea:focus-visible,
 
 .settings-map-canvas {
   position: relative;
-  min-height: min(570px, calc(100vh - 150px));
+  min-height: min(660px, calc(100vh - 128px));
   overflow: hidden;
   border: 1px solid rgba(60, 60, 67, 0.14);
   border-radius: 18px;
@@ -3034,8 +3034,8 @@ textarea:focus-visible,
 
 .settings-popover {
   min-width: 0;
-  height: min(570px, calc(100vh - 150px));
-  min-height: 520px;
+  height: min(660px, calc(100vh - 128px));
+  min-height: 600px;
   max-height: none;
   overflow: auto;
   border: 1px solid rgba(60, 60, 67, 0.16);

@@ -805,6 +805,7 @@ export function App() {
       }
       setLastSaveError(null);
       setSaveStatus("saved");
+      isDirtyRef.current = false;
       return true;
     }
 
@@ -812,6 +813,7 @@ export function App() {
     if (sameNoteDocumentContent(workspace.activeNote.html, html)) {
       setSavedArticleHtml(nextArticleHtml);
       setSavedDocumentStyle(nextDocumentStyle);
+      isDirtyRef.current = false;
       setArticleHtml((current) => (
         latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
       ));
@@ -844,6 +846,7 @@ export function App() {
       ));
       setSavedArticleHtml(nextArticleHtml);
       setSavedDocumentStyle(nextDocumentStyle);
+      isDirtyRef.current = false;
       setArticleHtml((current) => (
         latestArticleHtmlRef.current === nextArticleHtml ? nextArticleHtml : current
       ));
@@ -1161,7 +1164,7 @@ export function App() {
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!isDirtyRef.current) {
+      if (allowTauriCloseRef.current || !isDirtyRef.current) {
         return;
       }
       event.preventDefault();
