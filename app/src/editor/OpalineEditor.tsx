@@ -17,6 +17,7 @@ import {
   CheckSquare,
   Code2,
   Columns2,
+  Command,
   Copy,
   FileImage,
   GitBranch,
@@ -74,10 +75,14 @@ import {
   type OpalineDocumentStyle,
 } from "./documentStyle";
 import {
-  canRunEditorCommand,
+  getEditorCommandEntriesForSurface,
   runEditorCommand,
   type EditorCommandContext,
+  type EditorCommandIconKey,
+  type EditorCommandUiEntry,
 } from "./editorCommands";
+import { CommandPalette } from "./CommandPalette";
+import { SlashCommandMenu, selectedSlashCommandEntry, type SlashCommandState } from "./SlashCommandMenu";
 import {
   defaultEditorShortcutSettings,
   formatShortcut,
@@ -171,6 +176,8 @@ export function OpalineEditor({
   const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
   const [stylePanelOpen, setStylePanelOpen] = useState(false);
   const [moreFormatOpen, setMoreFormatOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [slashCommand, setSlashCommand] = useState<SlashCommandState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const linkContextRef = useRef<InternalLinkContext>({
     currentNote,
@@ -183,6 +190,11 @@ export function OpalineEditor({
     () => documentStyleToCssVariables(documentStyle) as CSSProperties,
     [documentStyle],
   );
+  const toolbarEntries = useMemo(() => getEditorCommandEntriesForSurface("toolbar"), []);
+  const moreFormatEntries = useMemo(() => getEditorCommandEntriesForSurface("moreFormat"), []);
+  const contextMenuEntries = useMemo(() => getEditorCommandEntriesForSurface("contextMenu"), []);
+  const slashCommandEntries = useMemo(() => getEditorCommandEntriesForSurface("slashMenu"), []);
+  const commandPaletteEntries = useMemo(() => getEditorCommandEntriesForSurface("commandPalette"), []);
 
   const editor = useEditor({
     extensions: [
@@ -251,6 +263,25 @@ export function OpalineEditor({
     },
   });
 
+  const commandContext = useMemo<EditorCommandContext | null>(() => {
+    if (!editor) return null;
+    return {
+      editor,
+      t,
+      documentStyle,
+      onDocumentStyleChange,
+      onImportAsset,
+      openWebLinkDialog: () => openLinkDialog(editor, setDialog),
+      openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
+      openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
+      openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
+      openMermaidDialog: () => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") }),
+      openWidgetDialog: () => setWidgetDialogOpen(true),
+      openEmbedDialog: onSearchNotes ? () => setEmbedDialogOpen(true) : undefined,
+      experimentalScriptsEnabled: liveComponentSettings.experimentalScriptsEnabled,
+    };
+  }, [documentStyle, editor, liveComponentSettings.experimentalScriptsEnabled, onChange, onDocumentStyleChange, onImportAsset, onSearchNotes, t]);
+
   useEffect(() => {
     linkContextRef.current = {
       currentNote,
@@ -281,36 +312,98 @@ export function OpalineEditor({
   }, [content, editor, scrollToBlockTarget]);
 
   useEffect(() => {
-    if (!editor) {
+    if (!editor || !commandContext) {
       return;
     }
 
     const runShortcut = (event: KeyboardEvent, commandId: string, payload?: unknown) => {
       event.preventDefault();
-      const context: EditorCommandContext = {
-        editor,
-        t,
-        documentStyle,
-        onDocumentStyleChange,
-        onImportAsset,
-        openWebLinkDialog: () => openLinkDialog(editor, setDialog),
-        openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
-        openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
-        openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
-        openMermaidDialog: () => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") }),
-        openWidgetDialog: () => setWidgetDialogOpen(true),
-        openEmbedDialog: () => setEmbedDialogOpen(true),
-        experimentalScriptsEnabled: liveComponentSettings.experimentalScriptsEnabled,
-      };
-      void runEditorCommand(commandId, context, payload);
+      void runEditorCommand(commandId, commandContext, payload);
+    };
+
+    const updateSlashMenu = (previous: SlashCommandState | null) => {
+      if (!previous) return;
+      const { from } = editor.state.selection;
+      if (from < previous.triggerFrom + 1) {
+        setSlashCommand(null);
+        return;
+      }
+      const query = editor.state.doc.textBetween(previous.triggerFrom + 1, from, "\n");
+      if (query.includes("\n")) {
+        setSlashCommand(null);
+        return;
+      }
+      setSlashCommand({ ...previous, query, selectedIndex: 0 });
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
-      if (!mod || event.defaultPrevented) {
+      if (event.defaultPrevented) {
         return;
       }
 
+      if (slashCommand) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setSlashCommand(null);
+          return;
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setSlashCommand((state) =>
+            state ? { ...state, selectedIndex: Math.min(state.selectedIndex + 1, 11) } : null,
+          );
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setSlashCommand((state) => (state ? { ...state, selectedIndex: Math.max(0, state.selectedIndex - 1) } : null));
+          return;
+        }
+        if (event.key === "Enter") {
+          const entry = selectedSlashCommandEntry(slashCommand, slashCommandEntries, commandContext, t);
+          if (entry) {
+            event.preventDefault();
+            void runSlashCommand(editor, slashCommand, entry, commandContext, () => setSlashCommand(null));
+          }
+          return;
+        }
+        if (event.key === "Backspace" && editor.state.selection.from <= slashCommand.triggerFrom + 1) {
+          event.preventDefault();
+          editor.chain().focus().deleteRange({ from: slashCommand.triggerFrom, to: slashCommand.triggerFrom + 1 }).run();
+          setSlashCommand(null);
+          return;
+        }
+        window.setTimeout(() => updateSlashMenu(slashCommand), 0);
+        return;
+      }
+
+      if (event.key === "/" && !mod && !event.altKey && !event.shiftKey && editor.state.selection.empty) {
+        window.setTimeout(() => {
+          const { from } = editor.state.selection;
+          const triggerFrom = from - 1;
+          if (triggerFrom < 0 || editor.state.doc.textBetween(triggerFrom, from) !== "/") return;
+          const coords = editor.view.coordsAtPos(from);
+          setSlashCommand({
+            triggerFrom,
+            query: "",
+            x: Math.max(14, Math.min(coords.left, window.innerWidth - 380)),
+            y: Math.max(14, Math.min(coords.bottom + 8, window.innerHeight - 440)),
+            selectedIndex: 0,
+          });
+        }, 0);
+        return;
+      }
+
+      if (mod && event.shiftKey && event.code === "KeyP") {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+
+      if (!mod) {
+        return;
+      }
       if (keyboardShortcutMatches(event, keyboardShortcuts.save)) {
         event.preventDefault();
         void onSave(editor.getHTML());
@@ -329,99 +422,27 @@ export function OpalineEditor({
 
     editor.view.dom.addEventListener("keydown", onKeyDown);
     return () => editor.view.dom.removeEventListener("keydown", onKeyDown);
-  }, [documentStyle, editor, keyboardShortcuts, liveComponentSettings.experimentalScriptsEnabled, onChange, onDocumentStyleChange, onImportAsset, onSave, t]);
+  }, [commandContext, editor, keyboardShortcuts, onSave, slashCommand, slashCommandEntries, t]);
 
-  if (!editor) {
+  if (!editor || !commandContext) {
     return <div className="editor-empty">{t("editor.empty")}</div>;
   }
-
-  const commandContext: EditorCommandContext = {
-    editor,
-    t,
-    documentStyle,
-    onDocumentStyleChange,
-    onImportAsset,
-    openWebLinkDialog: () => openLinkDialog(editor, setDialog),
-    openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
-    openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
-    openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
-    openMermaidDialog: () => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") }),
-    openWidgetDialog: () => setWidgetDialogOpen(true),
-    openEmbedDialog: () => setEmbedDialogOpen(true),
-    experimentalScriptsEnabled: liveComponentSettings.experimentalScriptsEnabled,
-  };
 
   return (
     <section className="editor-shell" style={documentStyleVariables} onClick={() => setContextMenu(null)}>
       <div className="editor-topbar">
         <div className="toolbar" aria-label={t("editor.toolbar")}>
-          <IconButton
-            label={t("editor.undo")}
-            onClick={() => void runEditorCommand("editor.undo", commandContext)}
-            disabled={!canRunEditorCommand("editor.undo", commandContext)}
-          >
-            <Undo2 size={17} />
-          </IconButton>
-          <IconButton
-            label={t("editor.redo")}
-            onClick={() => void runEditorCommand("editor.redo", commandContext)}
-            disabled={!canRunEditorCommand("editor.redo", commandContext)}
-          >
-            <Redo2 size={17} />
-          </IconButton>
+          <ToolbarCommandButtons
+            entries={toolbarEntries.filter((entry) => entry.section === "history")}
+            commandContext={commandContext}
+            keyboardShortcuts={keyboardShortcuts}
+          />
           <span className="toolbar-divider" />
-          <IconButton
-            label={t("editor.paragraph")}
-            active={editor.isActive("paragraph")}
-            onClick={() => void runEditorCommand("editor.setParagraph", commandContext)}
-          >
-            <span className="toolbar-text-symbol">¶</span>
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.heading1"), formatShortcut(keyboardShortcuts.heading1))}
-            active={editor.isActive("heading", { level: 1 })}
-            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 1 })}
-          >
-            <Heading1 size={17} />
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.heading2"), formatShortcut(keyboardShortcuts.heading2))}
-            active={editor.isActive("heading", { level: 2 })}
-            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 2 })}
-          >
-            <Heading2 size={17} />
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.heading3"), formatShortcut(keyboardShortcuts.heading3))}
-            active={editor.isActive("heading", { level: 3 })}
-            onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 3 })}
-          >
-            <span className="toolbar-text-symbol">H3</span>
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.bold"), formatShortcut(keyboardShortcuts.bold))}
-            active={editor.isActive("bold")}
-            onClick={() => void runEditorCommand("editor.toggleBold", commandContext)}
-            disabled={!canRunEditorCommand("editor.toggleBold", commandContext)}
-          >
-            <Bold size={17} />
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.italic"), formatShortcut(keyboardShortcuts.italic))}
-            active={editor.isActive("italic")}
-            onClick={() => void runEditorCommand("editor.toggleItalic", commandContext)}
-            disabled={!canRunEditorCommand("editor.toggleItalic", commandContext)}
-          >
-            <Italic size={17} />
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.underline"), formatShortcut(keyboardShortcuts.underline))}
-            active={editor.isActive("underline")}
-            onClick={() => void runEditorCommand("editor.toggleUnderline", commandContext)}
-            disabled={!canRunEditorCommand("editor.toggleUnderline", commandContext)}
-          >
-            <Underline size={17} />
-          </IconButton>
+          <ToolbarCommandButtons
+            entries={toolbarEntries.filter((entry) => entry.section === "block" || entry.section === "inline")}
+            commandContext={commandContext}
+            keyboardShortcuts={keyboardShortcuts}
+          />
           <div className="toolbar-menu-wrap">
             <IconButton
               label={t("editor.moreFormatting")}
@@ -432,125 +453,50 @@ export function OpalineEditor({
             </IconButton>
             {moreFormatOpen ? (
               <div className="toolbar-popover" role="menu" aria-label={t("editor.moreFormatting")}>
-                <ToolbarMenuItem
-                  icon={<Strikethrough size={16} />}
-                  label={t("editor.strike")}
-                  active={editor.isActive("strike")}
-                  onClick={() => {
-                    setMoreFormatOpen(false);
-                    void runEditorCommand("editor.toggleStrike", commandContext);
-                  }}
-                />
-                <ToolbarMenuItem
-                  icon={<Code2 size={16} />}
-                  label={t("editor.inlineCode")}
-                  active={editor.isActive("code")}
-                  onClick={() => {
-                    setMoreFormatOpen(false);
-                    void runEditorCommand("editor.toggleInlineCode", commandContext);
-                  }}
-                />
-                <ToolbarMenuItem
-                  icon={<Code2 size={16} />}
-                  label={t("editor.codeBlock")}
-                  active={editor.isActive("codeBlock")}
-                  onClick={() => {
-                    setMoreFormatOpen(false);
-                    void runEditorCommand("editor.toggleCodeBlock", commandContext);
-                  }}
-                />
-                <ToolbarMenuItem
-                  icon={<Quote size={16} />}
-                  label={t("editor.blockquote")}
-                  active={editor.isActive("blockquote")}
-                  onClick={() => {
-                    setMoreFormatOpen(false);
-                    void runEditorCommand("editor.toggleBlockquote", commandContext);
-                  }}
-                />
-                <ToolbarMenuItem
-                  icon={<Eraser size={16} />}
-                  label={t("editor.clearFormatting")}
-                  onClick={() => {
-                    setMoreFormatOpen(false);
-                    void runEditorCommand("editor.clearFormatting", commandContext);
-                  }}
-                />
+                {moreFormatEntries.map((entry) => (
+                  <ToolbarMenuItem
+                    key={entry.entryId}
+                    icon={iconForCommand(entry.iconKey, 16)}
+                    label={t(entry.labelKey)}
+                    active={entry.isActive(commandContext)}
+                    disabled={!entry.canRun(commandContext)}
+                    onClick={() => {
+                      setMoreFormatOpen(false);
+                      void entry.run(commandContext);
+                    }}
+                  />
+                ))}
               </div>
             ) : null}
           </div>
-          <IconButton
-            label={shortcutLabel(t("editor.bulletList"), formatShortcut(keyboardShortcuts.bulletList))}
-            active={editor.isActive("bulletList")}
-            onClick={() => void runEditorCommand("editor.toggleBulletList", commandContext)}
-          >
-            <List size={17} />
-          </IconButton>
-          <IconButton
-            label={shortcutLabel(t("editor.orderedList"), formatShortcut(keyboardShortcuts.orderedList))}
-            active={editor.isActive("orderedList")}
-            onClick={() => void runEditorCommand("editor.toggleOrderedList", commandContext)}
-          >
-            <ListOrdered size={17} />
-          </IconButton>
-          <IconButton
-            label={t("editor.taskList")}
-            active={editor.isActive("taskList")}
-            onClick={() => void runEditorCommand("editor.toggleTaskList", commandContext)}
-          >
-            <CheckSquare size={17} />
-          </IconButton>
-          <IconButton label={shortcutLabel(t("editor.webLink"), formatShortcut(keyboardShortcuts.webLink))} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
-            <LinkIcon size={17} />
-          </IconButton>
+          <ToolbarCommandButtons
+            entries={toolbarEntries.filter((entry) => entry.section === "list" || entry.section === "link")}
+            commandContext={commandContext}
+            keyboardShortcuts={keyboardShortcuts}
+          />
           <span className="toolbar-divider" />
           <IconButton label={t("editor.documentStyle")} active={stylePanelOpen} onClick={() => setStylePanelOpen((value) => !value)}>
             <Palette size={17} />
           </IconButton>
-          <span className="toolbar-divider" />
-          <IconButton label={t("editor.callout")} onClick={() => void runEditorCommand("editor.insertCallout", commandContext)}>
-            <MessageSquareQuote size={17} />
-          </IconButton>
-          <IconButton label={t("editor.twoColumn")} onClick={() => void runEditorCommand("editor.insertTwoColumnLayout", commandContext)}>
-            <Columns2 size={17} />
-          </IconButton>
-          <IconButton label={t("editor.compare")} onClick={() => void runEditorCommand("editor.insertCompareLayout", commandContext)}>
-            <TextCursorInput size={17} />
-          </IconButton>
-          <IconButton label={t("editor.sidenote")} onClick={() => void runEditorCommand("editor.insertSidenoteLayout", commandContext)}>
-            <PanelRight size={17} />
-          </IconButton>
-          <IconButton label={t("editor.disclosure")} onClick={() => void runEditorCommand("editor.insertDisclosureBlock", commandContext)}>
-            <span className="icon-math-display">⌄</span>
-          </IconButton>
-          <span className="toolbar-divider" />
-          <IconButton label={t("editor.mathInline")} onClick={() => void runEditorCommand("editor.insertMathInline", commandContext)}>
-            <Pi size={17} />
-          </IconButton>
-          <IconButton label={t("editor.mathBlock")} onClick={() => void runEditorCommand("editor.insertMathBlock", commandContext)}>
-            <span className="icon-math-display">∑</span>
-          </IconButton>
-          <IconButton label={t("editor.mermaid")} onClick={() => void runEditorCommand("editor.insertDiagram", commandContext)}>
-            <GitBranch size={17} />
-          </IconButton>
-          <IconButton label={t("editor.linkAtomic")} onClick={() => void runEditorCommand("editor.createLinkToHeadingBlock", commandContext)}>
-            <LinkIcon size={17} />
-          </IconButton>
-          <IconButton label={t("editor.widget")} onClick={() => void runEditorCommand("editor.insertWidget", commandContext)}>
-            <Network size={17} />
-          </IconButton>
           <IconButton
-            label={t("editor.script")}
-            onClick={() => void runEditorCommand("editor.insertScript", commandContext)}
-            disabled={!canRunEditorCommand("editor.insertScript", commandContext)}
+            label={shortcutLabel(t("editor.commandPalette"), "Ctrl+Shift+P")}
+            active={commandPaletteOpen}
+            onClick={() => setCommandPaletteOpen(true)}
           >
-            <Code2 size={17} />
+            <Command size={17} />
           </IconButton>
-          {onSearchNotes ? (
-            <IconButton label={t("editor.embedNote")} onClick={() => void runEditorCommand("editor.insertNoteEmbed", commandContext)}>
-              <FileImage size={17} />
-            </IconButton>
-          ) : null}
+          <span className="toolbar-divider" />
+          <ToolbarCommandButtons
+            entries={toolbarEntries.filter((entry) => entry.section === "insert" || entry.section === "layout")}
+            commandContext={commandContext}
+            keyboardShortcuts={keyboardShortcuts}
+          />
+          <span className="toolbar-divider" />
+          <ToolbarCommandButtons
+            entries={toolbarEntries.filter((entry) => entry.section === "experimental")}
+            commandContext={commandContext}
+            keyboardShortcuts={keyboardShortcuts}
+          />
           <button
             className="save-button"
             data-tooltip={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), formatShortcut(keyboardShortcuts.save))}
@@ -573,20 +519,38 @@ export function OpalineEditor({
       <EditorContextMenu
         editor={editor}
         commandContext={commandContext}
+        commandEntries={contextMenuEntries}
         state={contextMenu}
         onClose={() => setContextMenu(null)}
         onNoteLink={() => setNoteLinkDialogOpen(true)}
         onAtomicLink={() => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen)}
         onCopyBlockLink={() => copyCurrentBlockLink(editor, currentNote, onChange)}
-        onWebLink={() => openLinkDialog(editor, setDialog)}
-        onImage={() => insertImage(editor, onImportAsset)}
-        onMathInline={() => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" })}
         onAiAction={(action) => {
           void runEditorAiAction(editor, action, setAiResult);
         }}
         onEmbedNote={() => setEmbedDialogOpen(true)}
         canLinkNote={Boolean(onSearchNotes)}
         canEmbedNote={Boolean(onSearchNotes)}
+      />
+      <SlashCommandMenu
+        state={slashCommand}
+        entries={slashCommandEntries}
+        commandContext={commandContext}
+        iconForEntry={(entry) => iconForCommand(entry.iconKey, 17)}
+        onSelectIndex={(index) => setSlashCommand((state) => (state ? { ...state, selectedIndex: index } : null))}
+        onRun={(entry) => void runSlashCommand(editor, slashCommand, entry, commandContext, () => setSlashCommand(null))}
+      />
+      <CommandPalette
+        open={commandPaletteOpen}
+        entries={commandPaletteEntries}
+        commandContext={commandContext}
+        shortcutForEntry={(entry) => shortcutForEntry(entry, keyboardShortcuts)}
+        iconForEntry={(entry) => iconForCommand(entry.iconKey, 17)}
+        onRun={(entry) => {
+          setCommandPaletteOpen(false);
+          void entry.run(commandContext);
+        }}
+        onClose={() => setCommandPaletteOpen(false)}
       />
       <InsertDialog editor={editor} state={dialog} onClose={() => setDialog(null)} />
       <WidgetInsertDialog editor={editor} open={widgetDialogOpen} onClose={() => setWidgetDialogOpen(false)} />
@@ -665,20 +629,115 @@ function ToolbarMenuItem({
   icon,
   label,
   active = false,
+  disabled = false,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button type="button" role="menuitem" className={active ? "toolbar-menu-item is-active" : "toolbar-menu-item"} onClick={onClick}>
+    <button type="button" role="menuitem" className={active ? "toolbar-menu-item is-active" : "toolbar-menu-item"} disabled={disabled} onClick={onClick}>
       {icon}
       <span>{label}</span>
     </button>
   );
 }
+
+function ToolbarCommandButtons({
+  entries,
+  commandContext,
+  keyboardShortcuts,
+}: {
+  entries: EditorCommandUiEntry[];
+  commandContext: EditorCommandContext;
+  keyboardShortcuts: EditorShortcutSettings;
+}) {
+  const { t } = useI18n();
+  return (
+    <>
+      {entries.map((entry) => (
+        <IconButton
+          key={entry.entryId}
+          label={shortcutLabelIfPresent(t(entry.labelKey), shortcutForEntry(entry, keyboardShortcuts))}
+          active={entry.isActive(commandContext)}
+          disabled={!entry.canRun(commandContext)}
+          onClick={() => void entry.run(commandContext)}
+        >
+          {iconForCommand(entry.iconKey, 17)}
+        </IconButton>
+      ))}
+    </>
+  );
+}
+
+const shortcutLabelIfPresent = (label: string, shortcut: string) =>
+  shortcut ? shortcutLabel(label, shortcut) : label;
+
+const shortcutForEntry = (entry: EditorCommandUiEntry, keyboardShortcuts: EditorShortcutSettings) => {
+  if (entry.shortcutId) {
+    return formatShortcut(keyboardShortcuts[entry.shortcutId]);
+  }
+  return entry.shortcutDisplay ?? "";
+};
+
+const iconForCommand = (iconKey: EditorCommandIconKey, size: number): ReactNode => {
+  const props = { size };
+  switch (iconKey) {
+    case "undo": return <Undo2 {...props} />;
+    case "redo": return <Redo2 {...props} />;
+    case "bold": return <Bold {...props} />;
+    case "italic": return <Italic {...props} />;
+    case "underline": return <Underline {...props} />;
+    case "strike": return <Strikethrough {...props} />;
+    case "inlineCode": return <Code2 {...props} />;
+    case "codeBlock": return <Code2 {...props} />;
+    case "quote": return <Quote {...props} />;
+    case "eraser": return <Eraser {...props} />;
+    case "heading1": return <Heading1 {...props} />;
+    case "heading2": return <Heading2 {...props} />;
+    case "heading3": return <span className="toolbar-text-symbol">H3</span>;
+    case "heading4": return <span className="toolbar-text-symbol">H4</span>;
+    case "heading5": return <span className="toolbar-text-symbol">H5</span>;
+    case "heading6": return <span className="toolbar-text-symbol">H6</span>;
+    case "paragraph": return <span className="toolbar-text-symbol">¶</span>;
+    case "bulletList": return <List {...props} />;
+    case "orderedList": return <ListOrdered {...props} />;
+    case "taskList": return <CheckSquare {...props} />;
+    case "link": return <LinkIcon {...props} />;
+    case "callout": return <MessageSquareQuote {...props} />;
+    case "table": return <Table2 {...props} />;
+    case "image": return <FileImage {...props} />;
+    case "mathInline": return <Pi {...props} />;
+    case "mathBlock": return <span className="icon-math-display">∑</span>;
+    case "diagram": return <GitBranch {...props} />;
+    case "widget": return <Network {...props} />;
+    case "script": return <Code2 {...props} />;
+    case "embed": return <FileImage {...props} />;
+    case "columns": return <Columns2 {...props} />;
+    case "compare": return <TextCursorInput {...props} />;
+    case "sidenote": return <PanelRight {...props} />;
+    case "disclosure": return <span className="icon-math-display">⌄</span>;
+    case "palette": return <Palette {...props} />;
+    case "command": return <Command {...props} />;
+  }
+};
+
+const runSlashCommand = async (
+  editor: NonNullable<ReturnType<typeof useEditor>>,
+  state: SlashCommandState | null,
+  entry: EditorCommandUiEntry,
+  commandContext: EditorCommandContext,
+  onClose: () => void,
+) => {
+  if (!state) return;
+  const to = editor.state.selection.from;
+  editor.chain().focus().deleteRange({ from: state.triggerFrom, to }).run();
+  onClose();
+  await entry.run(commandContext);
+};
 
 const editableDocumentStyleSlots = documentStyleSlots;
 
@@ -900,28 +959,6 @@ const runEditorAiAction = async (
       result: error instanceof Error ? error.message : "AI 请求失败",
     });
   }
-};
-
-const insertCallout = (editor: NonNullable<ReturnType<typeof useEditor>>, t: ReturnType<typeof useI18n>["t"]) => {
-  editor
-    .chain()
-    .focus()
-    .insertContent(
-      t("editor.calloutDefault"),
-    )
-    .run();
-};
-
-const insertImage = async (
-  editor: NonNullable<ReturnType<typeof useEditor>>,
-  onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>,
-) => {
-  const asset = await onImportAsset("image");
-  if (!asset) {
-    return;
-  }
-
-  editor.chain().focus().setImage({ src: asset.href, alt: asset.name }).run();
 };
 
 const insertEmbed = (
@@ -1616,14 +1653,12 @@ function WidgetInsertDialog({
 function EditorContextMenu({
   editor,
   commandContext,
+  commandEntries,
   state,
   onClose,
   onNoteLink,
   onAtomicLink,
   onCopyBlockLink,
-  onWebLink,
-  onImage,
-  onMathInline,
   onAiAction,
   onEmbedNote,
   canLinkNote,
@@ -1631,14 +1666,12 @@ function EditorContextMenu({
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
   commandContext: EditorCommandContext;
+  commandEntries: EditorCommandUiEntry[];
   state: ContextMenuState | null;
   onClose: () => void;
   onNoteLink: () => void;
   onAtomicLink: () => void;
   onCopyBlockLink: () => void | Promise<void>;
-  onWebLink: () => void;
-  onImage: () => void;
-  onMathInline: () => void;
   onAiAction: (action: AiEditorAction) => void;
   onEmbedNote: () => void;
   canLinkNote: boolean;
@@ -1697,11 +1730,7 @@ function EditorContextMenu({
       <ContextMenuItem icon={<LinkIcon size={17} />} label="链接到其他笔记..." disabled={!canLinkNote} onClick={() => run(onNoteLink)} />
       <ContextMenuItem icon={<LinkIcon size={17} />} label="链接到本篇标题/段落..." onClick={() => run(onAtomicLink)} />
       <ContextMenuItem icon={<Copy size={17} />} label="复制这段的链接" onClick={() => run(onCopyBlockLink)} />
-      <ContextMenuItem
-        icon={<LinkIcon size={17} />}
-        label="添加网页链接..."
-        onClick={() => run(onWebLink)}
-      />
+      <ContextCommandItems entries={commandEntries.filter((entry) => entry.section === "link" && entry.commandId === "editor.openWebLink")} commandContext={commandContext} onRun={run} />
       <ContextMenuSeparator />
       <ContextMenuItem
         icon={<Search size={17} />}
@@ -1749,14 +1778,8 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextMenuItem icon={<Bold size={17} />} label={t("editor.bold")} active={editor.isActive("bold")} onClick={() => run(() => runEditorCommand("editor.toggleBold", commandContext))} />
-        <ContextMenuItem icon={<Italic size={17} />} label={t("editor.italic")} active={editor.isActive("italic")} onClick={() => run(() => runEditorCommand("editor.toggleItalic", commandContext))} />
-        <ContextMenuItem icon={<Underline size={17} />} label={t("editor.underline")} active={editor.isActive("underline")} onClick={() => run(() => runEditorCommand("editor.toggleUnderline", commandContext))} />
-        <ContextMenuItem icon={<Strikethrough size={17} />} label={t("editor.strike")} active={editor.isActive("strike")} onClick={() => run(() => runEditorCommand("editor.toggleStrike", commandContext))} />
-        <ContextMenuItem icon={<Code2 size={17} />} label={t("editor.inlineCode")} active={editor.isActive("code")} onClick={() => run(() => runEditorCommand("editor.toggleInlineCode", commandContext))} />
-        <ContextMenuItem icon={<Code2 size={17} />} label={t("editor.codeBlock")} active={editor.isActive("codeBlock")} onClick={() => run(() => runEditorCommand("editor.toggleCodeBlock", commandContext))} />
-        <ContextMenuItem icon={<Pi size={17} />} label="数学" onClick={() => run(onMathInline)} />
-        <ContextMenuItem icon={<Eraser size={17} />} label={t("editor.clearFormatting")} onClick={() => run(() => runEditorCommand("editor.clearFormatting", commandContext))} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.group === "inline" || entry.commandId === "editor.toggleCodeBlock")} commandContext={commandContext} onRun={run} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.commandId === "editor.insertMathInline")} commandContext={commandContext} onRun={run} />
       </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="paragraph"
@@ -1766,19 +1789,11 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextMenuItem icon={<List size={17} />} label={t("editor.bulletList")} active={editor.isActive("bulletList")} onClick={() => run(() => runEditorCommand("editor.toggleBulletList", commandContext))} />
-        <ContextMenuItem icon={<ListOrdered size={17} />} label={t("editor.orderedList")} active={editor.isActive("orderedList")} onClick={() => run(() => runEditorCommand("editor.toggleOrderedList", commandContext))} />
-        <ContextMenuItem icon={<CheckSquare size={17} />} label={t("editor.taskList")} active={editor.isActive("taskList")} onClick={() => run(() => runEditorCommand("editor.toggleTaskList", commandContext))} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.section === "list")} commandContext={commandContext} onRun={run} />
         <ContextMenuSeparator />
-        <ContextMenuItem icon={<Heading1 size={17} />} label={t("editor.heading1")} active={editor.isActive("heading", { level: 1 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 1 }))} />
-        <ContextMenuItem icon={<Heading2 size={17} />} label={t("editor.heading2")} active={editor.isActive("heading", { level: 2 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 2 }))} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H3</span>} label={t("editor.heading3")} active={editor.isActive("heading", { level: 3 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 3 }))} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H4</span>} label={t("editor.heading4")} active={editor.isActive("heading", { level: 4 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 4 }))} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H5</span>} label={t("editor.heading5")} active={editor.isActive("heading", { level: 5 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 5 }))} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H6</span>} label={t("editor.heading6")} active={editor.isActive("heading", { level: 6 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 6 }))} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">¶</span>} label={t("editor.paragraph")} active={editor.isActive("paragraph")} onClick={() => run(() => runEditorCommand("editor.setParagraph", commandContext))} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.section === "block" && (entry.commandId === "editor.setHeading" || entry.commandId === "editor.setParagraph"))} commandContext={commandContext} onRun={run} />
         <ContextMenuSeparator />
-        <ContextMenuItem icon={<Quote size={17} />} label={t("editor.blockquote")} active={editor.isActive("blockquote")} onClick={() => run(() => runEditorCommand("editor.toggleBlockquote", commandContext))} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.commandId === "editor.toggleBlockquote")} commandContext={commandContext} onRun={run} />
       </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="insert"
@@ -1788,10 +1803,7 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextMenuItem icon={<FileImage size={17} />} label="图片" onClick={() => run(onImage)} />
-        <ContextMenuItem icon={<Table2 size={17} />} label="表格" onClick={() => run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
-        <ContextMenuItem icon={<MessageSquareQuote size={17} />} label={t("editor.callout")} onClick={() => run(() => insertCallout(editor, t))} />
-        <ContextMenuItem icon={<Columns2 size={17} />} label="双栏块" onClick={() => run(() => editor.chain().focus().insertTwoColumnLayout().run())} />
+        <ContextCommandItems entries={commandEntries.filter((entry) => entry.section === "insert" || entry.section === "layout")} commandContext={commandContext} onRun={run} />
       </ContextMenuSubmenu>
       <ContextMenuSeparator />
       <ContextMenuItem icon={<TextCursorInput size={17} />} label="剪切" onClick={() => run(() => document.execCommand("cut"))} />
@@ -1879,6 +1891,32 @@ function ContextMenuItem({
       {icon}
       <span>{label}</span>
     </button>
+  );
+}
+
+function ContextCommandItems({
+  entries,
+  commandContext,
+  onRun,
+}: {
+  entries: EditorCommandUiEntry[];
+  commandContext: EditorCommandContext;
+  onRun: (action: () => unknown | Promise<unknown>) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <>
+      {entries.map((entry) => (
+        <ContextMenuItem
+          key={entry.entryId}
+          icon={iconForCommand(entry.iconKey, 17)}
+          label={t(entry.labelKey)}
+          active={entry.isActive(commandContext)}
+          disabled={!entry.canRun(commandContext)}
+          onClick={() => onRun(() => entry.run(commandContext))}
+        />
+      ))}
+    </>
   );
 }
 
