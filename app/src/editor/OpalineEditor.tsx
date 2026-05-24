@@ -82,7 +82,7 @@ import {
   type EditorCommandUiEntry,
 } from "./editorCommands";
 import { CommandPalette } from "./CommandPalette";
-import { SlashCommandMenu, selectedSlashCommandEntry, type SlashCommandState } from "./SlashCommandMenu";
+import { SlashCommandMenu, selectedSlashCommandEntry, visibleSlashCommandEntries, type SlashCommandState } from "./SlashCommandMenu";
 import {
   defaultEditorShortcutSettings,
   formatShortcut,
@@ -350,8 +350,9 @@ export function OpalineEditor({
         }
         if (event.key === "ArrowDown") {
           event.preventDefault();
+          const maxIndex = Math.max(0, visibleSlashCommandEntries(slashCommand, slashCommandEntries, commandContext, t).length - 1);
           setSlashCommand((state) =>
-            state ? { ...state, selectedIndex: Math.min(state.selectedIndex + 1, 11) } : null,
+            state ? { ...state, selectedIndex: Math.min(state.selectedIndex + 1, maxIndex) } : null,
           );
           return;
         }
@@ -420,8 +421,8 @@ export function OpalineEditor({
       if (keyboardShortcutMatches(event, keyboardShortcuts.bulletList)) return runShortcut(event, "editor.toggleBulletList");
     };
 
-    editor.view.dom.addEventListener("keydown", onKeyDown);
-    return () => editor.view.dom.removeEventListener("keydown", onKeyDown);
+    editor.view.dom.addEventListener("keydown", onKeyDown, true);
+    return () => editor.view.dom.removeEventListener("keydown", onKeyDown, true);
   }, [commandContext, editor, keyboardShortcuts, onSave, slashCommand, slashCommandEntries, t]);
 
   if (!editor || !commandContext) {

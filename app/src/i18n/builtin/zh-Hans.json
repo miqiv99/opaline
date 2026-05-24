@@ -368,6 +368,7 @@
   "editor.commandPalettePlaceholder": "搜索编辑器命令...",
   "editor.commandPaletteResults": "编辑器命令结果",
   "editor.commandPaletteEmpty": "没有匹配的命令。",
+  "editor.commandPaletteClose": "关闭命令面板",
   "editor.slashMenu": "Slash 命令菜单",
   "editor.slashMenuHint": "输入命令名称继续筛选",
   "editor.slashMenuEmpty": "没有匹配的 slash 命令。",

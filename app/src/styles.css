@@ -2022,6 +2022,7 @@ textarea:focus-visible,
 }
 
 .command-palette-card {
+  position: relative;
   display: grid;
   gap: 8px;
   width: min(640px, 100%);
@@ -2031,6 +2032,27 @@ textarea:focus-visible,
   box-shadow: var(--xz-shadow-lg);
   padding: 8px;
   animation: xz-fade-up var(--xz-motion-base) var(--xz-ease-soft) both;
+}
+
+.command-palette-close {
+  position: absolute;
+  top: 29px;
+  right: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--xz-text-secondary);
+}
+
+.command-palette-close:hover {
+  border-color: rgba(34, 168, 115, 0.22);
+  background: var(--xz-selected);
+  color: var(--xz-green-deep);
 }
 
 .command-palette-search {

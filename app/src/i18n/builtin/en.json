@@ -368,6 +368,7 @@
   "editor.commandPalettePlaceholder": "Search editor commands...",
   "editor.commandPaletteResults": "Editor command results",
   "editor.commandPaletteEmpty": "No matching command.",
+  "editor.commandPaletteClose": "Close command palette",
   "editor.slashMenu": "Slash command menu",
   "editor.slashMenuHint": "Keep typing to filter commands",
   "editor.slashMenuEmpty": "No matching slash command.",

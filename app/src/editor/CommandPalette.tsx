@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
@@ -43,11 +43,36 @@ export function CommandPalette({
     setSelectedIndex(0);
   }, [query]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, open]);
+
   if (!open) return null;
 
   return (
-    <div className="command-palette-backdrop" role="dialog" aria-modal="true" aria-label={t("editor.commandPalette")}>
-      <div className="command-palette-card">
+    <div
+      className="command-palette-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("editor.commandPalette")}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="command-palette-card" onMouseDown={(event) => event.stopPropagation()}>
+        <button type="button" className="command-palette-close" aria-label={t("editor.commandPaletteClose")} onClick={onClose}>
+          <X size={16} />
+        </button>
         <label className="command-palette-search">
           <Search size={17} />
           <input
