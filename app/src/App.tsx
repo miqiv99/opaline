@@ -2734,7 +2734,11 @@ function SettingsView({
       <div className="settings-map-canvas" aria-label={t("settings.options")}>
         <svg className="settings-map-lines" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
           {settingsNodes.map((node) => (
-            <path key={node.id} d={`M50 50 L${node.left} ${node.top}`} />
+            <path
+              key={node.id}
+              className={activePanel === node.id ? "is-active" : undefined}
+              d={`M50 50 L${node.left} ${node.top}`}
+            />
           ))}
         </svg>
         <div className="settings-map-center" aria-hidden="true">
@@ -2748,22 +2752,21 @@ function SettingsView({
             className={activePanel === node.id ? "settings-map-node is-active" : "settings-map-node"}
             style={{ left: `${node.left}%`, top: `${node.top}%` } as CSSProperties}
             onClick={() => setActivePanel(node.id)}
+            aria-label={node.title}
             aria-pressed={activePanel === node.id}
           >
             <span className="settings-map-node-dot">{node.icon}</span>
             <span className="settings-map-node-label">
               <strong>{node.title}</strong>
-              <small>{node.description}</small>
             </span>
           </button>
         ))}
       </div>
-      <div className="settings-popover" key={activePanel} role="region" aria-label={activeNode.title}>
+      <div className="settings-popover" role="region" aria-label={activeNode.title}>
         <header className="settings-popover-header">
           <span className="settings-popover-icon">{activeNode.icon}</span>
           <div>
             <strong>{activeNode.title}</strong>
-            <small>{activeNode.description}</small>
           </div>
         </header>
         <div className="settings-popover-body">
