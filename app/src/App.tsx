@@ -1181,6 +1181,10 @@ export function App() {
     const appWindow = getCurrentWindow();
 
     void appWindow.onCloseRequested(async (event) => {
+      if (!isDirtyRef.current) {
+        return;
+      }
+
       event.preventDefault();
       const ok = await ensureCurrentNoteSafe();
       if (!ok || disposed) {

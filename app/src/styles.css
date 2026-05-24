@@ -2877,11 +2877,13 @@ textarea:focus-visible,
 .settings-view.settings-map-view {
   align-self: start;
   align-items: stretch;
-  grid-template-columns: minmax(440px, 0.9fr) minmax(500px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+  grid-auto-rows: minmax(0, 1fr);
   gap: 24px;
   width: min(1280px, calc(100% - 64px));
   min-height: min(660px, calc(100vh - 128px));
   margin: 22px auto;
+  overflow: hidden;
   padding: 0;
   animation: xz-fade-up var(--xz-motion-slow) var(--xz-ease-soft) both;
 }
@@ -2903,6 +2905,7 @@ textarea:focus-visible,
 
 .settings-map-canvas {
   position: relative;
+  min-width: 0;
   min-height: min(660px, calc(100vh - 128px));
   overflow: hidden;
   border: 1px solid rgba(60, 60, 67, 0.14);
@@ -3057,6 +3060,7 @@ textarea:focus-visible,
   min-height: 600px;
   max-height: none;
   overflow: auto;
+  scrollbar-gutter: stable;
   border: 1px solid rgba(60, 60, 67, 0.16);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);

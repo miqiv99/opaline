@@ -3,5 +3,12 @@
   "identifier": "default",
   "description": "Default desktop permissions for the Opaline app shell.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "shell:default", "updater:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "dialog:default",
+    "shell:default",
+    "updater:default"
+  ]
 }
