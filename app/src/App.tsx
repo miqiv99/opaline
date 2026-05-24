@@ -1181,10 +1181,6 @@ export function App() {
     const appWindow = getCurrentWindow();
 
     void appWindow.onCloseRequested(async (event) => {
-      if (allowTauriCloseRef.current || !isDirtyRef.current) {
-        return;
-      }
-
       event.preventDefault();
       const ok = await ensureCurrentNoteSafe();
       if (!ok || disposed) {
@@ -1192,7 +1188,11 @@ export function App() {
       }
 
       allowTauriCloseRef.current = true;
-      await appWindow.close();
+      window.setTimeout(() => {
+        void appWindow.destroy().catch(() => {
+          void appWindow.close();
+        });
+      }, 0);
     }).then((dispose) => {
       if (disposed) {
         dispose();

@@ -2866,8 +2866,12 @@ textarea:focus-visible,
 }
 
 .is-note-mode .settings-view.settings-panel-view {
-  width: min(1280px, calc(100% - 64px));
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
   padding: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .settings-view.settings-map-view {
@@ -2880,6 +2884,21 @@ textarea:focus-visible,
   margin: 22px auto;
   padding: 0;
   animation: xz-fade-up var(--xz-motion-slow) var(--xz-ease-soft) both;
+}
+
+.is-note-mode .settings-view.settings-map-view {
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 16px;
+}
+
+.is-note-mode .settings-map-canvas,
+.is-note-mode .settings-popover {
+  height: 100%;
+  min-height: 0;
 }
 
 .settings-map-canvas {
@@ -4906,10 +4925,18 @@ textarea:focus-visible,
     width: min(100% - 24px, 860px);
   }
 
+  .is-note-mode .settings-view.settings-panel-view {
+    width: 100%;
+  }
+
   .settings-view.settings-map-view,
   .is-note-mode .settings-view.settings-map-view {
     grid-template-columns: minmax(0, 1fr);
     width: min(100% - 24px, 860px);
+  }
+
+  .is-note-mode .settings-view.settings-map-view {
+    width: 100%;
   }
 
   .settings-map-canvas {
@@ -5069,11 +5096,20 @@ textarea:focus-visible,
     min-height: auto;
   }
 
+  .is-note-mode .settings-view.settings-panel-view {
+    width: 100%;
+  }
+
   .settings-view.settings-map-view {
     grid-template-columns: 1fr;
     width: min(100% - 20px, 720px);
     gap: 14px;
     margin-top: 12px;
+  }
+
+  .is-note-mode .settings-view.settings-map-view {
+    width: 100%;
+    margin-top: 0;
   }
 
   .settings-map-canvas {
