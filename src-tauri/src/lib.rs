@@ -3,6 +3,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
+use std::io::Write;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -1323,10 +1324,7 @@ fn move_workspace(source: String, destination: String) -> Result<(), String> {
 #[tauri::command]
 fn write_export_file(file_path: String, content: String) -> Result<(), String> {
     let path = PathBuf::from(&file_path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(to_error)?;
-    }
-    fs::write(&path, &content).map_err(to_error)
+    write_file_atomically(&path, &content)
 }
 
 #[tauri::command]
@@ -1334,7 +1332,7 @@ fn write_settings(path: String, settings: serde_json::Value) -> Result<(), Strin
     let workspace = workspace_path(&path)?;
     let settings_path = workspace.join(".opaline/settings.json");
     let raw = serde_json::to_string_pretty(&settings).map_err(to_error)?;
-    fs::write(&settings_path, raw).map_err(to_error)?;
+    write_file_atomically(&settings_path, &raw)?;
     Ok(())
 }
 
@@ -2510,9 +2508,23 @@ fn write_file_atomically(path: &Path, contents: &str) -> Result<(), String> {
         .parent()
         .ok_or_else(|| "保存失败：笔记路径无父目录".to_string())?;
     fs::create_dir_all(parent).map_err(to_error)?;
-    let temp_path = path.with_extension("html.tmp");
-    let backup_path = path.with_extension("html.bak");
-    fs::write(&temp_path, contents).map_err(to_error)?;
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "保存失败：笔记文件名无效".to_string())?;
+    let temp_path = parent.join(format!(".{file_name}.{}.tmp", Uuid::new_v4()));
+    let backup_path = parent.join(format!(".{file_name}.bak"));
+
+    {
+        let mut temp_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)
+            .map_err(to_error)?;
+        temp_file.write_all(contents.as_bytes()).map_err(to_error)?;
+        temp_file.flush().map_err(to_error)?;
+        temp_file.sync_all().map_err(to_error)?;
+    }
 
     if path.exists() {
         if backup_path.exists() {
@@ -3078,6 +3090,33 @@ mod tests {
         let post_restore_history =
             list_note_history(workspace_string, restored.path, restored.id).expect("history remains");
         assert!(post_restore_history.len() >= 3);
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn atomic_write_replaces_file_with_complete_contents() {
+        let workspace = test_workspace();
+        fs::create_dir_all(&workspace).expect("workspace dir");
+        let note_path = workspace.join("note.html");
+
+        write_file_atomically(&note_path, "<p>first</p>").expect("initial write");
+        write_file_atomically(&note_path, &"<p>second</p>".repeat(2048)).expect("replacement write");
+
+        let saved = fs::read_to_string(&note_path).expect("saved file");
+        assert!(saved.starts_with("<p>second</p>"));
+        assert!(!saved.contains("<p>first</p>"));
+        let leftovers = fs::read_dir(&workspace)
+            .expect("read workspace")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("note.html.")
+            })
+            .count();
+        assert_eq!(leftovers, 0);
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
     }

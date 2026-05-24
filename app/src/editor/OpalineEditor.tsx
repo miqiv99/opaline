@@ -1,6 +1,7 @@
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
+import UnderlineExtension from "@tiptap/extension-underline";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Table from "@tiptap/extension-table";
@@ -25,21 +26,26 @@ import {
   LinkIcon,
   List,
   ListOrdered,
+  MoreHorizontal,
   MessageSquareQuote,
   Network,
   Palette,
   PanelRight,
   Pi,
+  Quote,
   Redo2,
   RotateCcw,
   Save,
   Search,
   Sparkles,
+  Strikethrough,
   Table2,
   Tag,
   TextCursorInput,
   TextSearch,
+  Underline,
   Undo2,
+  Eraser,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -128,7 +134,7 @@ type OpalineEditorProps = {
   scrollToBlockTarget?: { blockId: string; requestId: number } | null;
   onChange: (html: string) => void;
   onDocumentStyleChange: (style: OpalineDocumentStyle) => void;
-  onSave: (html: string) => void | Promise<void>;
+  onSave: (html: string) => void | Promise<unknown>;
   onImportAsset: (kind: "image" | "file") => Promise<ImportedAsset | null>;
   onSearchNotes?: (query: string) => Promise<NoteSuggestion[]>;
   onOpenInternalLink?: (target: InternalLinkTarget) => void;
@@ -156,6 +162,7 @@ export function OpalineEditor({
   const [atomicLinkDialogOpen, setAtomicLinkDialogOpen] = useState(false);
   const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
   const [stylePanelOpen, setStylePanelOpen] = useState(false);
+  const [moreFormatOpen, setMoreFormatOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const linkContextRef = useRef<InternalLinkContext>({
     currentNote,
@@ -183,6 +190,7 @@ export function OpalineEditor({
           rel: "noreferrer",
         },
       }),
+      UnderlineExtension,
       OpalineTextStyle,
       Image,
       Table.configure({
@@ -264,6 +272,58 @@ export function OpalineEditor({
     return () => window.clearTimeout(timer);
   }, [content, editor, scrollToBlockTarget]);
 
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const runShortcut = (event: KeyboardEvent, commandId: string, payload?: unknown) => {
+      event.preventDefault();
+      const context: EditorCommandContext = {
+        editor,
+        t,
+        documentStyle,
+        onDocumentStyleChange,
+        onImportAsset,
+        openWebLinkDialog: () => openLinkDialog(editor, setDialog),
+        openAtomicLinkDialog: () => openAtomicLinkDialog(editor, onChange, setAtomicLinkDialogOpen),
+        openMathInlineDialog: () => setDialog({ type: "math-inline", value: "x^2 + y^2 = 1" }),
+        openMathBlockDialog: () => setDialog({ type: "math-block", value: "\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}" }),
+        openMermaidDialog: () => setDialog({ type: "mermaid", value: t("editor.mermaidDefault") }),
+        openWidgetDialog: () => setWidgetDialogOpen(true),
+        openEmbedDialog: () => setEmbedDialogOpen(true),
+        experimentalScriptsEnabled: liveComponentSettings.experimentalScriptsEnabled,
+      };
+      void runEditorCommand(commandId, context, payload);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.ctrlKey || event.metaKey;
+      if (!mod || event.defaultPrevented) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (!event.altKey && !event.shiftKey && key === "s") {
+        event.preventDefault();
+        void onSave(editor.getHTML());
+        return;
+      }
+      if (!event.altKey && !event.shiftKey && key === "b") return runShortcut(event, "editor.toggleBold");
+      if (!event.altKey && !event.shiftKey && key === "i") return runShortcut(event, "editor.toggleItalic");
+      if (!event.altKey && !event.shiftKey && key === "u") return runShortcut(event, "editor.toggleUnderline");
+      if (!event.altKey && !event.shiftKey && key === "k") return runShortcut(event, "editor.openWebLink");
+      if (event.altKey && !event.shiftKey && event.code === "Digit1") return runShortcut(event, "editor.setHeading", { level: 1 });
+      if (event.altKey && !event.shiftKey && event.code === "Digit2") return runShortcut(event, "editor.setHeading", { level: 2 });
+      if (event.altKey && !event.shiftKey && event.code === "Digit3") return runShortcut(event, "editor.setHeading", { level: 3 });
+      if (!event.altKey && event.shiftKey && event.code === "Digit7") return runShortcut(event, "editor.toggleOrderedList");
+      if (!event.altKey && event.shiftKey && event.code === "Digit8") return runShortcut(event, "editor.toggleBulletList");
+    };
+
+    editor.view.dom.addEventListener("keydown", onKeyDown);
+    return () => editor.view.dom.removeEventListener("keydown", onKeyDown);
+  }, [documentStyle, editor, liveComponentSettings.experimentalScriptsEnabled, onChange, onDocumentStyleChange, onImportAsset, onSave, t]);
+
   if (!editor) {
     return <div className="editor-empty">{t("editor.empty")}</div>;
   }
@@ -311,28 +371,28 @@ export function OpalineEditor({
             <span className="toolbar-text-symbol">¶</span>
           </IconButton>
           <IconButton
-            label={t("editor.heading1")}
+            label={shortcutLabel(t("editor.heading1"), t("shortcut.ctrlAlt1"))}
             active={editor.isActive("heading", { level: 1 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 1 })}
           >
             <Heading1 size={17} />
           </IconButton>
           <IconButton
-            label={t("editor.heading2")}
+            label={shortcutLabel(t("editor.heading2"), t("shortcut.ctrlAlt2"))}
             active={editor.isActive("heading", { level: 2 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 2 })}
           >
             <Heading2 size={17} />
           </IconButton>
           <IconButton
-            label={t("editor.heading3")}
+            label={shortcutLabel(t("editor.heading3"), t("shortcut.ctrlAlt3"))}
             active={editor.isActive("heading", { level: 3 })}
             onClick={() => void runEditorCommand("editor.setHeading", commandContext, { level: 3 })}
           >
             <span className="toolbar-text-symbol">H3</span>
           </IconButton>
           <IconButton
-            label={t("editor.bold")}
+            label={shortcutLabel(t("editor.bold"), t("shortcut.ctrlB"))}
             active={editor.isActive("bold")}
             onClick={() => void runEditorCommand("editor.toggleBold", commandContext)}
             disabled={!canRunEditorCommand("editor.toggleBold", commandContext)}
@@ -340,7 +400,7 @@ export function OpalineEditor({
             <Bold size={17} />
           </IconButton>
           <IconButton
-            label={t("editor.italic")}
+            label={shortcutLabel(t("editor.italic"), t("shortcut.ctrlI"))}
             active={editor.isActive("italic")}
             onClick={() => void runEditorCommand("editor.toggleItalic", commandContext)}
             disabled={!canRunEditorCommand("editor.toggleItalic", commandContext)}
@@ -348,14 +408,79 @@ export function OpalineEditor({
             <Italic size={17} />
           </IconButton>
           <IconButton
-            label={t("editor.bulletList")}
+            label={shortcutLabel(t("editor.underline"), t("shortcut.ctrlU"))}
+            active={editor.isActive("underline")}
+            onClick={() => void runEditorCommand("editor.toggleUnderline", commandContext)}
+            disabled={!canRunEditorCommand("editor.toggleUnderline", commandContext)}
+          >
+            <Underline size={17} />
+          </IconButton>
+          <div className="toolbar-menu-wrap">
+            <IconButton
+              label={t("editor.moreFormatting")}
+              active={moreFormatOpen}
+              onClick={() => setMoreFormatOpen((value) => !value)}
+            >
+              <MoreHorizontal size={17} />
+            </IconButton>
+            {moreFormatOpen ? (
+              <div className="toolbar-popover" role="menu" aria-label={t("editor.moreFormatting")}>
+                <ToolbarMenuItem
+                  icon={<Strikethrough size={16} />}
+                  label={t("editor.strike")}
+                  active={editor.isActive("strike")}
+                  onClick={() => {
+                    setMoreFormatOpen(false);
+                    void runEditorCommand("editor.toggleStrike", commandContext);
+                  }}
+                />
+                <ToolbarMenuItem
+                  icon={<Code2 size={16} />}
+                  label={t("editor.inlineCode")}
+                  active={editor.isActive("code")}
+                  onClick={() => {
+                    setMoreFormatOpen(false);
+                    void runEditorCommand("editor.toggleInlineCode", commandContext);
+                  }}
+                />
+                <ToolbarMenuItem
+                  icon={<Code2 size={16} />}
+                  label={t("editor.codeBlock")}
+                  active={editor.isActive("codeBlock")}
+                  onClick={() => {
+                    setMoreFormatOpen(false);
+                    void runEditorCommand("editor.toggleCodeBlock", commandContext);
+                  }}
+                />
+                <ToolbarMenuItem
+                  icon={<Quote size={16} />}
+                  label={t("editor.blockquote")}
+                  active={editor.isActive("blockquote")}
+                  onClick={() => {
+                    setMoreFormatOpen(false);
+                    void runEditorCommand("editor.toggleBlockquote", commandContext);
+                  }}
+                />
+                <ToolbarMenuItem
+                  icon={<Eraser size={16} />}
+                  label={t("editor.clearFormatting")}
+                  onClick={() => {
+                    setMoreFormatOpen(false);
+                    void runEditorCommand("editor.clearFormatting", commandContext);
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+          <IconButton
+            label={shortcutLabel(t("editor.bulletList"), t("shortcut.ctrlShift8"))}
             active={editor.isActive("bulletList")}
             onClick={() => void runEditorCommand("editor.toggleBulletList", commandContext)}
           >
             <List size={17} />
           </IconButton>
           <IconButton
-            label={t("editor.orderedList")}
+            label={shortcutLabel(t("editor.orderedList"), t("shortcut.ctrlShift7"))}
             active={editor.isActive("orderedList")}
             onClick={() => void runEditorCommand("editor.toggleOrderedList", commandContext)}
           >
@@ -368,7 +493,7 @@ export function OpalineEditor({
           >
             <CheckSquare size={17} />
           </IconButton>
-          <IconButton label={t("editor.webLink")} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
+          <IconButton label={shortcutLabel(t("editor.webLink"), t("shortcut.ctrlK"))} onClick={() => void runEditorCommand("editor.openWebLink", commandContext)}>
             <LinkIcon size={17} />
           </IconButton>
           <span className="toolbar-divider" />
@@ -421,7 +546,8 @@ export function OpalineEditor({
           ) : null}
           <button
             className="save-button"
-            data-tooltip={isSaving ? t("action.saving") : t("action.save")}
+            data-tooltip={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), t("shortcut.ctrlS"))}
+            aria-label={isSaving ? t("action.saving") : shortcutLabel(t("action.save"), t("shortcut.ctrlS"))}
             onClick={() => {
               const html = editor.getHTML();
               void onSave(html);
@@ -439,6 +565,7 @@ export function OpalineEditor({
       <EditorContent editor={editor} className="editor-scroll" />
       <EditorContextMenu
         editor={editor}
+        commandContext={commandContext}
         state={contextMenu}
         onClose={() => setContextMenu(null)}
         onNoteLink={() => setNoteLinkDialogOpen(true)}
@@ -509,6 +636,8 @@ type IconButtonProps = {
   onClick: () => void;
 };
 
+const shortcutLabel = (label: string, shortcut: string) => `${label} (${shortcut})`;
+
 function IconButton({ label, active = false, disabled = false, children, onClick }: IconButtonProps) {
   return (
     <button
@@ -521,6 +650,25 @@ function IconButton({ label, active = false, disabled = false, children, onClick
       onClick={onClick}
     >
       {children}
+    </button>
+  );
+}
+
+function ToolbarMenuItem({
+  icon,
+  label,
+  active = false,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" role="menuitem" className={active ? "toolbar-menu-item is-active" : "toolbar-menu-item"} onClick={onClick}>
+      {icon}
+      <span>{label}</span>
     </button>
   );
 }
@@ -1460,6 +1608,7 @@ function WidgetInsertDialog({
 
 function EditorContextMenu({
   editor,
+  commandContext,
   state,
   onClose,
   onNoteLink,
@@ -1474,6 +1623,7 @@ function EditorContextMenu({
   canEmbedNote,
 }: {
   editor: NonNullable<ReturnType<typeof useEditor>>;
+  commandContext: EditorCommandContext;
   state: ContextMenuState | null;
   onClose: () => void;
   onNoteLink: () => void;
@@ -1592,12 +1742,14 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextMenuItem icon={<Bold size={17} />} label="加粗" active={editor.isActive("bold")} onClick={() => run(() => editor.chain().focus().toggleBold().run())} />
-        <ContextMenuItem icon={<Italic size={17} />} label="倾斜" active={editor.isActive("italic")} onClick={() => run(() => editor.chain().focus().toggleItalic().run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">S</span>} label="删除线" active={editor.isActive("strike")} onClick={() => run(() => editor.chain().focus().toggleStrike().run())} />
-        <ContextMenuItem icon={<Code2 size={17} />} label="代码" active={editor.isActive("code")} onClick={() => run(() => editor.chain().focus().toggleCode().run())} />
+        <ContextMenuItem icon={<Bold size={17} />} label={t("editor.bold")} active={editor.isActive("bold")} onClick={() => run(() => runEditorCommand("editor.toggleBold", commandContext))} />
+        <ContextMenuItem icon={<Italic size={17} />} label={t("editor.italic")} active={editor.isActive("italic")} onClick={() => run(() => runEditorCommand("editor.toggleItalic", commandContext))} />
+        <ContextMenuItem icon={<Underline size={17} />} label={t("editor.underline")} active={editor.isActive("underline")} onClick={() => run(() => runEditorCommand("editor.toggleUnderline", commandContext))} />
+        <ContextMenuItem icon={<Strikethrough size={17} />} label={t("editor.strike")} active={editor.isActive("strike")} onClick={() => run(() => runEditorCommand("editor.toggleStrike", commandContext))} />
+        <ContextMenuItem icon={<Code2 size={17} />} label={t("editor.inlineCode")} active={editor.isActive("code")} onClick={() => run(() => runEditorCommand("editor.toggleInlineCode", commandContext))} />
+        <ContextMenuItem icon={<Code2 size={17} />} label={t("editor.codeBlock")} active={editor.isActive("codeBlock")} onClick={() => run(() => runEditorCommand("editor.toggleCodeBlock", commandContext))} />
         <ContextMenuItem icon={<Pi size={17} />} label="数学" onClick={() => run(onMathInline)} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">⌫</span>} label="清除格式" onClick={() => run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())} />
+        <ContextMenuItem icon={<Eraser size={17} />} label={t("editor.clearFormatting")} onClick={() => run(() => runEditorCommand("editor.clearFormatting", commandContext))} />
       </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="paragraph"
@@ -1607,19 +1759,19 @@ function EditorContextMenu({
         onOpen={openSubmenu}
         onCloseSoon={closeSubmenuSoon}
       >
-        <ContextMenuItem icon={<List size={17} />} label="无序列表" active={editor.isActive("bulletList")} onClick={() => run(() => editor.chain().focus().toggleBulletList().run())} />
-        <ContextMenuItem icon={<ListOrdered size={17} />} label="有序列表" active={editor.isActive("orderedList")} onClick={() => run(() => editor.chain().focus().toggleOrderedList().run())} />
-        <ContextMenuItem icon={<CheckSquare size={17} />} label="任务列表" active={editor.isActive("taskList")} onClick={() => run(() => editor.chain().focus().toggleTaskList().run())} />
+        <ContextMenuItem icon={<List size={17} />} label={t("editor.bulletList")} active={editor.isActive("bulletList")} onClick={() => run(() => runEditorCommand("editor.toggleBulletList", commandContext))} />
+        <ContextMenuItem icon={<ListOrdered size={17} />} label={t("editor.orderedList")} active={editor.isActive("orderedList")} onClick={() => run(() => runEditorCommand("editor.toggleOrderedList", commandContext))} />
+        <ContextMenuItem icon={<CheckSquare size={17} />} label={t("editor.taskList")} active={editor.isActive("taskList")} onClick={() => run(() => runEditorCommand("editor.toggleTaskList", commandContext))} />
         <ContextMenuSeparator />
-        <ContextMenuItem icon={<Heading1 size={17} />} label="1级标题" active={editor.isActive("heading", { level: 1 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
-        <ContextMenuItem icon={<Heading2 size={17} />} label="2级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H3</span>} label="3级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H4</span>} label="4级标题" active={editor.isActive("heading", { level: 4 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 4 }).run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H5</span>} label="5级标题" active={editor.isActive("heading", { level: 5 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 5 }).run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">H6</span>} label="6级标题" active={editor.isActive("heading", { level: 6 })} onClick={() => run(() => editor.chain().focus().toggleHeading({ level: 6 }).run())} />
-        <ContextMenuItem icon={<span className="context-menu-symbol">¶</span>} label="正文" active={editor.isActive("paragraph")} onClick={() => run(() => editor.chain().focus().setParagraph().run())} />
+        <ContextMenuItem icon={<Heading1 size={17} />} label={t("editor.heading1")} active={editor.isActive("heading", { level: 1 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 1 }))} />
+        <ContextMenuItem icon={<Heading2 size={17} />} label={t("editor.heading2")} active={editor.isActive("heading", { level: 2 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 2 }))} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H3</span>} label={t("editor.heading3")} active={editor.isActive("heading", { level: 3 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 3 }))} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H4</span>} label={t("editor.heading4")} active={editor.isActive("heading", { level: 4 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 4 }))} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H5</span>} label={t("editor.heading5")} active={editor.isActive("heading", { level: 5 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 5 }))} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">H6</span>} label={t("editor.heading6")} active={editor.isActive("heading", { level: 6 })} onClick={() => run(() => runEditorCommand("editor.setHeading", commandContext, { level: 6 }))} />
+        <ContextMenuItem icon={<span className="context-menu-symbol">¶</span>} label={t("editor.paragraph")} active={editor.isActive("paragraph")} onClick={() => run(() => runEditorCommand("editor.setParagraph", commandContext))} />
         <ContextMenuSeparator />
-        <ContextMenuItem icon={<span className="context-menu-symbol">❝</span>} label="引用" active={editor.isActive("blockquote")} onClick={() => run(() => editor.chain().focus().toggleBlockquote().run())} />
+        <ContextMenuItem icon={<Quote size={17} />} label={t("editor.blockquote")} active={editor.isActive("blockquote")} onClick={() => run(() => runEditorCommand("editor.toggleBlockquote", commandContext))} />
       </ContextMenuSubmenu>
       <ContextMenuSubmenu
         id="insert"

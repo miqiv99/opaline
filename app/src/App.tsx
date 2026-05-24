@@ -1,9 +1,12 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
+  AlertCircle,
   BookOpen,
   Bot,
   Bug,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ChevronsDown,
@@ -17,6 +20,7 @@ import {
   Home,
   Lightbulb,
   Link2,
+  Loader2,
   MessageCircle,
   Network,
   NotebookPen,
@@ -78,7 +82,10 @@ const FILE_LINK_SETTINGS_STORAGE_KEY = "opaline-file-link-settings";
 const DEFAULT_AUTO_SAVE_DELAY_MS = 5000;
 const MIN_AUTO_SAVE_DELAY_MS = 2000;
 const MAX_AUTO_SAVE_DELAY_MS = 300000;
+const AUTO_HISTORY_SNAPSHOT_INTERVAL_MS = 10 * 60 * 1000;
+const AUTO_HISTORY_CONTENT_DELTA_CHARS = 2000;
 type SettingsPanelId = "files" | "stats" | "plugins" | "ai" | "language" | "updates";
+type SaveStatus = "saved" | "dirty" | "saving" | "error";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
   newNoteLocation: "vault-root" | "current-folder" | "journal";
@@ -283,6 +290,12 @@ export function App() {
   const [status, setStatus] = useState(() => t("app.status.preparingWorkspace"));
   const [isBusy, setIsBusy] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const lastHistorySnapshotRef = useRef<{ noteId: string; at: number; articleHtml: string } | null>(null);
+  const saveNoteRef = useRef<(options?: { silent?: boolean; articleHtml?: string; documentStyle?: OpalineDocumentStyle; createHistory?: boolean }) => Promise<boolean>>(async () => true);
+  const allowTauriCloseRef = useRef(false);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [backlinks, setBacklinks] = useState<SearchResult[]>([]);
@@ -309,6 +322,7 @@ export function App() {
   const isDirty = workspace.activeNote !== null && (
     articleHtml !== savedArticleHtml || !documentStylesEqual(documentStyle, savedDocumentStyle)
   );
+  const isDirtyRef = useRef(isDirty);
   const favoriteNotes = useMemo(() => workspace.notes.filter((note) => note.favorite), [workspace.notes]);
   const recentNotes = useMemo(() => workspace.notes.slice(0, 6), [workspace.notes]);
   const currentTags = workspace.activeNote?.tags ?? [];
@@ -363,6 +377,19 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+    if (isSaving) {
+      setSaveStatus("saving");
+      return;
+    }
+    if (lastSaveError) {
+      setSaveStatus("error");
+      return;
+    }
+    setSaveStatus(isDirty ? "dirty" : "saved");
+  }, [isDirty, isSaving, lastSaveError]);
 
   useEffect(() => {
     if (!workspace.path || !workspaceAdapter.listLanguagePacks) {
@@ -429,6 +456,24 @@ export function App() {
     });
   }, []);
 
+  const ensureCurrentNoteSafe = useCallback(async () => {
+    if (!isDirtyRef.current) {
+      return true;
+    }
+
+    setStatus(t("save.status.savingBeforeLeave"));
+    const saved = await saveNoteRef.current({ silent: true });
+    if (saved) {
+      return true;
+    }
+
+    return askConfirm({
+      title: t("save.leaveBlockedTitle"),
+      message: t("save.leaveBlockedMessage"),
+      danger: true,
+    });
+  }, [askConfirm, t]);
+
   const openWorkspacePath = useCallback(
     async (path: string) => {
       await workspaceAdapter.ensureWorkspace(path);
@@ -450,6 +495,10 @@ export function App() {
           setSavedArticleHtml(nextArticleHtml);
           setDocumentStyle(nextDocumentStyle);
           setSavedDocumentStyle(nextDocumentStyle);
+          setLastSavedAt(note.updatedAt);
+          setLastSaveError(null);
+          setSaveStatus("saved");
+          lastHistorySnapshotRef.current = { noteId: note.id, at: Date.now(), articleHtml: nextArticleHtml };
           setView("note");
           await refreshBacklinks(path, note.id);
           setStatus(t("app.status.lastFileOpened"));
@@ -461,6 +510,9 @@ export function App() {
   );
 
   const openWorkspace = useCallback(async () => {
+    if (!(await ensureCurrentNoteSafe())) {
+      return;
+    }
     setIsBusy(true);
     try {
       const path = await workspaceAdapter.chooseWorkspace();
@@ -475,7 +527,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [openWorkspacePath, t]);
+  }, [ensureCurrentNoteSafe, openWorkspacePath, t]);
 
   const requestCreateNote = useCallback(() => {
     const template = templates[0];
@@ -640,6 +692,9 @@ export function App() {
       if (!workspace.path) {
         return;
       }
+      if (workspace.activeNote?.id !== note.id && !(await ensureCurrentNoteSafe())) {
+        return;
+      }
 
       setIsBusy(true);
       try {
@@ -654,7 +709,7 @@ export function App() {
         setIsBusy(false);
       }
     },
-    [refreshBacklinks, t, workspace.notes, workspace.path],
+    [ensureCurrentNoteSafe, refreshBacklinks, t, workspace.activeNote?.id, workspace.notes, workspace.path],
   );
 
   const enterSeriousWorkspace = useCallback(async () => {
@@ -677,19 +732,32 @@ export function App() {
       if (!workspace.path) {
         return;
       }
+      if (workspace.activeNote?.id !== result.id && !(await ensureCurrentNoteSafe())) {
+        return;
+      }
 
       const document = await workspaceAdapter.readNote(workspace.path, result.path);
       openNoteDocument(workspace.path, workspace.notes, document);
       setView("note");
       await refreshBacklinks(workspace.path, document.id);
     },
-    [refreshBacklinks, workspace.notes, workspace.path],
+    [ensureCurrentNoteSafe, refreshBacklinks, workspace.activeNote?.id, workspace.notes, workspace.path],
   );
 
-  const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string; documentStyle?: OpalineDocumentStyle } = {}) => {
+  const shouldCreateAutoHistorySnapshot = useCallback((noteId: string, nextArticleHtml: string) => {
+    const previous = lastHistorySnapshotRef.current;
+    if (!previous || previous.noteId !== noteId) {
+      return true;
+    }
+    const elapsed = Date.now() - previous.at;
+    const contentDelta = Math.abs(nextArticleHtml.length - previous.articleHtml.length);
+    return elapsed >= AUTO_HISTORY_SNAPSHOT_INTERVAL_MS || contentDelta >= AUTO_HISTORY_CONTENT_DELTA_CHARS;
+  }, []);
+
+  const saveNote = useCallback(async (options: { silent?: boolean; articleHtml?: string; documentStyle?: OpalineDocumentStyle; createHistory?: boolean } = {}) => {
     if (!workspace.path || !workspace.activeNote) {
       setStatus(t("app.status.noNoteToSave"));
-      return;
+      return false;
     }
 
     const nextArticleHtml = options.articleHtml ?? articleHtml;
@@ -701,7 +769,9 @@ export function App() {
       if (!options.silent) {
         setStatus(t("app.status.noUnsavedChanges"));
       }
-      return;
+      setLastSaveError(null);
+      setSaveStatus("saved");
+      return true;
     }
 
     const html = replaceArticleInDocument(workspace.activeNote.html, nextArticleHtml, workspace.notes, nextDocumentStyle);
@@ -717,16 +787,21 @@ export function App() {
       if (!options.silent) {
         setStatus(t("app.status.noUnsavedChanges"));
       }
-      return;
+      setLastSaveError(null);
+      setSaveStatus("saved");
+      return true;
     }
 
+    const createHistory = options.createHistory ?? (!options.silent || shouldCreateAutoHistorySnapshot(workspace.activeNote.id, nextArticleHtml));
     setIsSaving(true);
+    setSaveStatus("saving");
+    setLastSaveError(null);
     try {
       const saved = await workspaceAdapter.saveNote(workspace.path, {
         ...workspace.activeNote,
         title: titleFromArticleHtml(nextArticleHtml, workspace.activeNote.title),
         html,
-      }, { createHistory: !options.silent });
+      }, { createHistory });
       const notes = await refreshNotes(workspace.path);
       setWorkspace((current) => (
         current.activeNote?.id === saved.id
@@ -743,12 +818,27 @@ export function App() {
       ));
       await refreshBacklinks(workspace.path, saved.id);
       setStatus(options.silent ? t("app.status.autoSaved", { title: saved.title }) : t("app.status.saved", { title: saved.title }));
+      setLastSavedAt(new Date().toISOString());
+      setLastSaveError(null);
+      setSaveStatus("saved");
+      if (createHistory) {
+        lastHistorySnapshotRef.current = { noteId: saved.id, at: Date.now(), articleHtml: nextArticleHtml };
+      }
+      return true;
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t("app.status.saveFailed"));
+      const message = error instanceof Error ? error.message : t("app.status.saveFailed");
+      setStatus(message);
+      setLastSaveError(message);
+      setSaveStatus("error");
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }, [articleHtml, documentStyle, refreshBacklinks, refreshNotes, savedArticleHtml, savedDocumentStyle, t, workspace.activeNote, workspace.notes, workspace.path]);
+  }, [articleHtml, documentStyle, refreshBacklinks, refreshNotes, savedArticleHtml, savedDocumentStyle, shouldCreateAutoHistorySnapshot, t, workspace.activeNote, workspace.notes, workspace.path]);
+
+  useEffect(() => {
+    saveNoteRef.current = saveNote;
+  }, [saveNote]);
 
   const openInternalLink = useCallback(
     async (target: { noteId?: string; notePath?: string; blockId?: string | null; sourceHtml?: string }) => {
@@ -765,7 +855,10 @@ export function App() {
 
       const sourceHtml = target.sourceHtml ?? articleHtml;
       if (sourceHtml !== savedArticleHtml) {
-        await saveNote({ silent: true, articleHtml: sourceHtml });
+        const saved = await saveNote({ silent: true, articleHtml: sourceHtml });
+        if (!saved) {
+          return;
+        }
       }
 
       if (target.blockId) {
@@ -832,6 +925,7 @@ export function App() {
   }, [t]);
 
   const renameNote = useCallback(async (note: NoteSummary) => {
+    if (workspace.activeNote?.id === note.id && !(await ensureCurrentNoteSafe())) return;
     const newTitle = (await askText({
       title: t("dialog.renameTitle"),
       defaultValue: note.title,
@@ -853,7 +947,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [askText, refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [askText, ensureCurrentNoteSafe, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const deleteNote = useCallback(async (note: NoteSummary) => {
     const shouldDelete = await askConfirm({
@@ -879,6 +973,7 @@ export function App() {
   }, [askConfirm, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const moveNote = useCallback(async (note: NoteSummary) => {
+    if (workspace.activeNote?.id === note.id && !(await ensureCurrentNoteSafe())) return;
     const dir = (await askText({
       title: t("dialog.movePrompt"),
       message: t("dialog.folderPromptHelp"),
@@ -901,7 +996,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [askText, refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [askText, ensureCurrentNoteSafe, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const revealNoteInExplorer = useCallback(async (note: NoteSummary) => {
     try {
@@ -935,6 +1030,7 @@ export function App() {
 
   const moveNoteTo = useCallback(async (note: NoteSummary, targetDir: string) => {
     if (!workspace.path) return;
+    if (workspace.activeNote?.id === note.id && !(await ensureCurrentNoteSafe())) return;
     const currentDir = note.path.split("/").slice(0, -1).join("/") || "notes";
     if (currentDir === targetDir) return;
     setIsBusy(true);
@@ -953,7 +1049,7 @@ export function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [refreshNotes, t, workspace.activeNote, workspace.path]);
+  }, [ensureCurrentNoteSafe, refreshNotes, t, workspace.activeNote, workspace.path]);
 
   const importAsset = useCallback(
     async (kind: "image" | "file"): Promise<ImportedAsset | null> => {
@@ -1028,6 +1124,53 @@ export function App() {
 
     return () => window.clearTimeout(timer);
   }, [fileLinkSettings.autoSaveDelayMs, isBusy, isDirty, isSaving, saveNote]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirtyRef.current) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = t("save.beforeUnloadMessage");
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [t]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const appWindow = getCurrentWindow();
+
+    void appWindow.onCloseRequested(async (event) => {
+      if (allowTauriCloseRef.current || !isDirtyRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      const ok = await ensureCurrentNoteSafe();
+      if (!ok || disposed) {
+        return;
+      }
+
+      allowTauriCloseRef.current = true;
+      await appWindow.close();
+    }).then((dispose) => {
+      if (disposed) {
+        dispose();
+      } else {
+        unlisten = dispose;
+      }
+    }).catch(() => {
+      // Browser/demo builds still have beforeunload protection.
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [ensureCurrentNoteSafe]);
 
   useEffect(() => {
     if (!workspace.path) {
@@ -1152,6 +1295,10 @@ export function App() {
     setSavedArticleHtml(nextArticleHtml);
     setDocumentStyle(nextDocumentStyle);
     setSavedDocumentStyle(nextDocumentStyle);
+    setLastSavedAt(note.updatedAt);
+    setLastSaveError(null);
+    setSaveStatus("saved");
+    lastHistorySnapshotRef.current = { noteId: note.id, at: Date.now(), articleHtml: nextArticleHtml };
     setView("note");
   };
   const isVaultView = view === "note" || view === "graph" || view === "stats" || view === "settings";
@@ -1302,7 +1449,13 @@ export function App() {
               <h1>{activeTitle}</h1>
               {view === "note" ? (
                 <p>
-                  {isDirty ? <span className="dirty-dot">{t("common.unsaved")}</span> : null}
+                  <SaveStatusIndicator
+                    status={saveStatus}
+                    lastSavedAt={lastSavedAt}
+                    error={lastSaveError}
+                    locale={locale}
+                    onRetry={() => void saveNote({ createHistory: true })}
+                  />
                   {currentTags.map((tag) => (
                     <span key={tag} className="tag-pill">#{tag}</span>
                   ))}
@@ -1363,6 +1516,7 @@ export function App() {
             onFileLinkSettingsChange={updateFileLinkSettings}
             onStatsSettingsChange={updateStatsSettings}
             onChangeWorkspace={async () => {
+              if (!(await ensureCurrentNoteSafe())) return;
               const newPath = await workspaceAdapter.chooseWorkspace();
               if (!newPath) return;
               const oldPath = workspace.path;
@@ -3091,6 +3245,48 @@ function PluginPolicyRow({
   );
 }
 
+function SaveStatusIndicator({
+  status,
+  lastSavedAt,
+  error,
+  locale,
+  onRetry,
+}: {
+  status: SaveStatus;
+  lastSavedAt: string | null;
+  error: string | null;
+  locale: string;
+  onRetry: () => void;
+}) {
+  const { t } = useI18n();
+  const labelKey = status === "saving"
+    ? "save.status.saving"
+    : status === "dirty"
+      ? "save.status.dirty"
+      : status === "error"
+        ? "save.status.error"
+        : "save.status.saved";
+  const Icon = status === "saving" ? Loader2 : status === "error" ? AlertCircle : CheckCircle2;
+  const savedText = lastSavedAt ? t("save.lastSavedAt", { time: formatSaveTimestamp(lastSavedAt, locale) }) : t("save.lastSavedNever");
+
+  return (
+    <span className={`save-state is-${status}`} role="status" aria-live="polite">
+      <Icon size={14} className={status === "saving" ? "spinner" : undefined} />
+      <span>{t(labelKey)}</span>
+      <span className="save-state-time">{savedText}</span>
+      {status === "error" ? (
+        <>
+          <span className="save-state-error">{error}</span>
+          <button type="button" onClick={onRetry}>
+            <RefreshCw size={13} />
+            <span>{t("save.retry")}</span>
+          </button>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <section className="inspector-section">
@@ -3432,6 +3628,14 @@ const normalizeUpdatedMetaForCompare = (html: string) =>
 
 const formatTime = (iso: string, locale = "zh-CN") =>
   new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+const formatSaveTimestamp = (iso: string, locale = "zh-CN") =>
+  new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));

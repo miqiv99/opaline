@@ -314,6 +314,7 @@ const allowedTags = new Set([
   "th",
   "thead",
   "tr",
+  "u",
   "ul",
 ]);
 
