@@ -19,19 +19,19 @@
         <p>This keeps AI from becoming a plain chat shell: the user's raw expression becomes a local file first, and AI continues from that durable record.</p>
 
         <h2>AI Editor Tool Protocol</h2>
-        <p>The editor now has a command layer that toolbar actions can use, and the same layer can be exposed to future AI note-writing flows. AI should receive tool descriptors, not raw editor internals.</p>
+        <p>The editor now has a unified command registry used by toolbar actions, context menus, slash commands, the command palette, and future AI note-writing flows. AI should receive tool descriptors, not raw editor internals.</p>
         <ul>
-          <li>Each command has an id, localized label key, category, availability check, optional payload schema, and AI metadata.</li>
-          <li>AI-visible metadata records whether a command mutates the note, which permission it needs, whether confirmation is required, and whether a history snapshot should be created.</li>
-          <li>An AI operation plan can be previewed before execution, including unknown commands and whether the plan changes local notes.</li>
-          <li>Execution can create a local history snapshot first and restore the original editor HTML if a command fails.</li>
+          <li>Each command has an id, localized label and description keys, category, group, icon key, shortcut metadata, availability check, optional payload schema, UI visibility metadata, and AI metadata.</li>
+          <li>AI-visible metadata records whether a command mutates the note, which permission it needs, whether confirmation is required, whether a history snapshot should be created, and whether the command is risky or experimental.</li>
+          <li>An AI operation plan can be previewed before execution, including operation details, unknown commands, commands unavailable to AI, risky or experimental commands, and whether the plan changes local notes.</li>
+          <li>Execution validates payload schemas, can require explicit confirmation for mutating plans, can create a local history snapshot first, and can restore the original editor HTML if a command fails.</li>
         </ul>
         <p>This is groundwork. It does not mean AI can silently rewrite notes. User-visible confirmation, source display, and local history remain part of the safety model.</p>
 
         <section lang="zh-Hans" aria-label="中文简介">
           <h2>中文概要</h2>
           <p>这一页说明搜索、AI 和发布的关系。普通搜索解决关键词和结构检索，AI 搜索解决用户不记得旧文档怎么写、但想恢复上下文的问题。</p>
-          <p>当前也加入了 AI 编辑工具协议的基础结构：AI 未来应通过 Opaline 编辑命令层生成操作计划，而不是直接改 HTML 字符串。</p>
+          <p>当前也加入了 AI 编辑工具协议的基础结构：AI 未来应通过 Opaline 统一编辑命令注册表生成操作计划，而不是直接改 HTML 字符串。</p>
           <p>发布功能应该分阶段：先静态导出，再托管发布，最后才是公开知识网络。读者选中文本后搜索作者公开笔记，是长期差异点，不是第一版功能。</p>
           <ul>
             <li>精确搜索负责快速找到关键词、标题、标签和路径。</li>

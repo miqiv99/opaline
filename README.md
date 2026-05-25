@@ -46,8 +46,10 @@ The current alpha already includes:
 - ✓ file explorer with note actions
 - ✓ rich editor blocks: headings, lists, tasks, tables, callouts, images, embeds, math, Mermaid, layouts, disclosures, and code
 - ✓ lightweight document style system for body, headings, callouts, and code blocks, including font family, size, and color controls
-- ✓ editor command layer shared by toolbar actions and future AI editing flows
-- ◐ AI editor tool protocol with JSON schemas, permissions, preview metadata, history-snapshot hooks, and rollback hooks
+- ✓ unified editor command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI editing flows
+- ✓ editor slash command menu for headings, lists, rich blocks, media, math, diagrams, layouts, and disclosure blocks
+- ✓ editor command palette opened from the toolbar or with `Ctrl+Shift+P`
+- ◐ AI editor tool protocol with command descriptors, JSON schema validation, permissions, preview metadata, confirmation gates, history-snapshot hooks, risk metadata, and rollback hooks
 - ◐ SQLite-backed metadata, search direction, tags, headings, links from this note, mentions of this note, and broken-link detection
 - ✓ Relationship map with file, heading, block, and concept-level relationships
 - ✓ local note history snapshots

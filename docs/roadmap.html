@@ -66,7 +66,8 @@
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Tag extraction.</span></li>
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Recent notes.</span></li>
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Favorites.</span></li>
-          <li><span class="status-icon planned" aria-hidden="true">○</span><span>Basic command palette.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Basic editor command palette opened from the toolbar or with <code>Ctrl+Shift+P</code>.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Slash command menu for common editor blocks and insert actions.</span></li>
           <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Broken file detection.</span></li>
         </ul>
 
@@ -101,14 +102,14 @@
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Ordinary-user flows to copy the current block link and insert heading or block links from the editor.</span></li>
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Settings expose built-in widgets, installed extension widgets from <code>.opaline/plugins</code>, and experimental script notes; users can import extension folders instead of editing scripts inside Settings.</span></li>
           <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Concept spans exist, but ordinary-user creation flows still need polish.</span></li>
-          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Core editor actions are routed through an editor command layer.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>Core editor actions are routed through a unified command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI flows.</span></li>
         </ul>
 
         <h2>Phase 5: AI-Assisted Knowledge Work</h2>
         <ul class="status-list">
           <li><span class="status-icon done" aria-hidden="true">✓</span><span>Configure AI providers, custom API base URLs, models, keys, model tests, and model fetching from Settings.</span></li>
           <li><span class="status-icon partial" aria-hidden="true">◐</span><span>Continue the Today conversation after recording the user's raw text locally.</span></li>
-          <li><span class="status-icon done" aria-hidden="true">✓</span><span>AI-visible editor tool protocol with command schemas, permission metadata, preview metadata, history-snapshot hooks, and rollback hooks.</span></li>
+          <li><span class="status-icon done" aria-hidden="true">✓</span><span>AI-visible editor tool protocol with command descriptors, JSON schema validation, permission metadata, preview metadata, confirmation gates, risk metadata, history-snapshot hooks, and rollback hooks.</span></li>
           <li><span class="status-icon planned" aria-hidden="true">○</span><span>Summarize a note.</span></li>
           <li><span class="status-icon planned" aria-hidden="true">○</span><span>Generate titles.</span></li>
           <li><span class="status-icon planned" aria-hidden="true">○</span><span>Extract tags.</span></li>

@@ -189,8 +189,10 @@
           <li>AI settings with provider selection, custom API base URL, model, API key, explicit save, model testing, and model fetching.</li>
           <li>Clean Opaline HTML Profile helpers and tests.</li>
           <li>Lightweight document styles for body text, headings, callouts, and code blocks, with font family, font size, and color controls.</li>
-          <li>Editor command layer shared by toolbar actions and future AI editing flows.</li>
-          <li>AI editor tool protocol with command schemas, permission metadata, preview metadata, history-snapshot hooks, and rollback hooks.</li>
+          <li>Unified editor command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI editing flows.</li>
+          <li>Slash command menu for headings, lists, rich blocks, media, math, diagrams, layouts, and disclosure blocks.</li>
+          <li>Editor command palette opened from the toolbar or with <code>Ctrl+Shift+P</code>.</li>
+          <li>AI editor tool protocol with command descriptors, JSON schema validation, permission metadata, preview metadata, confirmation gates, history-snapshot hooks, risk metadata, and rollback hooks.</li>
           <li>SQLite-backed metadata and search direction, with FTS participation already introduced for search.</li>
           <li>Link scanning for ordinary links, title shortcut links, block links, note mentions, links from this note, and broken links.</li>
           <li>Relationship data now distinguishes file-level, heading-level, block-level, and concept-level links for Relationship map modeling.</li>
@@ -214,7 +216,7 @@
           <li><strong>DOM-level atomic links:</strong> blocks keep <code>data-opaline-block-id</code>, and the editor now exposes copy/insert flows for stable heading and block links.</li>
           <li><strong>Dynamic relationship map:</strong> the map keeps file, heading, block, and concept relations separate, can focus on the active note context, and lets users inspect edge details.</li>
           <li><strong>Document styles:</strong> notes can store one controlled <code>data-opaline-theme</code> block for body, heading, callout, and code styles instead of scattering unstable inline styles through the document.</li>
-          <li><strong>Command-driven editing:</strong> toolbar actions now route through editor commands so future AI plans can call the same safe operations.</li>
+          <li><strong>Command-driven editing:</strong> toolbar actions, context menus, slash commands, the command palette, and future AI plans now route through the same editor command registry.</li>
         </ul>
 
         <h2>Today Conversation</h2>
@@ -243,7 +245,7 @@
           <li>Improve the relationship-map view beyond the first context and edge-detail pass: better layout, saved map presets, and clearer navigation from edges back to exact targets.</li>
           <li>Add ordinary-user creation flows for concept links and cross-note heading/block targets from the editor context menu.</li>
           <li>Improve HTML-native editing affordances so rich blocks feel like interactive UI rather than hidden markup.</li>
-          <li>Wire AI-generated operation plans into a reviewed, user-confirmed editing flow.</li>
+          <li>Wire AI-generated operation plans into a reviewed, user-confirmed editing flow using the command registry, preview metadata, schema validation, and rollback hooks.</li>
           <li>Configure the GitHub updater endpoint, signing key, and release assets before public update delivery.</li>
           <li>Continue hardening the Opaline HTML Profile with parser-based validation and tests.</li>
           <li>Deepen SQLite FTS search, metadata scanning, mentions, and broken-link repair.</li>
