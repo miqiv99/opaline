@@ -24,6 +24,21 @@ Workspace diagnostics are read-only: they inspect HTML notes, local asset refere
 
 The explicit index rebuild command only refreshes derived SQLite metadata such as note rows, full-text search content, tags, headings, and link relations. It does not modify HTML note files.
 
+## Backup and Migration Safety
+
+The built-in workspace backup command creates a normal timestamped folder such as `opaline-backup-YYYYMMDD-HHMMSS/`. It includes durable user data:
+
+- `notes/`
+- `assets/`
+- `.opaline/settings.json`
+- `.opaline/history/` when present
+
+Backups skip `.opaline/cache/` and the SQLite index by default. The index is derived data and can be rebuilt from HTML notes; skipping it keeps backups focused on user-owned source files and recovery history.
+
+Before creating a backup, Opaline checks that the workspace exists, included sections can be read, the target location is writable, and the expected file count and byte size are known. The backup is first written to a temporary folder and only renamed to the final backup path after copying and verification. If backup creation fails, the source workspace is not modified and temporary output is removed.
+
+Workspace migration is copy-first. Opaline preflights the source and target, refuses non-empty targets and overwrite conflicts, rejects recursive copies such as a target inside the source workspace, copies to a temporary target, verifies file count, byte size, and key files, and then switches the app to the new workspace. The old workspace is kept at its original path for user-controlled recovery.
+
 ## Network Behavior
 
 Opaline does not need a cloud account for local note editing.

@@ -1,4 +1,13 @@
-import type { AssetImport, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, WorkspaceDiagnostics } from "../domain/note";
+import type {
+  AssetImport,
+  NewNoteInput,
+  NoteDocument,
+  NoteHistoryEntry,
+  NoteSummary,
+  WorkspaceBackupPreview,
+  WorkspaceDiagnostics,
+  WorkspaceMigrationPreview,
+} from "../domain/note";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 const demoWorkspacePath = "demo://workspace";
@@ -316,12 +325,108 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     return [];
   },
 
-  async copyWorkspace() {},
+  async previewWorkspaceBackup() {
+    return unsupportedBackupPreview();
+  },
 
-  async moveWorkspace() {},
+  async createWorkspaceBackup() {
+    throw new Error("Demo mode cannot create local workspace backups.");
+  },
+
+  async previewWorkspaceMigration(_source: string, destination: string) {
+    return unsupportedMigrationPreview(destination);
+  },
+
+  async migrateWorkspace() {
+    throw new Error("Demo mode cannot migrate local workspaces.");
+  },
+
+  async copyWorkspace(_source: string, destination: string) {
+    return {
+      workspacePath: destination,
+      sourcePath: demoWorkspacePath,
+      fileCount: notes.length,
+      totalBytes: notes.reduce((total, note) => total + note.html.length, 0),
+      elapsedMs: 0,
+      warnings: [{
+        code: "demo_mode",
+        path: null,
+        message: "Demo mode does not copy local workspace files.",
+      }],
+      verification: {
+        fileCountMatches: true,
+        totalBytesMatches: true,
+        keyFilesPresent: true,
+        diagnosticsRan: false,
+        diagnosticsErrorCount: null,
+        diagnosticsWarningCount: null,
+        diagnosticsNeedsIndexRebuild: null,
+      },
+    };
+  },
+
+  async moveWorkspace(_source: string, destination: string) {
+    return {
+      workspacePath: destination,
+      sourcePath: demoWorkspacePath,
+      fileCount: notes.length,
+      totalBytes: notes.reduce((total, note) => total + note.html.length, 0),
+      elapsedMs: 0,
+      warnings: [{
+        code: "demo_mode",
+        path: null,
+        message: "Demo mode does not move local workspace files.",
+      }],
+      verification: {
+        fileCountMatches: true,
+        totalBytesMatches: true,
+        keyFilesPresent: true,
+        diagnosticsRan: false,
+        diagnosticsErrorCount: null,
+        diagnosticsWarningCount: null,
+        diagnosticsNeedsIndexRebuild: null,
+      },
+    };
+  },
 
   async writeExportFile(_filePath: string, _content: string) {},
 };
+
+const unsupportedBackupPreview = (): WorkspaceBackupPreview => ({
+  workspacePath: demoWorkspacePath,
+  backupPath: "demo://unsupported/opaline-backup",
+  fileCount: notes.length,
+  totalBytes: notes.reduce((total, note) => total + note.html.length, 0),
+  includedSections: [],
+  sections: [],
+  warnings: [],
+  errors: [{
+    code: "demo_mode",
+    path: null,
+    message: "Demo mode cannot inspect local workspace folders.",
+  }],
+  ready: false,
+});
+
+const unsupportedMigrationPreview = (destination: string): WorkspaceMigrationPreview => ({
+  sourcePath: demoWorkspacePath,
+  targetPath: destination,
+  fileCount: notes.length,
+  totalBytes: notes.reduce((total, note) => total + note.html.length, 0),
+  targetExists: false,
+  targetIsEmpty: false,
+  targetIsOpalineWorkspace: false,
+  wouldOverwrite: false,
+  conflictCount: 0,
+  conflicts: [],
+  warnings: [],
+  errors: [{
+    code: "demo_mode",
+    path: null,
+    message: "Demo mode cannot inspect local workspace folders.",
+  }],
+  ready: false,
+});
 
 const demoDiagnostics = (): WorkspaceDiagnostics => ({
   summary: {

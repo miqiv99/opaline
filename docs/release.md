@@ -36,6 +36,19 @@ Current alpha behavior:
 
 GitHub updater setup: [docs/updater-github.md](updater-github.md)
 
+## Alpha Workspace Safety
+
+Before testing alpha builds with important notes, use Settings → Workspace backup to create a timestamped backup folder. The backup includes `notes/`, `assets/`, `.opaline/settings.json`, and `.opaline/history/` when present. It does not include `.opaline/cache/` or the derived SQLite index by default.
+
+Changing workspace location uses a conservative migration flow:
+
+- The app previews source and target paths, file count, byte size, unreadable files, recursive path risks, and overwrite conflicts.
+- Targets with existing content are rejected rather than merged.
+- Migration copies into a temporary target, verifies the copy, updates the active workspace path, and leaves the old workspace untouched.
+- Failed backup or migration attempts should leave the source workspace unchanged and remove temporary output.
+
+SQLite index drift after a migration is recoverable with the explicit rebuild command because HTML notes remain the durable source of truth.
+
 ## Windows
 
 Windows remains the primary active development target right now.

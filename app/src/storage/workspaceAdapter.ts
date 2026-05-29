@@ -7,7 +7,11 @@ import type {
   NoteHistoryEntry,
   NoteSummary,
   SearchResult,
+  WorkspaceBackupPreview,
+  WorkspaceBackupResult,
   WorkspaceDiagnostics,
+  WorkspaceMigrationPreview,
+  WorkspaceMigrationResult,
 } from "../domain/note";
 import type { InstalledPlugin } from "../editor/pluginRegistry";
 import type { LoadedLanguagePack } from "../i18n";
@@ -44,7 +48,11 @@ export interface WorkspaceAdapter {
   openLanguagePacksFolder?(path: string): Promise<void>;
   openPluginsFolder?(path: string): Promise<void>;
   listInstalledPlugins?(path: string): Promise<InstalledPlugin[]>;
-  copyWorkspace?(source: string, destination: string): Promise<void>;
-  moveWorkspace?(source: string, destination: string): Promise<void>;
+  previewWorkspaceBackup?(path: string, backupParent?: string): Promise<WorkspaceBackupPreview>;
+  createWorkspaceBackup?(path: string, backupPath?: string): Promise<WorkspaceBackupResult>;
+  previewWorkspaceMigration?(source: string, destination: string): Promise<WorkspaceMigrationPreview>;
+  migrateWorkspace?(source: string, destination: string): Promise<WorkspaceMigrationResult>;
+  copyWorkspace?(source: string, destination: string): Promise<WorkspaceMigrationResult>;
+  moveWorkspace?(source: string, destination: string): Promise<WorkspaceMigrationResult>;
   writeExportFile?(filePath: string, content: string): Promise<void>;
 }

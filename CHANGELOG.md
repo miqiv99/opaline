@@ -33,7 +33,7 @@ Initial public alpha preparation.
 Known alpha limitations:
 
 - Release builds are unsigned unless a release explicitly says otherwise.
-- Workspace migration still needs a complete user-facing flow.
+- Workspace migration now has a conservative backup-first, copy-only user-facing flow with preflight checks.
 - Block-link target highlighting is not yet fully reliable in the desktop editor.
 - Updater configuration is intentionally inert until a real release channel is configured.
 - Public publishing is planned but not included in the first alpha.

@@ -55,6 +55,8 @@ The current alpha already includes:
 - ✓ Explicit SQLite index rebuild that refreshes derived metadata without modifying HTML note files
 - ✓ Relationship map with file, heading, block, and concept-level relationships
 - ✓ local note history snapshots
+- ✓ workspace backup/export with preflight checks for notes, assets, settings, and local history
+- ✓ safe workspace migration preflight and copy flow that preserves the old workspace
 - ✓ AI settings for provider, base URL, model, API key, model test, and model fetching
 - ◐ experimental live widgets and extension folder support
 - ✓ manual update check and install flow backed by signed GitHub Release update metadata for Windows x64 and macOS Apple Silicon
@@ -66,7 +68,7 @@ The public alpha currently opens into the focused workspace. The earlier casual 
 
 ## Still Rough
 
-- Workspace migration needs a complete user-facing flow.
+- Workspace migration currently uses a conservative copy-only flow; future releases can add richer restore and cleanup helpers.
 - Some file operations and history controls need more polish.
 - Creating concept-level links from selected text still needs a friendlier UI.
 - Block-link target highlighting can still be unreliable in the desktop editor.
@@ -111,6 +113,8 @@ Opaline/
 - `notes/` contains durable HTML notes.
 - `assets/` contains images and files.
 - `.opaline/` contains metadata, settings, indexes, cache, and history snapshots.
+- Workspace backups include `notes/`, `assets/`, `.opaline/settings.json`, and `.opaline/history/` when present. They skip `.opaline/cache/` and the derived SQLite index by default.
+- Workspace migration copies the workspace to the new location, verifies the copy, updates Opaline to use it, and leaves the old workspace untouched.
 
 Local editing does not require a cloud account. Network access can happen when users configure AI providers, fetch model lists, run extensions or scripts, or open external links.
 

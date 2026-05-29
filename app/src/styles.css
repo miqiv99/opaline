@@ -3589,6 +3589,127 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
+.settings-backup-block {
+  display: grid;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.settings-backup-heading {
+  align-items: start;
+}
+
+.workspace-operation-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--xz-border);
+  padding-top: 14px;
+}
+
+.workspace-operation-panel.is-success {
+  border-color: rgba(34, 168, 115, 0.24);
+}
+
+.operation-safety-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(34, 168, 115, 0.18);
+  border-radius: 10px;
+  background: rgba(34, 168, 115, 0.06);
+  color: var(--xz-text-secondary);
+  padding: 11px 12px;
+  line-height: 1.45;
+}
+
+.operation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.operation-metric {
+  min-width: 0;
+  border: 1px solid var(--xz-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.64);
+  padding: 12px;
+}
+
+.operation-metric span {
+  display: block;
+  color: var(--xz-text-secondary);
+  font-size: 0.78rem;
+}
+
+.operation-metric strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 0.98rem;
+}
+
+.workspace-section-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-section-item {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid var(--xz-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.52);
+  padding: 10px 12px;
+}
+
+.workspace-section-item.is-muted {
+  opacity: 0.68;
+}
+
+.workspace-section-item strong {
+  font-size: 0.9rem;
+}
+
+.workspace-section-item span {
+  color: var(--xz-text-secondary);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.operation-message-list {
+  display: grid;
+  gap: 7px;
+}
+
+.operation-message-list p {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.operation-message-list.is-error p {
+  border: 1px solid rgba(195, 72, 52, 0.22);
+  background: rgba(255, 241, 238, 0.82);
+  color: #89362c;
+}
+
+.operation-message-list.is-warning p {
+  border: 1px solid rgba(210, 112, 64, 0.24);
+  background: rgba(255, 247, 242, 0.86);
+  color: #8b4b29;
+}
+
+.operation-message-list code {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
 .diagnostics-safety-note,
 .diagnostics-index-state {
   display: flex;
@@ -4646,6 +4767,10 @@ textarea:focus-visible,
   padding: 22px;
 }
 
+.migration-dialog {
+  width: min(640px, 100%);
+}
+
 .note-dialog-header {
   display: flex;
   gap: 14px;
@@ -5365,6 +5490,15 @@ textarea:focus-visible,
   .shortcut-capture-controls input {
     width: 100%;
     min-width: 0;
+  }
+
+  .diagnostics-actions {
+    justify-content: flex-start;
+  }
+
+  .operation-summary-grid,
+  .workspace-section-item {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .is-note-mode .toolbar {

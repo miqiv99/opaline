@@ -9,7 +9,11 @@ import type {
   NoteHistoryEntry,
   NoteSummary,
   SearchResult,
+  WorkspaceBackupPreview,
+  WorkspaceBackupResult,
   WorkspaceDiagnostics,
+  WorkspaceMigrationPreview,
+  WorkspaceMigrationResult,
 } from "../domain/note";
 import { saveInstalledPluginsToCache, type InstalledPlugin } from "../editor/pluginRegistry";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
@@ -149,12 +153,28 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
     return plugins;
   },
 
+  async previewWorkspaceBackup(path: string, backupParent?: string) {
+    return invoke<WorkspaceBackupPreview>("preview_workspace_backup", { path, backupParent });
+  },
+
+  async createWorkspaceBackup(path: string, backupPath?: string) {
+    return invoke<WorkspaceBackupResult>("create_workspace_backup", { path, backupPath });
+  },
+
+  async previewWorkspaceMigration(source: string, destination: string) {
+    return invoke<WorkspaceMigrationPreview>("preview_workspace_migration", { source, destination });
+  },
+
+  async migrateWorkspace(source: string, destination: string) {
+    return invoke<WorkspaceMigrationResult>("migrate_workspace", { source, destination });
+  },
+
   async copyWorkspace(source: string, destination: string) {
-    await invoke("copy_workspace", { source, destination });
+    return invoke<WorkspaceMigrationResult>("copy_workspace", { source, destination });
   },
 
   async moveWorkspace(source: string, destination: string) {
-    await invoke("move_workspace", { source, destination });
+    return invoke<WorkspaceMigrationResult>("move_workspace", { source, destination });
   },
 
   async writeExportFile(filePath: string, content: string) {

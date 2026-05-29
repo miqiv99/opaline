@@ -30,7 +30,9 @@
         <p>AI keys are user-provided secrets. Public alpha builds should not be used with sensitive production credentials unless the user has reviewed the code and understands the risk.</p>
 
         <h2>Backups</h2>
-        <p>Before testing alpha builds with important notes, back up the workspace folder.</p>
+        <p>Before testing alpha builds with important notes, use the built-in workspace backup flow or make a manual copy of the workspace folder.</p>
+        <p>The built-in backup creates a timestamped folder such as <code>opaline-backup-YYYYMMDD-HHMMSS/</code>. It includes <code>notes/</code>, <code>assets/</code>, <code>.opaline/settings.json</code>, and <code>.opaline/history/</code> when present. It skips <code>.opaline/cache/</code> and the derived SQLite index by default.</p>
+        <p>Backup and migration both preflight readable files and target writability, write to temporary folders first, and remove temporary output on failure. Migration is copy-first: after verification Opaline points at the new workspace, while the old workspace remains at its original path.</p>
 
         <p>Markdown version: <a href="data-and-privacy.md">data-and-privacy.md</a></p>
       </article>

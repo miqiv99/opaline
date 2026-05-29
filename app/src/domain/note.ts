@@ -122,6 +122,78 @@ export type WorkspaceDiagnostics = {
   issues: WorkspaceDiagnosticIssue[];
 };
 
+export type WorkspaceOperationMessage = {
+  code: string;
+  path?: string | null;
+  message: string;
+};
+
+export type WorkspaceDataSection = {
+  id: "notes" | "assets" | "settings" | "history" | string;
+  path: string;
+  exists: boolean;
+  included: boolean;
+  fileCount: number;
+  totalBytes: number;
+};
+
+export type WorkspaceBackupPreview = {
+  workspacePath: string;
+  backupPath: string;
+  fileCount: number;
+  totalBytes: number;
+  includedSections: string[];
+  sections: WorkspaceDataSection[];
+  warnings: WorkspaceOperationMessage[];
+  errors: WorkspaceOperationMessage[];
+  ready: boolean;
+};
+
+export type WorkspaceBackupResult = {
+  backupPath: string;
+  fileCount: number;
+  totalBytes: number;
+  includedSections: string[];
+  warnings: WorkspaceOperationMessage[];
+  elapsedMs: number;
+};
+
+export type WorkspaceMigrationPreview = {
+  sourcePath: string;
+  targetPath: string;
+  fileCount: number;
+  totalBytes: number;
+  targetExists: boolean;
+  targetIsEmpty: boolean;
+  targetIsOpalineWorkspace: boolean;
+  wouldOverwrite: boolean;
+  conflictCount: number;
+  conflicts: WorkspaceOperationMessage[];
+  warnings: WorkspaceOperationMessage[];
+  errors: WorkspaceOperationMessage[];
+  ready: boolean;
+};
+
+export type WorkspaceMigrationVerification = {
+  fileCountMatches: boolean;
+  totalBytesMatches: boolean;
+  keyFilesPresent: boolean;
+  diagnosticsRan: boolean;
+  diagnosticsErrorCount?: number | null;
+  diagnosticsWarningCount?: number | null;
+  diagnosticsNeedsIndexRebuild?: boolean | null;
+};
+
+export type WorkspaceMigrationResult = {
+  workspacePath: string;
+  sourcePath: string;
+  fileCount: number;
+  totalBytes: number;
+  elapsedMs: number;
+  warnings: WorkspaceOperationMessage[];
+  verification: WorkspaceMigrationVerification;
+};
+
 export type AssetImport = {
   sourcePath: string;
   kind: "image" | "file";

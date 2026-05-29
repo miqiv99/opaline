@@ -76,7 +76,24 @@ import {
   type InstalledPlugin,
 } from "./editor/pluginRegistry";
 import { markdownTitle } from "./editor/markdownImport";
-import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, SearchResult, WorkspaceDiagnosticIssue, WorkspaceDiagnostics, WorkspaceState } from "./domain/note";
+import type {
+  GraphData,
+  ImportedAsset,
+  LinkKind,
+  NewNoteInput,
+  NoteDocument,
+  NoteHistoryEntry,
+  NoteSummary,
+  SearchResult,
+  WorkspaceBackupPreview,
+  WorkspaceBackupResult,
+  WorkspaceDiagnosticIssue,
+  WorkspaceDiagnostics,
+  WorkspaceMigrationPreview,
+  WorkspaceMigrationResult,
+  WorkspaceOperationMessage,
+  WorkspaceState,
+} from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-mark.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
@@ -544,6 +561,20 @@ export function App() {
     },
     [fileLinkSettings.defaultOpenFile, refreshBacklinks, refreshNotes, t],
   );
+
+  const previewWorkspaceMigration = useCallback(async (source: string, destination: string) => {
+    if (!workspaceAdapter.previewWorkspaceMigration) {
+      throw new Error(t("migration.unsupported"));
+    }
+    return workspaceAdapter.previewWorkspaceMigration(source, destination);
+  }, [t]);
+
+  const runWorkspaceMigration = useCallback(async (source: string, destination: string) => {
+    if (!workspaceAdapter.migrateWorkspace) {
+      throw new Error(t("migration.unsupported"));
+    }
+    return workspaceAdapter.migrateWorkspace(source, destination);
+  }, [t]);
 
   const openWorkspace = useCallback(async () => {
     if (!(await ensureCurrentNoteSafe())) {
@@ -1731,15 +1762,10 @@ export function App() {
         open={migrationDialog !== null}
         oldPath={migrationDialog?.oldPath ?? ""}
         newPath={migrationDialog?.newPath ?? ""}
-        onCopy={async () => {
-          await workspaceAdapter.copyWorkspace!(migrationDialog!.oldPath, migrationDialog!.newPath);
-          await openWorkspacePath(migrationDialog!.newPath);
-          setMigrationDialog(null);
-        }}
-        onMove={async () => {
-          await workspaceAdapter.moveWorkspace!(migrationDialog!.oldPath, migrationDialog!.newPath);
-          await openWorkspacePath(migrationDialog!.newPath);
-          setMigrationDialog(null);
+        onPreview={previewWorkspaceMigration}
+        onMigrate={runWorkspaceMigration}
+        onSuccess={async (result) => {
+          await openWorkspacePath(result.workspacePath);
         }}
         onCancel={() => setMigrationDialog(null)}
       />
@@ -2884,7 +2910,180 @@ function FileLinksSettingsPanel({
           {t("action.change")}
         </button>
       </div>
+      <WorkspaceBackupPanel workspacePath={workspacePath} />
     </section>
+  );
+}
+
+function WorkspaceBackupPanel({ workspacePath }: { workspacePath: string | null }) {
+  const { t } = useI18n();
+  const [preview, setPreview] = useState<WorkspaceBackupPreview | null>(null);
+  const [result, setResult] = useState<WorkspaceBackupResult | null>(null);
+  const [running, setRunning] = useState<"preview" | "create" | null>(null);
+  const [status, setStatus] = useState("");
+
+  const runPreview = useCallback(async () => {
+    if (!workspacePath) {
+      setStatus(t("settings.workspaceNotReady"));
+      return null;
+    }
+    if (!workspaceAdapter.previewWorkspaceBackup) {
+      setStatus(t("backup.unsupported"));
+      return null;
+    }
+    setRunning("preview");
+    setStatus(t("backup.previewRunning"));
+    setResult(null);
+    try {
+      const nextPreview = await workspaceAdapter.previewWorkspaceBackup(workspacePath);
+      setPreview(nextPreview);
+      setStatus(nextPreview.ready ? t("backup.previewReady") : t("backup.previewNeedsAttention"));
+      return nextPreview;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("backup.previewFailed"));
+      return null;
+    } finally {
+      setRunning(null);
+    }
+  }, [t, workspacePath]);
+
+  const createBackup = useCallback(async () => {
+    if (!workspacePath) {
+      setStatus(t("settings.workspaceNotReady"));
+      return;
+    }
+    if (!workspaceAdapter.createWorkspaceBackup) {
+      setStatus(t("backup.unsupported"));
+      return;
+    }
+    const currentPreview = preview?.ready ? preview : await runPreview();
+    if (!currentPreview?.ready) {
+      setStatus(t("backup.previewRequired"));
+      return;
+    }
+    setRunning("create");
+    setStatus(t("backup.createRunning"));
+    try {
+      const nextResult = await workspaceAdapter.createWorkspaceBackup(workspacePath, currentPreview.backupPath);
+      setResult(nextResult);
+      setStatus(t("backup.createDone"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("backup.createFailed"));
+    } finally {
+      setRunning(null);
+    }
+  }, [preview, runPreview, t, workspacePath]);
+
+  return (
+    <div className="settings-backup-block">
+      <div className="settings-choice-row settings-backup-heading">
+        <div>
+          <strong>{t("backup.title")}</strong>
+          <small>{t("backup.desc")}</small>
+        </div>
+        <div className="diagnostics-actions">
+          <button type="button" className="secondary-action-button" onClick={() => void runPreview()} disabled={running !== null || !workspacePath}>
+            {running === "preview" ? <Loader2 size={15} className="spinner" /> : <ListChecks size={15} />}
+            <span>{running === "preview" ? t("backup.previewing") : t("backup.preview")}</span>
+          </button>
+          <button type="button" className="secondary-action-button" onClick={() => void createBackup()} disabled={running !== null || !workspacePath}>
+            {running === "create" ? <Loader2 size={15} className="spinner" /> : <DownloadCloud size={15} />}
+            <span>{running === "create" ? t("backup.creating") : t("backup.create")}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="operation-safety-note">
+        <ShieldCheck size={16} />
+        <span>{t("backup.safetyNote")}</span>
+      </div>
+
+      {preview ? (
+        <div className="workspace-operation-panel">
+          <div className="migration-paths">
+            <div className="migration-path-row">
+              <span>{t("backup.targetPath")}</span>
+              <code>{preview.backupPath}</code>
+            </div>
+          </div>
+          <div className="operation-summary-grid">
+            <OperationMetric label={t("backup.fileCount")} value={String(preview.fileCount)} />
+            <OperationMetric label={t("backup.totalSize")} value={formatBytes(preview.totalBytes)} />
+            <OperationMetric label={t("backup.ready")} value={preview.ready ? t("common.yes") : t("common.no")} />
+            <OperationMetric label={t("backup.sections")} value={preview.includedSections.map((section) => t(`workspace.section.${section}`)).join(", ")} />
+          </div>
+          <div className="workspace-section-list">
+            {preview.sections.map((section) => (
+              <div className={section.included ? "workspace-section-item" : "workspace-section-item is-muted"} key={section.id}>
+                <strong>{t(`workspace.section.${section.id}`)}</strong>
+                <span>{section.exists ? t("backup.sectionIncludedStats", {
+                  count: section.fileCount,
+                  size: formatBytes(section.totalBytes),
+                }) : t("backup.sectionMissing")}</span>
+              </div>
+            ))}
+          </div>
+          <WorkspaceOperationMessages messages={preview.errors} kind="error" prefix="backup.error" />
+          <WorkspaceOperationMessages messages={preview.warnings} kind="warning" prefix="backup.warning" />
+        </div>
+      ) : null}
+
+      {result ? (
+        <div className="workspace-operation-panel is-success">
+          <div className="migration-paths">
+            <div className="migration-path-row">
+              <span>{t("backup.createdPath")}</span>
+              <code>{result.backupPath}</code>
+            </div>
+          </div>
+          <div className="operation-summary-grid">
+            <OperationMetric label={t("backup.fileCount")} value={String(result.fileCount)} />
+            <OperationMetric label={t("backup.totalSize")} value={formatBytes(result.totalBytes)} />
+            <OperationMetric label={t("backup.elapsed")} value={t("backup.elapsedMs", { ms: result.elapsedMs })} />
+            <OperationMetric label={t("backup.sections")} value={result.includedSections.map((section) => t(`workspace.section.${section}`)).join(", ")} />
+          </div>
+          <WorkspaceOperationMessages messages={result.warnings} kind="warning" prefix="backup.warning" />
+        </div>
+      ) : null}
+
+      {status ? <p className="plugin-status-text">{status}</p> : null}
+    </div>
+  );
+}
+
+function OperationMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="operation-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function WorkspaceOperationMessages({
+  messages,
+  kind,
+  prefix,
+}: {
+  messages: WorkspaceOperationMessage[];
+  kind: "error" | "warning";
+  prefix: string;
+}) {
+  const { t } = useI18n();
+  if (!messages.length) return null;
+  return (
+    <div className={`operation-message-list is-${kind}`}>
+      {messages.map((message, index) => {
+        const key = `${prefix}.${message.code}`;
+        const translated = t(key);
+        return (
+          <p key={`${message.code}-${message.path ?? "workspace"}-${index}`}>
+            <strong>{translated === key ? message.message : translated}</strong>
+            {message.path ? <code>{message.path}</code> : null}
+          </p>
+        );
+      })}
+    </div>
   );
 }
 

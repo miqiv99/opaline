@@ -27,7 +27,7 @@
         </section>
 
         <h2>Workspace Model</h2>
-        <p>The desktop app creates a default <code>Opaline</code> workspace under the user's documents folder. Users can change this location from Settings; the next step is a migration flow that can copy or move files from the previous workspace into the new one.</p>
+        <p>The desktop app creates a default <code>Opaline</code> workspace under the user's documents folder. Users can change this location from Settings through a preflighted migration flow that copies the old workspace to the new location and keeps the old workspace in place.</p>
         <pre><code>MyNotes/
   notes/
     index.html
@@ -50,6 +50,12 @@
           <li>The workspace should remain inspectable in normal file browsers.</li>
           <li>Workspace location is a user setting, not a first-launch obstacle.</li>
         </ul>
+
+        <h2>Backup and Migration</h2>
+        <p>Workspace backup is a formal storage adapter capability, not a React-side file operation. The desktop command creates a timestamped folder such as <code>opaline-backup-YYYYMMDD-HHMMSS/</code> after checking that the workspace exists, included files can be read, the target is writable, and the expected file count and byte total are known.</p>
+        <p>Backups include <code>notes/</code>, <code>assets/</code>, <code>.opaline/settings.json</code>, and <code>.opaline/history/</code> when present. They skip <code>.opaline/cache/</code> and the SQLite index by default because the index is derived from HTML notes and can be rebuilt.</p>
+        <p>Backup and migration both write to temporary folders first, verify copied files, and only then rename or activate the final target. A failed operation should leave the source workspace unchanged and should not leave a final-looking partial backup or workspace.</p>
+        <p>Migration rejects non-empty targets, overwrite conflicts, a target inside the source workspace, and a source inside the target path. The current migration behavior is copy-first: it updates Opaline to the new workspace after verification and leaves the old workspace for the user to remove manually later.</p>
 
         <h2>Storage Rule</h2>
         <blockquote>

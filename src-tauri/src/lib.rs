@@ -175,6 +175,92 @@ struct WorkspaceDiagnosticIssue {
     message: String,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceOperationMessage {
+    code: String,
+    path: Option<String>,
+    message: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDataSection {
+    id: String,
+    path: String,
+    exists: bool,
+    included: bool,
+    file_count: usize,
+    total_bytes: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceBackupPreview {
+    workspace_path: String,
+    backup_path: String,
+    file_count: usize,
+    total_bytes: u64,
+    included_sections: Vec<String>,
+    sections: Vec<WorkspaceDataSection>,
+    warnings: Vec<WorkspaceOperationMessage>,
+    errors: Vec<WorkspaceOperationMessage>,
+    ready: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceBackupResult {
+    backup_path: String,
+    file_count: usize,
+    total_bytes: u64,
+    included_sections: Vec<String>,
+    warnings: Vec<WorkspaceOperationMessage>,
+    elapsed_ms: u128,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceMigrationPreview {
+    source_path: String,
+    target_path: String,
+    file_count: usize,
+    total_bytes: u64,
+    target_exists: bool,
+    target_is_empty: bool,
+    target_is_opaline_workspace: bool,
+    would_overwrite: bool,
+    conflict_count: usize,
+    conflicts: Vec<WorkspaceOperationMessage>,
+    warnings: Vec<WorkspaceOperationMessage>,
+    errors: Vec<WorkspaceOperationMessage>,
+    ready: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceMigrationVerification {
+    file_count_matches: bool,
+    total_bytes_matches: bool,
+    key_files_present: bool,
+    diagnostics_ran: bool,
+    diagnostics_error_count: Option<usize>,
+    diagnostics_warning_count: Option<usize>,
+    diagnostics_needs_index_rebuild: Option<bool>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceMigrationResult {
+    workspace_path: String,
+    source_path: String,
+    file_count: usize,
+    total_bytes: u64,
+    elapsed_ms: u128,
+    warnings: Vec<WorkspaceOperationMessage>,
+    verification: WorkspaceMigrationVerification,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AssetImport {
@@ -1382,38 +1468,54 @@ fn plugin_shell_exec(input: PluginShellExecInput) -> Result<PluginShellExecResul
 }
 
 #[tauri::command]
-fn copy_workspace(source: String, destination: String) -> Result<(), String> {
-    let src = PathBuf::from(&source);
-    let dst = PathBuf::from(&destination);
-
-    if !src.exists() {
-        return Err("源工作区不存在".to_string());
-    }
-
-    fs::create_dir_all(&dst).map_err(to_error)?;
-
-    for entry in WalkDir::new(&src).into_iter().filter_map(Result::ok) {
-        let relative = entry.path().strip_prefix(&src).map_err(to_error)?;
-        let target = dst.join(relative);
-
-        if entry.file_type().is_dir() {
-            fs::create_dir_all(&target).map_err(to_error)?;
-        } else {
-            if let Some(parent) = target.parent() {
-                fs::create_dir_all(parent).map_err(to_error)?;
-            }
-            fs::copy(entry.path(), &target).map_err(to_error)?;
-        }
-    }
-
-    Ok(())
+fn preview_workspace_backup(
+    path: String,
+    backup_parent: Option<String>,
+) -> Result<WorkspaceBackupPreview, String> {
+    let workspace = workspace_path(&path)?;
+    let backup_path = match backup_parent {
+        Some(parent) => next_workspace_backup_path_in(&PathBuf::from(parent)),
+        None => default_workspace_backup_path(&workspace)?,
+    };
+    Ok(preview_workspace_backup_inner(&workspace, &backup_path).0)
 }
 
 #[tauri::command]
-fn move_workspace(source: String, destination: String) -> Result<(), String> {
-    copy_workspace(source.clone(), destination)?;
-    fs::remove_dir_all(&source).map_err(to_error)?;
-    Ok(())
+fn create_workspace_backup(
+    path: String,
+    backup_path: Option<String>,
+) -> Result<WorkspaceBackupResult, String> {
+    let workspace = workspace_path(&path)?;
+    let backup_path = backup_path
+        .map(PathBuf::from)
+        .unwrap_or(default_workspace_backup_path(&workspace)?);
+    create_workspace_backup_inner(&workspace, &backup_path, false)
+}
+
+#[tauri::command]
+fn preview_workspace_migration(
+    source: String,
+    destination: String,
+) -> Result<WorkspaceMigrationPreview, String> {
+    Ok(preview_workspace_migration_inner(&PathBuf::from(source), &PathBuf::from(destination)).0)
+}
+
+#[tauri::command]
+fn migrate_workspace(
+    source: String,
+    destination: String,
+) -> Result<WorkspaceMigrationResult, String> {
+    migrate_workspace_inner(&PathBuf::from(source), &PathBuf::from(destination), false)
+}
+
+#[tauri::command]
+fn copy_workspace(source: String, destination: String) -> Result<WorkspaceMigrationResult, String> {
+    migrate_workspace(source, destination)
+}
+
+#[tauri::command]
+fn move_workspace(source: String, destination: String) -> Result<WorkspaceMigrationResult, String> {
+    migrate_workspace(source, destination)
 }
 
 #[tauri::command]
@@ -1478,6 +1580,10 @@ pub fn run() {
             plugin_system_open_external,
             plugin_system_open_path,
             plugin_shell_exec,
+            preview_workspace_backup,
+            create_workspace_backup,
+            preview_workspace_migration,
+            migrate_workspace,
             copy_workspace,
             move_workspace,
             write_export_file
@@ -1519,6 +1625,830 @@ fn workspace_path(path: &str) -> Result<PathBuf, String> {
         return Err("工作区路径不能为空".to_string());
     }
     Ok(workspace)
+}
+
+#[derive(Clone, Debug)]
+struct WorkspaceFileEntry {
+    source_path: PathBuf,
+    relative_path: PathBuf,
+    bytes: u64,
+}
+
+#[derive(Clone, Debug, Default)]
+struct WorkspaceFileInventory {
+    directories: BTreeSet<PathBuf>,
+    files: Vec<WorkspaceFileEntry>,
+    file_count: usize,
+    total_bytes: u64,
+    warnings: Vec<WorkspaceOperationMessage>,
+    errors: Vec<WorkspaceOperationMessage>,
+}
+
+#[derive(Clone, Debug)]
+struct BackupSectionSpec {
+    id: &'static str,
+    relative_path: &'static str,
+    required: bool,
+}
+
+fn backup_section_specs() -> Vec<BackupSectionSpec> {
+    vec![
+        BackupSectionSpec {
+            id: "notes",
+            relative_path: "notes",
+            required: true,
+        },
+        BackupSectionSpec {
+            id: "assets",
+            relative_path: "assets",
+            required: false,
+        },
+        BackupSectionSpec {
+            id: "settings",
+            relative_path: ".opaline/settings.json",
+            required: true,
+        },
+        BackupSectionSpec {
+            id: "history",
+            relative_path: ".opaline/history",
+            required: false,
+        },
+    ]
+}
+
+fn default_workspace_backup_path(workspace: &Path) -> Result<PathBuf, String> {
+    let parent = workspace
+        .parent()
+        .ok_or_else(|| "工作区没有可用的父目录，无法创建默认备份位置".to_string())?;
+    Ok(next_workspace_backup_path_in(parent))
+}
+
+fn next_workspace_backup_path_in(parent: &Path) -> PathBuf {
+    let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
+    parent.join(format!("opaline-backup-{timestamp}"))
+}
+
+fn preview_workspace_backup_inner(
+    workspace: &Path,
+    backup_path: &Path,
+) -> (WorkspaceBackupPreview, WorkspaceFileInventory, Vec<String>) {
+    let mut inventory = WorkspaceFileInventory::default();
+    let mut sections = Vec::new();
+    let mut included_sections = Vec::new();
+
+    if !workspace.is_dir() {
+        inventory.errors.push(operation_message(
+            "workspace_missing",
+            Some(path_to_string(workspace)),
+            "Workspace folder does not exist.",
+        ));
+    }
+
+    for spec in backup_section_specs() {
+        let before_count = inventory.file_count;
+        let before_bytes = inventory.total_bytes;
+        let before_errors = inventory.errors.len();
+        let relative = PathBuf::from(spec.relative_path);
+        let absolute = workspace.join(&relative);
+        let exists = absolute.exists();
+
+        if !exists {
+            let message = operation_message(
+                if spec.required {
+                    "section_missing"
+                } else {
+                    "optional_section_missing"
+                },
+                Some(spec.relative_path.to_string()),
+                if spec.required {
+                    "Required workspace section is missing."
+                } else {
+                    "Optional workspace section is missing and will be skipped."
+                },
+            );
+            if spec.required {
+                inventory.errors.push(message);
+            } else {
+                inventory.warnings.push(message);
+            }
+            sections.push(WorkspaceDataSection {
+                id: spec.id.to_string(),
+                path: spec.relative_path.to_string(),
+                exists: false,
+                included: false,
+                file_count: 0,
+                total_bytes: 0,
+            });
+            continue;
+        }
+
+        collect_path_into_inventory(workspace, &relative, &mut inventory);
+        let file_count = inventory.file_count.saturating_sub(before_count);
+        let total_bytes = inventory.total_bytes.saturating_sub(before_bytes);
+        let included = inventory.errors.len() == before_errors;
+        if included {
+            included_sections.push(spec.id.to_string());
+        }
+        sections.push(WorkspaceDataSection {
+            id: spec.id.to_string(),
+            path: spec.relative_path.to_string(),
+            exists,
+            included,
+            file_count,
+            total_bytes,
+        });
+    }
+
+    validate_backup_target(workspace, backup_path, &mut inventory);
+
+    let preview = WorkspaceBackupPreview {
+        workspace_path: path_to_string(workspace),
+        backup_path: path_to_string(backup_path),
+        file_count: inventory.file_count,
+        total_bytes: inventory.total_bytes,
+        included_sections: included_sections.clone(),
+        sections,
+        warnings: inventory.warnings.clone(),
+        errors: inventory.errors.clone(),
+        ready: inventory.errors.is_empty(),
+    };
+    (preview, inventory, included_sections)
+}
+
+fn validate_backup_target(
+    workspace: &Path,
+    backup_path: &Path,
+    inventory: &mut WorkspaceFileInventory,
+) {
+    if backup_path.exists() {
+        inventory.errors.push(operation_message(
+            "backup_target_exists",
+            Some(path_to_string(backup_path)),
+            "Backup target already exists.",
+        ));
+    }
+
+    let Some(parent) = backup_path.parent() else {
+        inventory.errors.push(operation_message(
+            "backup_parent_missing",
+            Some(path_to_string(backup_path)),
+            "Backup target has no parent folder.",
+        ));
+        return;
+    };
+    check_writable_directory(parent, "backup_parent_not_writable", inventory);
+
+    let backup_abs = normalize_for_containment(backup_path);
+    let workspace_abs = normalize_for_containment(workspace);
+    let notes_abs = normalize_for_containment(&workspace.join("notes"));
+    let assets_abs = normalize_for_containment(&workspace.join("assets"));
+
+    if backup_abs.starts_with(&notes_abs) || backup_abs.starts_with(&assets_abs) {
+        inventory.errors.push(operation_message(
+            "backup_inside_durable_data",
+            Some(path_to_string(backup_path)),
+            "Backup target cannot be inside notes/ or assets/.",
+        ));
+    } else if backup_abs.starts_with(&workspace_abs) {
+        inventory.errors.push(operation_message(
+            "backup_inside_workspace",
+            Some(path_to_string(backup_path)),
+            "Backup target cannot be inside the workspace being backed up.",
+        ));
+    }
+}
+
+fn create_workspace_backup_inner(
+    workspace: &Path,
+    backup_path: &Path,
+    inject_failure_after_copy: bool,
+) -> Result<WorkspaceBackupResult, String> {
+    let started = Instant::now();
+    let (preview, inventory, included_sections) =
+        preview_workspace_backup_inner(workspace, backup_path);
+    if !preview.errors.is_empty() {
+        return Err(format_operation_errors(&preview.errors));
+    }
+
+    let temp_path = sibling_temp_path(backup_path, "backup");
+    let cleanup_temp = |path: &Path| {
+        if path.exists() {
+            let _ = fs::remove_dir_all(path);
+        }
+    };
+
+    if temp_path.exists() {
+        cleanup_temp(&temp_path);
+    }
+    fs::create_dir(&temp_path).map_err(to_error)?;
+
+    let copy_result = (|| -> Result<(), String> {
+        copy_inventory_to_root(&inventory, &temp_path)?;
+        verify_inventory_at_root(&inventory, &temp_path)?;
+        if inject_failure_after_copy {
+            return Err("Injected backup failure after copy.".to_string());
+        }
+        if backup_path.exists() {
+            return Err("Backup target already exists.".to_string());
+        }
+        fs::rename(&temp_path, backup_path).map_err(to_error)?;
+        Ok(())
+    })();
+
+    if let Err(error) = copy_result {
+        cleanup_temp(&temp_path);
+        return Err(error);
+    }
+
+    Ok(WorkspaceBackupResult {
+        backup_path: path_to_string(backup_path),
+        file_count: inventory.file_count,
+        total_bytes: inventory.total_bytes,
+        included_sections,
+        warnings: preview.warnings,
+        elapsed_ms: started.elapsed().as_millis(),
+    })
+}
+
+fn preview_workspace_migration_inner(
+    source: &Path,
+    destination: &Path,
+) -> (WorkspaceMigrationPreview, WorkspaceFileInventory) {
+    let mut inventory = WorkspaceFileInventory::default();
+    let mut conflicts = Vec::new();
+
+    validate_migration_source(source, &mut inventory);
+    if source.is_dir() {
+        collect_workspace_inventory(source, &mut inventory);
+    }
+
+    let target_exists = destination.exists();
+    let target_is_opaline_workspace = is_opaline_workspace(destination);
+    let mut target_is_empty = !target_exists;
+
+    validate_migration_destination(
+        source,
+        destination,
+        target_exists,
+        target_is_opaline_workspace,
+        &mut target_is_empty,
+        &mut inventory,
+    );
+
+    for file in &inventory.files {
+        let target_file = destination.join(&file.relative_path);
+        if target_file.exists() {
+            conflicts.push(operation_message(
+                "file_conflict",
+                Some(path_to_slash_string(&file.relative_path)),
+                "A file with the same relative path already exists at the target.",
+            ));
+        }
+    }
+    if !conflicts.is_empty() {
+        inventory.errors.push(operation_message(
+            "target_file_conflicts",
+            Some(path_to_string(destination)),
+            "Target contains files that would be overwritten.",
+        ));
+    }
+
+    let ready = inventory.errors.is_empty() && conflicts.is_empty();
+    let preview = WorkspaceMigrationPreview {
+        source_path: path_to_string(source),
+        target_path: path_to_string(destination),
+        file_count: inventory.file_count,
+        total_bytes: inventory.total_bytes,
+        target_exists,
+        target_is_empty,
+        target_is_opaline_workspace,
+        would_overwrite: !conflicts.is_empty(),
+        conflict_count: conflicts.len(),
+        conflicts,
+        warnings: inventory.warnings.clone(),
+        errors: inventory.errors.clone(),
+        ready,
+    };
+    (preview, inventory)
+}
+
+fn validate_migration_source(source: &Path, inventory: &mut WorkspaceFileInventory) {
+    if !source.is_dir() {
+        inventory.errors.push(operation_message(
+            "source_missing",
+            Some(path_to_string(source)),
+            "Source workspace folder does not exist.",
+        ));
+        return;
+    }
+    if !source.join("notes").is_dir() {
+        inventory.errors.push(operation_message(
+            "source_notes_missing",
+            Some("notes".to_string()),
+            "Source workspace is missing notes/.",
+        ));
+    }
+    if !source.join(".opaline/settings.json").is_file() {
+        inventory.errors.push(operation_message(
+            "source_settings_missing",
+            Some(".opaline/settings.json".to_string()),
+            "Source workspace is missing .opaline/settings.json.",
+        ));
+    }
+}
+
+fn validate_migration_destination(
+    source: &Path,
+    destination: &Path,
+    target_exists: bool,
+    target_is_opaline_workspace: bool,
+    target_is_empty: &mut bool,
+    inventory: &mut WorkspaceFileInventory,
+) {
+    let source_abs = normalize_for_containment(source);
+    let destination_abs = normalize_for_containment(destination);
+    if source_abs == destination_abs {
+        inventory.errors.push(operation_message(
+            "same_source_and_target",
+            Some(path_to_string(destination)),
+            "Source and target workspace paths are the same.",
+        ));
+    }
+    if destination_abs.starts_with(&source_abs) && destination_abs != source_abs {
+        inventory.errors.push(operation_message(
+            "target_inside_source",
+            Some(path_to_string(destination)),
+            "Target path is inside the source workspace.",
+        ));
+    }
+    if source_abs.starts_with(&destination_abs) && destination_abs != source_abs {
+        inventory.errors.push(operation_message(
+            "source_inside_target",
+            Some(path_to_string(destination)),
+            "Source workspace is inside the target path.",
+        ));
+    }
+
+    if target_exists {
+        if !destination.is_dir() {
+            inventory.errors.push(operation_message(
+                "target_not_directory",
+                Some(path_to_string(destination)),
+                "Target exists but is not a folder.",
+            ));
+            return;
+        }
+
+        match fs::read_dir(destination) {
+            Ok(mut entries) => {
+                *target_is_empty = entries.next().is_none();
+                if !*target_is_empty {
+                    inventory.errors.push(operation_message(
+                        "target_not_empty",
+                        Some(path_to_string(destination)),
+                        "Target folder is not empty.",
+                    ));
+                }
+            }
+            Err(error) => inventory.errors.push(operation_message(
+                "target_read_failed",
+                Some(path_to_string(destination)),
+                &format!("Failed to read target folder: {error}"),
+            )),
+        }
+
+        if target_is_opaline_workspace {
+            inventory.errors.push(operation_message(
+                "target_is_workspace",
+                Some(path_to_string(destination)),
+                "Target already looks like an Opaline workspace.",
+            ));
+        }
+    }
+
+    let Some(parent) = destination.parent() else {
+        inventory.errors.push(operation_message(
+            "target_parent_missing",
+            Some(path_to_string(destination)),
+            "Target path has no parent folder.",
+        ));
+        return;
+    };
+    check_writable_directory(parent, "target_parent_not_writable", inventory);
+}
+
+fn migrate_workspace_inner(
+    source: &Path,
+    destination: &Path,
+    inject_failure_after_copy: bool,
+) -> Result<WorkspaceMigrationResult, String> {
+    let started = Instant::now();
+    let (preview, inventory) = preview_workspace_migration_inner(source, destination);
+    if !preview.errors.is_empty() || !preview.conflicts.is_empty() {
+        return Err(format_operation_errors(&preview.errors));
+    }
+
+    let temp_path = sibling_temp_path(destination, "migration");
+    let mut removed_empty_target = false;
+    let cleanup_temp = |path: &Path| {
+        if path.exists() {
+            let _ = fs::remove_dir_all(path);
+        }
+    };
+
+    if temp_path.exists() {
+        cleanup_temp(&temp_path);
+    }
+    fs::create_dir(&temp_path).map_err(to_error)?;
+
+    let mut warnings = preview.warnings.clone();
+    let copy_result = (|| -> Result<WorkspaceMigrationVerification, String> {
+        copy_inventory_to_root(&inventory, &temp_path)?;
+        verify_inventory_at_root(&inventory, &temp_path)?;
+        if inject_failure_after_copy {
+            return Err("Injected migration failure after copy.".to_string());
+        }
+
+        let key_files_present = migration_key_files_present(source, &temp_path);
+        if !key_files_present {
+            return Err(
+                "Migrated workspace is missing required notes or settings files.".to_string(),
+            );
+        }
+
+        let verification_inventory = collect_verified_inventory(&temp_path)?;
+        let file_count_matches = verification_inventory.file_count == inventory.file_count;
+        let total_bytes_matches = verification_inventory.total_bytes == inventory.total_bytes;
+        if !file_count_matches || !total_bytes_matches {
+            return Err("Migrated workspace file counts or byte totals do not match.".to_string());
+        }
+
+        if destination.exists() {
+            let mut entries = fs::read_dir(destination).map_err(to_error)?;
+            if entries.next().is_some() {
+                return Err("Target folder is no longer empty.".to_string());
+            }
+            fs::remove_dir(destination).map_err(to_error)?;
+            removed_empty_target = true;
+        }
+
+        if let Err(error) = fs::rename(&temp_path, destination) {
+            if removed_empty_target {
+                let _ = fs::create_dir_all(destination);
+            }
+            return Err(error.to_string());
+        }
+
+        let mut verification = WorkspaceMigrationVerification {
+            file_count_matches,
+            total_bytes_matches,
+            key_files_present,
+            diagnostics_ran: false,
+            diagnostics_error_count: None,
+            diagnostics_warning_count: None,
+            diagnostics_needs_index_rebuild: None,
+        };
+        match diagnose_workspace_inner(destination) {
+            Ok(diagnostics) => {
+                verification.diagnostics_ran = true;
+                verification.diagnostics_error_count = Some(diagnostics.summary.error_count);
+                verification.diagnostics_warning_count = Some(diagnostics.summary.warning_count);
+                verification.diagnostics_needs_index_rebuild =
+                    Some(diagnostics.summary.needs_rebuild);
+            }
+            Err(error) => {
+                verification.diagnostics_ran = false;
+                verification.diagnostics_error_count = None;
+                verification.diagnostics_warning_count = None;
+                verification.diagnostics_needs_index_rebuild = None;
+                warnings.push(operation_message(
+                    "diagnostics_failed",
+                    Some(path_to_string(destination)),
+                    &format!("Migrated files were copied, but diagnostics failed: {error}"),
+                ));
+            }
+        }
+
+        Ok(verification)
+    })();
+
+    let verification = match copy_result {
+        Ok(verification) => verification,
+        Err(error) => {
+            cleanup_temp(&temp_path);
+            return Err(error);
+        }
+    };
+
+    Ok(WorkspaceMigrationResult {
+        workspace_path: path_to_string(destination),
+        source_path: path_to_string(source),
+        file_count: inventory.file_count,
+        total_bytes: inventory.total_bytes,
+        elapsed_ms: started.elapsed().as_millis(),
+        warnings,
+        verification,
+    })
+}
+
+fn collect_workspace_inventory(source: &Path, inventory: &mut WorkspaceFileInventory) {
+    let children = match fs::read_dir(source) {
+        Ok(children) => children,
+        Err(error) => {
+            inventory.errors.push(operation_message(
+                "source_read_failed",
+                Some(path_to_string(source)),
+                &format!("Failed to read source workspace: {error}"),
+            ));
+            return;
+        }
+    };
+    for child in children.filter_map(Result::ok) {
+        let relative = child.file_name();
+        collect_path_into_inventory(source, &PathBuf::from(relative), inventory);
+    }
+}
+
+fn collect_path_into_inventory(
+    base: &Path,
+    relative_path: &Path,
+    inventory: &mut WorkspaceFileInventory,
+) {
+    let absolute = base.join(relative_path);
+    let metadata = match fs::symlink_metadata(&absolute) {
+        Ok(metadata) => metadata,
+        Err(error) => {
+            inventory.errors.push(operation_message(
+                "metadata_read_failed",
+                Some(path_to_slash_string(relative_path)),
+                &format!("Failed to inspect file metadata: {error}"),
+            ));
+            return;
+        }
+    };
+    let file_type = metadata.file_type();
+    if file_type.is_symlink() {
+        inventory.warnings.push(operation_message(
+            "symlink_skipped",
+            Some(path_to_slash_string(relative_path)),
+            "Symbolic links are skipped for workspace backup and migration.",
+        ));
+        return;
+    }
+    if file_type.is_file() {
+        collect_file_into_inventory(base, &absolute, relative_path, inventory);
+        return;
+    }
+    if !file_type.is_dir() {
+        inventory.warnings.push(operation_message(
+            "special_file_skipped",
+            Some(path_to_slash_string(relative_path)),
+            "Special file is skipped for workspace backup and migration.",
+        ));
+        return;
+    }
+
+    inventory.directories.insert(relative_path.to_path_buf());
+    for entry in WalkDir::new(&absolute).min_depth(1).follow_links(false) {
+        match entry {
+            Ok(entry) => {
+                let entry_relative = match entry.path().strip_prefix(base) {
+                    Ok(path) => path.to_path_buf(),
+                    Err(error) => {
+                        inventory.errors.push(operation_message(
+                            "relative_path_failed",
+                            Some(path_to_string(entry.path())),
+                            &format!("Failed to calculate relative path: {error}"),
+                        ));
+                        continue;
+                    }
+                };
+                let entry_type = entry.file_type();
+                if entry_type.is_symlink() {
+                    inventory.warnings.push(operation_message(
+                        "symlink_skipped",
+                        Some(path_to_slash_string(&entry_relative)),
+                        "Symbolic links are skipped for workspace backup and migration.",
+                    ));
+                } else if entry_type.is_dir() {
+                    inventory.directories.insert(entry_relative);
+                } else if entry_type.is_file() {
+                    collect_file_into_inventory(base, entry.path(), &entry_relative, inventory);
+                } else {
+                    inventory.warnings.push(operation_message(
+                        "special_file_skipped",
+                        Some(path_to_slash_string(&entry_relative)),
+                        "Special file is skipped for workspace backup and migration.",
+                    ));
+                }
+            }
+            Err(error) => {
+                let path = error.path().map(path_to_string);
+                inventory.errors.push(operation_message(
+                    "walk_failed",
+                    path,
+                    &format!("Failed to scan workspace path: {error}"),
+                ));
+            }
+        }
+    }
+}
+
+fn collect_file_into_inventory(
+    _base: &Path,
+    absolute: &Path,
+    relative_path: &Path,
+    inventory: &mut WorkspaceFileInventory,
+) {
+    match fs::File::open(absolute) {
+        Ok(_) => {}
+        Err(error) => {
+            inventory.errors.push(operation_message(
+                "file_unreadable",
+                Some(path_to_slash_string(relative_path)),
+                &format!("File cannot be opened for reading: {error}"),
+            ));
+            return;
+        }
+    }
+    let metadata = match fs::metadata(absolute) {
+        Ok(metadata) => metadata,
+        Err(error) => {
+            inventory.errors.push(operation_message(
+                "metadata_read_failed",
+                Some(path_to_slash_string(relative_path)),
+                &format!("Failed to inspect file metadata: {error}"),
+            ));
+            return;
+        }
+    };
+    inventory.file_count += 1;
+    inventory.total_bytes = inventory.total_bytes.saturating_add(metadata.len());
+    inventory.files.push(WorkspaceFileEntry {
+        source_path: absolute.to_path_buf(),
+        relative_path: relative_path.to_path_buf(),
+        bytes: metadata.len(),
+    });
+}
+
+fn copy_inventory_to_root(
+    inventory: &WorkspaceFileInventory,
+    destination_root: &Path,
+) -> Result<(), String> {
+    for directory in &inventory.directories {
+        fs::create_dir_all(destination_root.join(directory)).map_err(to_error)?;
+    }
+    for file in &inventory.files {
+        let destination = destination_root.join(&file.relative_path);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).map_err(to_error)?;
+        }
+        fs::copy(&file.source_path, &destination).map_err(to_error)?;
+        let copied_size = fs::metadata(&destination).map_err(to_error)?.len();
+        if copied_size != file.bytes {
+            return Err(format!(
+                "Copied file size mismatch for {}.",
+                path_to_slash_string(&file.relative_path)
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn verify_inventory_at_root(inventory: &WorkspaceFileInventory, root: &Path) -> Result<(), String> {
+    for directory in &inventory.directories {
+        if !root.join(directory).is_dir() {
+            return Err(format!(
+                "Copied directory is missing: {}.",
+                path_to_slash_string(directory)
+            ));
+        }
+    }
+    for file in &inventory.files {
+        let destination = root.join(&file.relative_path);
+        if !destination.is_file() {
+            return Err(format!(
+                "Copied file is missing: {}.",
+                path_to_slash_string(&file.relative_path)
+            ));
+        }
+        let copied_size = fs::metadata(&destination).map_err(to_error)?.len();
+        if copied_size != file.bytes {
+            return Err(format!(
+                "Copied file size mismatch for {}.",
+                path_to_slash_string(&file.relative_path)
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn collect_verified_inventory(root: &Path) -> Result<WorkspaceFileInventory, String> {
+    let mut inventory = WorkspaceFileInventory::default();
+    collect_workspace_inventory(root, &mut inventory);
+    if !inventory.errors.is_empty() {
+        return Err(format_operation_errors(&inventory.errors));
+    }
+    Ok(inventory)
+}
+
+fn migration_key_files_present(source: &Path, target: &Path) -> bool {
+    target.join("notes").is_dir()
+        && target.join(".opaline/settings.json").is_file()
+        && (!source.join("assets").exists() || target.join("assets").is_dir())
+        && (!source.join(".opaline/history").exists() || target.join(".opaline/history").is_dir())
+}
+
+fn is_opaline_workspace(path: &Path) -> bool {
+    path.join("notes").is_dir() && path.join(".opaline/settings.json").is_file()
+}
+
+fn check_writable_directory(directory: &Path, code: &str, inventory: &mut WorkspaceFileInventory) {
+    if !directory.is_dir() {
+        inventory.errors.push(operation_message(
+            code,
+            Some(path_to_string(directory)),
+            "Folder does not exist or is not a directory.",
+        ));
+        return;
+    }
+    let probe = directory.join(format!(".opaline-write-check-{}", Uuid::new_v4()));
+    match fs::create_dir(&probe) {
+        Ok(_) => {
+            let _ = fs::remove_dir(&probe);
+        }
+        Err(error) => inventory.errors.push(operation_message(
+            code,
+            Some(path_to_string(directory)),
+            &format!("Folder is not writable: {error}"),
+        )),
+    }
+}
+
+fn sibling_temp_path(path: &Path, purpose: &str) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("opaline-workspace");
+    let temp_name = format!(".{file_name}.opaline-{purpose}-{}.tmp", Uuid::new_v4());
+    path.parent()
+        .map(|parent| parent.join(&temp_name))
+        .unwrap_or_else(|| PathBuf::from(temp_name))
+}
+
+fn normalize_for_containment(path: &Path) -> PathBuf {
+    if path.exists() {
+        return fs::canonicalize(path).unwrap_or_else(|_| absolute_path(path));
+    }
+    if let Some(parent) = path.parent() {
+        if let Ok(parent) = fs::canonicalize(parent) {
+            if let Some(name) = path.file_name() {
+                return parent.join(name);
+            }
+            return parent;
+        }
+    }
+    absolute_path(path)
+}
+
+fn absolute_path(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    }
+}
+
+fn operation_message(code: &str, path: Option<String>, message: &str) -> WorkspaceOperationMessage {
+    WorkspaceOperationMessage {
+        code: code.to_string(),
+        path,
+        message: message.to_string(),
+    }
+}
+
+fn format_operation_errors(errors: &[WorkspaceOperationMessage]) -> String {
+    if errors.is_empty() {
+        return "Unknown workspace operation error.".to_string();
+    }
+    errors
+        .iter()
+        .map(|error| match &error.path {
+            Some(path) => format!("{}: {} ({})", error.code, error.message, path),
+            None => format!("{}: {}", error.code, error.message),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn path_to_string(path: &Path) -> String {
+    path.to_string_lossy().to_string()
+}
+
+fn path_to_slash_string(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
 }
 
 fn plugins_dir(workspace: &Path) -> PathBuf {
@@ -3905,6 +4835,250 @@ mod tests {
         assert_eq!(stable_title, "Stable");
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn backup_preview_counts_durable_sections() {
+        let workspace = create_sample_workspace();
+        let backup_path = workspace
+            .parent()
+            .expect("workspace parent")
+            .join("opaline-backup-preview");
+
+        let (preview, _inventory, _sections) =
+            preview_workspace_backup_inner(&workspace, &backup_path);
+
+        assert!(preview.ready);
+        assert_eq!(preview.file_count, 4);
+        assert_eq!(
+            preview.included_sections,
+            vec![
+                "notes".to_string(),
+                "assets".to_string(),
+                "settings".to_string(),
+                "history".to_string()
+            ]
+        );
+        assert!(preview
+            .sections
+            .iter()
+            .any(|section| section.id == "notes" && section.file_count == 1));
+        assert!(preview
+            .sections
+            .iter()
+            .any(|section| section.id == "assets" && section.file_count == 1));
+        assert!(preview
+            .sections
+            .iter()
+            .any(|section| section.id == "settings" && section.file_count == 1));
+        assert!(preview
+            .sections
+            .iter()
+            .any(|section| section.id == "history" && section.file_count == 1));
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn backup_create_outputs_expected_directory_contents() {
+        let workspace = create_sample_workspace();
+        let backup_path = workspace
+            .parent()
+            .expect("workspace parent")
+            .join("opaline-backup-create");
+
+        let result =
+            create_workspace_backup_inner(&workspace, &backup_path, false).expect("backup created");
+
+        assert_eq!(result.file_count, 4);
+        assert!(backup_path.join("notes/note.html").is_file());
+        assert!(backup_path.join("assets/images/pic.txt").is_file());
+        assert!(backup_path.join(".opaline/settings.json").is_file());
+        assert!(backup_path
+            .join(".opaline/history/note-1/snapshot.html")
+            .is_file());
+        assert!(!backup_path.join(".opaline/cache/transient.txt").exists());
+        assert!(!backup_path.join(".opaline/index.sqlite").exists());
+
+        fs::remove_dir_all(backup_path).expect("backup cleaned up");
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn backup_failure_cleans_temporary_output_without_final_directory() {
+        let workspace = create_sample_workspace();
+        let parent = workspace.parent().expect("workspace parent").to_path_buf();
+        let backup_path = parent.join("opaline-backup-failure");
+
+        let error = create_workspace_backup_inner(&workspace, &backup_path, true)
+            .expect_err("injected backup failure");
+
+        assert!(error.contains("Injected backup failure"));
+        assert!(!backup_path.exists());
+        assert_eq!(
+            count_temp_entries(&parent, "opaline-backup-failure.opaline-backup"),
+            0
+        );
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn migration_preview_reports_target_not_empty() {
+        let source = create_sample_workspace();
+        let target = test_workspace();
+        fs::create_dir_all(&target).expect("target dir");
+        fs::write(target.join("existing.txt"), "existing").expect("target file");
+
+        let (preview, _inventory) = preview_workspace_migration_inner(&source, &target);
+
+        assert!(!preview.ready);
+        assert!(has_operation_code(&preview.errors, "target_not_empty"));
+
+        fs::remove_dir_all(target).expect("target cleaned up");
+        fs::remove_dir_all(source).expect("source cleaned up");
+    }
+
+    #[test]
+    fn migration_preview_rejects_target_inside_source() {
+        let source = create_sample_workspace();
+        let target = source.join("nested-target");
+
+        let (preview, _inventory) = preview_workspace_migration_inner(&source, &target);
+
+        assert!(!preview.ready);
+        assert!(has_operation_code(&preview.errors, "target_inside_source"));
+
+        fs::remove_dir_all(source).expect("source cleaned up");
+    }
+
+    #[test]
+    fn migration_preview_rejects_source_inside_target() {
+        let target = test_workspace();
+        let source = target.join("source");
+        create_sample_workspace_at(&source);
+
+        let (preview, _inventory) = preview_workspace_migration_inner(&source, &target);
+
+        assert!(!preview.ready);
+        assert!(has_operation_code(&preview.errors, "source_inside_target"));
+
+        fs::remove_dir_all(target).expect("target cleaned up");
+    }
+
+    #[test]
+    fn migration_preview_reports_file_conflicts() {
+        let source = create_sample_workspace();
+        let target = test_workspace();
+        fs::create_dir_all(target.join("notes")).expect("target notes");
+        fs::write(target.join("notes/note.html"), "conflict").expect("conflict file");
+
+        let (preview, _inventory) = preview_workspace_migration_inner(&source, &target);
+
+        assert!(!preview.ready);
+        assert!(preview.would_overwrite);
+        assert_eq!(preview.conflict_count, 1);
+        assert!(has_operation_code(&preview.conflicts, "file_conflict"));
+        assert!(has_operation_code(&preview.errors, "target_file_conflicts"));
+
+        fs::remove_dir_all(target).expect("target cleaned up");
+        fs::remove_dir_all(source).expect("source cleaned up");
+    }
+
+    #[test]
+    fn migration_copy_preserves_source_and_verifies_target() {
+        let source = create_sample_workspace();
+        let target = test_workspace();
+
+        let result =
+            migrate_workspace_inner(&source, &target, false).expect("workspace migrated safely");
+
+        assert_eq!(result.workspace_path, path_to_string(&target));
+        assert!(result.file_count >= 5);
+        assert!(result.total_bytes > 0);
+        assert!(result.verification.file_count_matches);
+        assert!(result.verification.total_bytes_matches);
+        assert!(result.verification.key_files_present);
+        assert!(result.verification.diagnostics_ran);
+        assert!(source.join("notes/note.html").is_file());
+        assert!(target.join("notes/note.html").is_file());
+        assert!(target.join("assets/images/pic.txt").is_file());
+        assert!(target.join(".opaline/settings.json").is_file());
+        assert!(target
+            .join(".opaline/history/note-1/snapshot.html")
+            .is_file());
+
+        let source_inventory = collect_verified_inventory(&source).expect("source inventory");
+        let target_inventory = collect_verified_inventory(&target).expect("target inventory");
+        assert_eq!(source_inventory.file_count, target_inventory.file_count);
+        assert_eq!(source_inventory.total_bytes, target_inventory.total_bytes);
+
+        fs::remove_dir_all(target).expect("target cleaned up");
+        fs::remove_dir_all(source).expect("source cleaned up");
+    }
+
+    #[test]
+    fn migration_failure_keeps_source_and_cleans_temporary_target() {
+        let source = create_sample_workspace();
+        let parent = source.parent().expect("source parent").to_path_buf();
+        let target = parent.join("migration-failure-target");
+
+        let error = migrate_workspace_inner(&source, &target, true)
+            .expect_err("injected migration failure");
+
+        assert!(error.contains("Injected migration failure"));
+        assert!(source.join("notes/note.html").is_file());
+        assert!(!target.exists());
+        assert_eq!(
+            count_temp_entries(&parent, "migration-failure-target.opaline-migration"),
+            0
+        );
+
+        fs::remove_dir_all(source).expect("source cleaned up");
+    }
+
+    fn create_sample_workspace() -> PathBuf {
+        let workspace = test_workspace();
+        create_sample_workspace_at(&workspace);
+        workspace
+    }
+
+    fn create_sample_workspace_at(workspace: &Path) {
+        fs::create_dir_all(workspace.join("notes")).expect("notes dir");
+        fs::create_dir_all(workspace.join("assets/images")).expect("assets dir");
+        fs::create_dir_all(workspace.join(".opaline/history/note-1")).expect("history dir");
+        fs::create_dir_all(workspace.join(".opaline/cache")).expect("cache dir");
+        write_test_note(
+            workspace,
+            "notes/note.html",
+            r#"<!doctype html>
+<html><head><title>Note</title><meta name="opaline:id" content="note-1"><meta name="opaline:created" content="2026-05-14T00:00:00Z"><meta name="opaline:updated" content="2026-05-14T00:00:00Z"></head>
+<body><article data-opaline-note><h1>Note</h1><p>durable body text</p></article></body></html>"#,
+        );
+        fs::write(workspace.join("assets/images/pic.txt"), "asset").expect("asset");
+        fs::write(
+            workspace.join(".opaline/settings.json"),
+            "{\n  \"profileVersion\": 1,\n  \"noteFormat\": \"opaline-html\"\n}\n",
+        )
+        .expect("settings");
+        fs::write(
+            workspace.join(".opaline/history/note-1/snapshot.html"),
+            "<!doctype html><html><body>snapshot</body></html>",
+        )
+        .expect("history");
+        fs::write(workspace.join(".opaline/cache/transient.txt"), "cache").expect("cache");
+    }
+
+    fn count_temp_entries(parent: &Path, needle: &str) -> usize {
+        fs::read_dir(parent)
+            .expect("read parent")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(needle))
+            .count()
+    }
+
+    fn has_operation_code(messages: &[WorkspaceOperationMessage], code: &str) -> bool {
+        messages.iter().any(|message| message.code == code)
     }
 
     fn write_test_note(workspace: &Path, relative: &str, html: &str) {

@@ -31,6 +31,16 @@ npm run tauri:build</code></pre>
         </ul>
         <p>GitHub updater setup: <a href="updater-github.md">updater-github.md</a></p>
 
+        <h2>Alpha Workspace Safety</h2>
+        <p>Before testing alpha builds with important notes, use Settings → Workspace backup to create a timestamped backup folder. The backup includes <code>notes/</code>, <code>assets/</code>, <code>.opaline/settings.json</code>, and <code>.opaline/history/</code> when present. It skips <code>.opaline/cache/</code> and the derived SQLite index by default.</p>
+        <ul>
+          <li>Migration previews source and target paths, file count, byte size, unreadable files, recursive path risks, and overwrite conflicts.</li>
+          <li>Targets with existing content are rejected rather than merged.</li>
+          <li>Migration copies into a temporary target, verifies the copy, updates the active workspace path, and leaves the old workspace untouched.</li>
+          <li>Failed backup or migration attempts should leave the source workspace unchanged and remove temporary output.</li>
+        </ul>
+        <p>SQLite index drift after migration is recoverable with the explicit rebuild command because HTML notes remain the durable source of truth.</p>
+
         <h2>Platform Notes</h2>
         <ul>
           <li>Windows packages should be built on Windows. Unsigned builds may trigger SmartScreen warnings.</li>
