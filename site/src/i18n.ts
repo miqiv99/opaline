@@ -34,7 +34,7 @@ export const siteText = {
     switchLabel: "Language",
     footer: "Opaline 是源码公开的本地优先 HTML 笔记工作台，采用 PolyForm Noncommercial License 1.0.0。",
     updates: "更新通道",
-    release: "v0.1.1 Release",
+    release: "v0.1.2 Release",
     hero: {
       eyebrow: "Public alpha · Windows 优先验证",
       title: "Opaline 是本地优先的 HTML 笔记工作台",
@@ -157,7 +157,7 @@ export const siteText = {
     switchLabel: "Language",
     footer: "Opaline is a source-available local-first HTML notes workbench licensed under PolyForm Noncommercial License 1.0.0.",
     updates: "Updates channel",
-    release: "v0.1.1 Release",
+    release: "v0.1.2 Release",
     hero: {
       eyebrow: "Public alpha · Windows is the primary validation target",
       title: "Opaline is a local-first HTML notes workbench",

@@ -4,7 +4,7 @@ All notable public changes to Opaline will be documented here.
 
 The format is intentionally simple while the project is in alpha.
 
-## Unreleased
+## 0.1.2-alpha
 
 - Unified editor command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI editing flows.
 - Added slash command menu for common formatting, block, and insert actions.

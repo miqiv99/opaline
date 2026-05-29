@@ -72,13 +72,13 @@ Example `latest.json`:
 
 ```json
 {
-  "version": "0.1.1",
-  "notes": "Short release notes for Opaline 0.1.1.",
+  "version": "0.1.2",
+  "notes": "Short release notes for Opaline 0.1.2.",
   "pub_date": "2026-05-19T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "PASTE_CONTENTS_OF_INSTALLER_SIG_HERE",
-      "url": "https://github.com/miqiv99/opaline/releases/download/v0.1.1/Opaline_0.1.1_x64-setup.exe"
+      "url": "https://github.com/miqiv99/opaline/releases/download/v0.1.2/Opaline_0.1.2_x64-setup.exe"
     }
   }
 }
