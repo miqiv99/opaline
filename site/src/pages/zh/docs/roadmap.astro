@@ -18,9 +18,10 @@ import { routeFor } from "../../../i18n";
     <h2>当前 alpha</h2>
     <ul class="status-list">
       <li><span class="status-icon done">✓</span><span><strong>已实现</strong> 本地工作区初始化、HTML 文档编辑、最近文档、今日记录、设置和语言切换。</span></li>
+      <li><span class="status-icon done">✓</span><span><strong>已实现</strong> 统一编辑命令注册表、Slash 命令菜单和命令面板。</span></li>
       <li><span class="status-icon done">✓</span><span><strong>已实现</strong> 本篇关联、谁提到本篇和关系图等关系浏览界面。</span></li>
-      <li><span class="status-icon partial">◐</span><span><strong>部分实现</strong> 扩展组件、手动检查更新、AI provider 设置、导入导出已经有入口，但还需要继续验证。</span></li>
-      <li><span class="status-icon planned">○</span><span><strong>计划中</strong> 更可靠的工作区迁移、发布能力、语义检索和更安全的 AI 编辑流程。</span></li>
+      <li><span class="status-icon partial">◐</span><span><strong>部分实现</strong> 扩展组件、手动检查更新、AI provider 设置、导入导出和 AI 编辑工具协议已经有入口或基础设施，但还需要继续验证。</span></li>
+      <li><span class="status-icon planned">○</span><span><strong>计划中</strong> 更可靠的工作区迁移、发布能力、语义检索和完整的 AI 生成笔记体验。</span></li>
     </ul>
   </section>
 
@@ -42,13 +43,13 @@ import { routeFor } from "../../../i18n";
       </article>
       <article class="doc-card">
         <h3>AI 工作流</h3>
-        <p>AI 必须展示来源、预览变更，并尊重私有文档边界。</p>
+        <p>编辑命令协议已经接入，但 AI 生成笔记仍需要来源展示、变更预览和用户确认流程。</p>
       </article>
     </div>
   </section>
 
   <section>
     <h2>下一步方向</h2>
-    <p>近期重点是让 alpha 更适合日常使用：补强工作区迁移、打磨关系浏览、稳定扩展 API，并在启用自动更新前先写清楚更新分发。</p>
+    <p>近期重点是让 alpha 更适合日常使用：继续打磨编辑器体验、补强工作区迁移、稳定扩展 API，并在启用自动更新前先写清楚更新分发。</p>
   </section>
 </DocLayout>

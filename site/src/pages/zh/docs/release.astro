@@ -25,6 +25,16 @@ const updaterConfig = `{
   </section>
 
   <section>
+    <h2>当前开发版更新</h2>
+    <p>v0.1.1 之后的源码已经继续推进编辑器基础设施，准备给后续 AI 生成笔记和更完整的编辑体验打底。</p>
+    <ul>
+      <li>统一编辑命令注册表：工具栏、右键菜单、Slash 命令、命令面板和未来 AI 流程共用同一层。</li>
+      <li>新增 Slash 命令菜单和命令面板，覆盖常用格式、块和插入操作。</li>
+      <li>AI 编辑工具协议增加命令描述、JSON schema 校验、权限、预览元数据、确认门槛、风险元数据、历史快照钩子和回滚钩子。</li>
+    </ul>
+  </section>
+
+  <section>
     <h2>本地构建命令</h2>
     <pre><code>npm install
 npm run tauri:dev

@@ -17,9 +17,10 @@ import { routeFor } from "../../i18n";
     <h2>Current alpha</h2>
     <ul class="status-list">
       <li><span class="status-icon done">✓</span><span><strong>implemented</strong> Local workspace creation, HTML note editing, recent documents, Today’s log, settings, and language switching.</span></li>
+      <li><span class="status-icon done">✓</span><span><strong>implemented</strong> Unified editor command registry, slash command menu, and command palette.</span></li>
       <li><span class="status-icon done">✓</span><span><strong>implemented</strong> Relationship surfaces including Links from this note, Mentions this note, and a Relationship map.</span></li>
-      <li><span class="status-icon partial">◐</span><span><strong>partial</strong> Extension widgets, update checking, AI provider settings, and import/export flows exist but need more validation.</span></li>
-      <li><span class="status-icon planned">○</span><span><strong>planned</strong> Stronger workspace migration, richer publishing, semantic retrieval, and safer AI editing workflows.</span></li>
+      <li><span class="status-icon partial">◐</span><span><strong>partial</strong> Extension widgets, update checking, AI provider settings, import/export flows, and the AI editing protocol have entry points or infrastructure but need more validation.</span></li>
+      <li><span class="status-icon planned">○</span><span><strong>planned</strong> Stronger workspace migration, richer publishing, semantic retrieval, and a complete AI note-generation experience.</span></li>
     </ul>
   </section>
 
@@ -41,13 +42,13 @@ import { routeFor } from "../../i18n";
       </article>
       <article class="doc-card">
         <h3>AI workflow</h3>
-        <p>AI must show sources, preview proposed edits, and respect private note boundaries.</p>
+        <p>The editor command protocol is wired in, but AI note generation still needs source display, change previews, and user confirmation flows.</p>
       </article>
     </div>
   </section>
 
   <section>
     <h2>Next direction</h2>
-    <p>Near-term work should make the alpha safer to run every day: improve workspace migration, polish relationship navigation, stabilize extension APIs, and document update distribution before enabling automatic updates.</p>
+    <p>Near-term work should make the alpha safer to run every day: continue polishing the editor experience, improve workspace migration, stabilize extension APIs, and document update distribution before enabling automatic updates.</p>
   </section>
 </DocLayout>

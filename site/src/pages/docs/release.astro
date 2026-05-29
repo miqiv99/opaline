@@ -25,6 +25,16 @@ const updaterConfig = `{
   </section>
 
   <section>
+    <h2>Current development updates</h2>
+    <p>After v0.1.1, the source has continued improving editor infrastructure for later AI note generation and richer editing workflows.</p>
+    <ul>
+      <li>A unified editor command registry is shared by toolbar actions, context menus, slash commands, the command palette, and future AI flows.</li>
+      <li>Slash commands and the command palette cover common formatting, block, and insert operations.</li>
+      <li>The AI editing protocol now includes command descriptors, JSON schema validation, permissions, preview metadata, confirmation gates, risk metadata, history-snapshot hooks, and rollback hooks.</li>
+    </ul>
+  </section>
+
+  <section>
     <h2>Local build commands</h2>
     <pre><code>npm install
 npm run tauri:dev

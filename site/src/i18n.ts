@@ -53,8 +53,10 @@ export const siteText = {
       shotsCopy: "截图来自 Playwright 对当前 Opaline Web 视图的重新采集，没有复用旧的 docs/media 图片。",
       features: [
         ["本地 HTML 文档", "文档以干净 HTML 保存，离开 Opaline 也能用浏览器打开。"],
+        ["统一编辑命令", "工具栏、右键菜单、Slash 命令、命令面板和未来 AI 编辑流程共用同一套命令层。"],
         ["关系图和本篇关联", "从文档、标题、块和概念关系理解材料之间的连接。"],
         ["AI 可配置", "AI provider、API 地址、模型和 API Key 由用户配置，数据优先留在本地。"],
+        ["AI 编辑协议基础", "命令描述、参数 schema、权限、预览、确认和回滚钩子已经作为基础设施接入。"],
         ["源码公开，非商业许可", "仓库公开可读，非商业使用遵循 PolyForm Noncommercial License 1.0.0。"],
       ],
       shots: [
@@ -172,8 +174,10 @@ export const siteText = {
       shotsCopy: "These screenshots were freshly captured with Playwright from the current Opaline web view, not reused from docs/media.",
       features: [
         ["Local HTML documents", "Notes are saved as clean HTML and remain readable in a browser outside Opaline."],
+        ["Unified editor commands", "Toolbar actions, context menus, slash commands, the command palette, and future AI editing flows share one command layer."],
         ["Relationship map and note context", "Understand links between documents, headings, blocks, and concepts."],
         ["Configurable AI", "Users configure provider, API base URL, model, and API key. Data stays local first."],
+        ["AI editing protocol foundation", "Command descriptors, parameter schemas, permissions, previews, confirmations, and rollback hooks are wired into the editor infrastructure."],
         ["Public source, noncommercial license", "The repository is public source. Noncommercial use follows PolyForm Noncommercial License 1.0.0."],
       ],
       shots: [

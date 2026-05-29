@@ -29,13 +29,14 @@ import { routeFor } from "../../i18n";
 
   <section>
     <h2>AI editing protocol</h2>
-    <p>AI-assisted edits should be commands, not hidden rewrites. The protocol should include a command schema, permission checks, preview, history snapshot, and rollback path.</p>
+    <p>AI-assisted edits should be commands, not hidden rewrites. The current development build routes editor actions through a unified command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI editing flows.</p>
     <ul>
-      <li>Commands describe what will change and why.</li>
-      <li>Preview shows the diff before the document is changed.</li>
-      <li>History snapshots make recovery possible.</li>
-      <li>Rollback restores user trust when an edit is wrong.</li>
+      <li>Commands expose localized labels, descriptions, categories, shortcuts, parameter schemas, availability checks, and UI visibility.</li>
+      <li>AI-visible metadata records permissions, whether a command mutates the note, whether confirmation is required, whether a history snapshot is recommended, and risk level.</li>
+      <li>AI operation plans can be previewed to identify unknown, unavailable, experimental, or high-risk commands.</li>
+      <li>Execution validates parameters, and failed execution can restore the editor HTML from before the operation.</li>
     </ul>
+    <p>This is still infrastructure for safer editing. A real AI writing experience also needs readable change previews, visible sources, and user confirmation.</p>
   </section>
 
   <section>

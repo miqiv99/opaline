@@ -4,6 +4,14 @@ All notable public changes to Opaline will be documented here.
 
 The format is intentionally simple while the project is in alpha.
 
+## Unreleased
+
+- Unified editor command registry shared by toolbar actions, context menus, slash commands, the command palette, and future AI editing flows.
+- Added slash command menu for common formatting, block, and insert actions.
+- Added editor command palette, available from the toolbar and `Ctrl+Shift+P`.
+- Expanded the AI editor tool protocol with command descriptors, JSON schema validation, permissions, preview metadata, confirmation gates, risk metadata, history-snapshot hooks, and rollback hooks.
+- Updated public website and technical docs to describe the command layer and AI editing protocol foundation.
+
 ## 0.1.0-alpha
 
 Initial public alpha preparation.
