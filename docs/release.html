@@ -18,23 +18,23 @@
 npm run tauri:dev
 npm run tauri:build</code></pre>
 
-        <p>Tauri bundle outputs are written under <code>src-tauri/target/release/bundle/</code>.</p>
+        <p>Tauri bundle outputs are written under the target-specific release bundle directory, such as <code>src-tauri/target/release/bundle/</code> or <code>src-tauri/target/aarch64-apple-darwin/release/bundle/</code>.</p>
 
         <h2>Manual Updates</h2>
         <p>The Settings page now includes a manual check-for-updates flow built on the Tauri updater plugin.</p>
         <ul>
           <li>Opaline checks only when the user clicks the update button.</li>
           <li>Installing an available update requires a second explicit confirmation.</li>
-          <li>The active updater configuration is intentionally inert until a real release channel exists.</li>
+          <li>The active updater configuration points at GitHub Releases and is used by the manual update check.</li>
           <li>Do not set <code>plugins.updater</code> to <code>null</code>; Tauri expects an updater config object and the app can panic during startup if the plugin config is <code>null</code>.</li>
-          <li>Until GitHub release assets, <code>latest.json</code>, and the updater signing key are configured, update checks may report that the update source is not configured.</li>
+          <li>Current signed update metadata for v0.1.2 is tracked at <code>release-assets/v0.1.2/latest.json</code>.</li>
         </ul>
         <p>GitHub updater setup: <a href="updater-github.md">updater-github.md</a></p>
 
         <h2>Platform Notes</h2>
         <ul>
           <li>Windows packages should be built on Windows. Unsigned builds may trigger SmartScreen warnings.</li>
-          <li>macOS packages should be built and tested on macOS. Public distribution usually needs signing and notarization.</li>
+          <li>macOS Apple Silicon packages are built and tested on macOS. Public distribution usually needs signing and notarization.</li>
           <li>Linux support is future-facing until packages are explicitly tested and documented.</li>
         </ul>
 
@@ -43,8 +43,8 @@ npm run tauri:build</code></pre>
           <li>Review the Tauri app identifier.</li>
           <li>Configure bundle icons.</li>
           <li>Document whether each release is signed or unsigned.</li>
-          <li>Configure the Tauri updater signing key and endpoint.</li>
-          <li>Upload GitHub Release assets and <code>latest.json</code>.</li>
+          <li>Continue updater install testing across Windows and macOS.</li>
+          <li>Upload GitHub Release assets and <code>latest.json</code> for each release.</li>
           <li>Add release notes, checksums, and migration notes.</li>
         </ul>
 

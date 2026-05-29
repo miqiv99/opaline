@@ -7,7 +7,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <div class="site-shell">
       <p class="eyebrow">v0.1.2 public alpha</p>
       <h1>下载 Opaline</h1>
-      <p class="page-intro">Opaline 当前处于 public alpha。Windows 是主要验证目标，发布包可能未签名。</p>
+      <p class="page-intro">Opaline 当前处于 public alpha。当前 Release 已提供 Windows 和 macOS Apple Silicon 构建，发布包可能仍未签名或未公证。</p>
       <div class="page-actions">
         <a class="button primary" href="https://github.com/miqiv99/opaline/releases/tag/v0.1.2" rel="noreferrer">打开 GitHub Release</a>
         <a class="button" href="/zh/docs/release">构建与更新说明</a>
@@ -21,14 +21,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <h2>安装前请知道</h2>
         <ul class="fine-list">
           <li>用重要笔记测试 alpha 版本前，请先备份工作区。</li>
-          <li>Windows 是当前主要构建和验证平台。</li>
-          <li>macOS 安装包需要在 macOS 上构建和测试后，才能描述为已支持。</li>
-          <li>未签名安装包可能触发 Windows SmartScreen 或系统安全提醒。</li>
+          <li>v0.1.2 已提供 Windows 和 macOS Apple Silicon 资产。</li>
+          <li>Windows 仍是主要开发目标；macOS 安装包在 macOS 上构建和测试。</li>
+          <li>未签名或未公证安装包可能触发 Windows SmartScreen、Gatekeeper 或其他系统安全提醒。</li>
         </ul>
       </article>
       <article class="license-box">
         <h2>更新状态</h2>
-        <p>设置页已经有手动检查更新 UI，但在 GitHub Release 资产、<code>latest.json</code> 和 Tauri updater 签名 key 配好之前，公开更新分发仍未启用。</p>
+        <p>设置页已经有手动检查更新 UI。当前 GitHub Release 更新元数据覆盖 Windows x64 和 macOS Apple Silicon 资产。</p>
       </article>
     </div>
   </section>

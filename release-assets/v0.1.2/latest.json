@@ -1,0 +1,15 @@
+{
+  "version": "0.1.2",
+  "notes": "Add editor command screenshots and prepare the 0.1.2 public alpha release.",
+  "pub_date": "2026-05-29T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRE9BNytyaDVrTCtZSTVEOFVyZGdvKzJubkNJd0Zmd29pV3pFQ0tPRDRyWmd0R21GSDh3SXhTMDJXVytoZ3dUcFY5endDdFZFY0FBclVnVE5UbEx2V3lPeFNzWmc0Q3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDM1MTQ0CWZpbGU6T3BhbGluZV8wLjEuMl94NjQtc2V0dXAuZXhlCit2anZkeFliNENzNUhubHhvZFJDQ3BkQXQxV043SXpnaXk5ZlFsbStOT2FpVjZlZStTZlE4NWk4RnZMVjlHOUZTb2draW5iRnBpUEFIU1hpblk0QURRPT0K",
+      "url": "https://github.com/miqiv99/opaline/releases/download/v0.1.2/Opaline_0.1.2_x64-setup.exe"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRE9BNytyaDVrTHluNkYrYlFONFAyMkFTeTN4V3p0R09XRUhCdXJNc1VhN0N2LzRMUHQ5cG5KUXNnemRJQzEwUHFiWndsaHJONXF3YWNpTzhKcTV5b05VdnJYdkdoUnc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDUxODg2CWZpbGU6T3BhbGluZS5hcHAudGFyLmd6CnNpZ2NUZThzOVVmYmRBL24xVWFYZHU0d2tNTnRla2lLS091OTc2UjViczJVOGZmcW53UUVPLzk4aTI0VUJSeHVRQkcwdVphbVRPZlg4aEpVak5lNkJBPT0K",
+      "url": "https://github.com/miqiv99/opaline/releases/download/v0.1.2/Opaline.app.tar.gz"
+    }
+  }
+}

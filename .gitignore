@@ -59,6 +59,7 @@ test-results/
 /latest.json
 /release/
 /releases/
+# Versioned release manifests may be committed under /release-assets/.
 
 # Temporary files
 tmp/

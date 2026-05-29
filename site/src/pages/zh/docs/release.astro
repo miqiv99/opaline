@@ -16,10 +16,10 @@ const updaterConfig = `{
     <h2>当前 Release</h2>
     <p>当前版本是 <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.2" rel="noreferrer">GitHub 上的 v0.1.2</a>。官网不猜测具体 asset 文件名，Release 页面是下载来源。</p>
     <ul>
-      <li>Windows 是当前主要开发和验证目标。</li>
-      <li>macOS 安装包应在 macOS 上构建和测试。</li>
+      <li>v0.1.2 已提供 Windows 和 macOS Apple Silicon 资产。</li>
+      <li>Windows 仍是主要开发目标；macOS 安装包在 macOS 上构建和测试。</li>
       <li>Linux 支持在明确测试和文档化前仍是后续方向。</li>
-      <li>未签名安装包可能触发平台安全提醒。</li>
+      <li>未签名或未公证安装包可能触发平台安全提醒。</li>
       <li>用重要笔记测试前，请先备份工作区。</li>
     </ul>
   </section>
@@ -39,13 +39,13 @@ const updaterConfig = `{
     <pre><code>npm install
 npm run tauri:dev
 npm run tauri:build</code></pre>
-    <p>Tauri 打包产物会写入 <code>src-tauri/target/release/bundle/</code>。</p>
+    <p>Tauri 打包产物会写入对应 target 的 release bundle 目录，例如 <code>src-tauri/target/release/bundle/</code> 或 <code>src-tauri/target/aarch64-apple-darwin/release/bundle/</code>。</p>
   </section>
 
   <section>
     <h2>手动更新状态</h2>
     <p>设置页已经有“检查更新”流程。Opaline 只在用户点击按钮时检查更新，安装可用更新前还需要第二次明确确认。</p>
-    <p>在 GitHub Release 资产、<code>latest.json</code> 和 Tauri updater 签名 key 配置完成前，更新配置应保持惰性。</p>
+    <p>当前更新配置指向 GitHub Releases。v0.1.2 的签名更新元数据保存在仓库的 <code>release-assets/v0.1.2/latest.json</code>。</p>
     <p><code>plugins.updater</code> 必须保留为对象，不能设成 <code>null</code>：</p>
     <pre><code>{updaterConfig}</code></pre>
   </section>
@@ -54,7 +54,7 @@ npm run tauri:build</code></pre>
     <h2>启用公开更新前</h2>
     <ul>
       <li>生成并在仓库外保护 Tauri updater 私钥。</li>
-      <li>上传安装包、匹配的 <code>.sig</code>，以及指向真实 asset 的 <code>latest.json</code>。</li>
+      <li>上传安装包或 app 更新归档、匹配的 <code>.sig</code>，以及指向真实 asset 的 <code>latest.json</code>。</li>
       <li>正式宣布更新前，先用非重要工作区测试安装流程。</li>
       <li>Public alpha 阶段不要启用自动后台安装。</li>
     </ul>

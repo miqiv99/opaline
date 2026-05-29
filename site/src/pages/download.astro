@@ -7,7 +7,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <div class="site-shell">
       <p class="eyebrow">v0.1.2 public alpha</p>
       <h1>Download Opaline</h1>
-      <p class="page-intro">Opaline is in public alpha. Windows is the primary validation target today, and release packages may be unsigned.</p>
+      <p class="page-intro">Opaline is in public alpha. The current release includes Windows and macOS Apple Silicon builds, and packages may still be unsigned or unnotarized.</p>
       <div class="page-actions">
         <a class="button primary" href="https://github.com/miqiv99/opaline/releases/tag/v0.1.2" rel="noreferrer">Open GitHub Release</a>
         <a class="button" href="/docs/release">Build and update notes</a>
@@ -21,14 +21,14 @@ import BaseLayout from "../layouts/BaseLayout.astro";
         <h2>Before installing</h2>
         <ul class="fine-list">
           <li>Back up your workspace before testing alpha builds with important notes.</li>
-          <li>Windows is the main platform being exercised right now.</li>
-          <li>macOS packages should be built and tested on macOS before being described as supported.</li>
-          <li>Unsigned installers can trigger Windows SmartScreen or platform warnings.</li>
+          <li>Windows and macOS Apple Silicon assets are available for v0.1.2.</li>
+          <li>Windows remains the primary development target; macOS builds are produced and tested on macOS.</li>
+          <li>Unsigned or unnotarized packages can trigger Windows SmartScreen, Gatekeeper, or other platform warnings.</li>
         </ul>
       </article>
       <article class="license-box">
         <h2>Updater status</h2>
-        <p>The Settings page already includes a manual update check UI, but GitHub Release update delivery is inactive until release assets, <code>latest.json</code>, and the Tauri updater signing key are configured.</p>
+        <p>The Settings page includes a manual update check UI. The current GitHub Release metadata covers Windows x64 and macOS Apple Silicon assets.</p>
       </article>
     </div>
   </section>

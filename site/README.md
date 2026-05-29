@@ -47,5 +47,6 @@ The Worker configuration lives in `wrangler.toml` and uploads Astro's `dist/`
 folder as static assets. `src/worker.ts` mirrors the Pages middleware language
 redirects before serving static assets.
 
-The `/updates/alpha/` folder is reserved for a future updater manifest. Do not add
-a fake `latest.json`; the updater needs real signing keys and release assets.
+The `/updates/alpha/` folder is reserved for a future site-hosted updater
+manifest. The current public alpha uses GitHub Releases for updater metadata;
+the repository copy of the current manifest lives under `release-assets/`.

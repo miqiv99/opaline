@@ -17,9 +17,9 @@ Opaline 是一个本地优先的桌面知识工作台，笔记以干净 HTML 文
 
 Opaline 当前是 **公开 alpha**。
 
-- 当前主要开发和验证环境是 Windows。
-- macOS 支持在计划中，但 macOS 安装包应在 macOS 上构建和测试。
-- 当前发布包默认未签名，除非 Release 明确说明。
+- 当前 alpha Release 已提供 Windows 和 macOS Apple Silicon 构建。
+- Windows 仍是主要开发目标；macOS 安装包在 macOS 上构建和测试。
+- 当前发布包可能未签名或未公证，除非 Release 明确说明。
 - 用重要笔记测试 alpha 版本前，请先备份工作区。
 
 ## 为什么是 HTML 笔记？
@@ -55,7 +55,7 @@ Opaline 不是要保存任意浏览器或编辑器吐出的脏 HTML。项目会�
 - ✓ 本地笔记历史快照
 - ✓ AI 设置：provider、API 地址、模型、API Key、模型测试和模型抓取
 - ◐ 实验性活组件和扩展文件夹
-- ◐ 手动检查和安装更新流程；GitHub Release 更新源和 updater 签名密钥还需要真实发布配置
+- ✓ 手动检查和安装更新流程；当前 Windows x64 和 macOS Apple Silicon alpha 资产已接入签名 GitHub Release 更新元数据
 - ✓ 界面语言切换和工作区本地语言包
 
 图例：✓ 已实现，◐ 部分实现或仍需打磨，○ 计划中。
@@ -68,8 +68,8 @@ Opaline 不是要保存任意浏览器或编辑器吐出的脏 HTML。项目会�
 - 部分文件操作和历史版本控制还需要打磨。
 - 从选中文字创建概念级链接还需要更友好的 UI。
 - 块链接跳转后的目标高亮仍可能不稳定。
-- 更新 UI 已经存在，但公开更新分发需要先配置 GitHub Release 资产、更新源和签名密钥。
-- 安装包还没有面向大众发布所需的签名/公证。
+- GitHub Release 更新分发已面向当前 Windows x64 和 macOS Apple Silicon alpha 资产启用，但正式扩大前仍应使用非重要工作区测试。
+- 安装包可能仍未具备面向大众发布所需的签名/公证。
 - 静态发布功能在计划中，但不属于第一版 alpha。
 
 ## 从源码运行

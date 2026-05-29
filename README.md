@@ -17,9 +17,9 @@ The goal is simple: your notes should remain useful outside the app. Each note i
 
 Opaline is currently a **public alpha**.
 
-- Windows is the primary active development target.
-- macOS support is planned, but macOS builds should be produced and tested on macOS.
-- Release builds are unsigned unless a release explicitly says otherwise.
+- Windows and macOS Apple Silicon builds are available for the current alpha release.
+- Windows remains the primary active development target; macOS packages are built and tested on macOS.
+- Release builds may be unsigned or unnotarized unless a release explicitly says otherwise.
 - Back up your workspace before testing alpha builds with important notes.
 
 ## Why HTML Notes?
@@ -55,7 +55,7 @@ The current alpha already includes:
 - ✓ local note history snapshots
 - ✓ AI settings for provider, base URL, model, API key, model test, and model fetching
 - ◐ experimental live widgets and extension folder support
-- ◐ manual update check and install flow; GitHub release endpoint and updater signing key still need real release configuration
+- ✓ manual update check and install flow backed by signed GitHub Release update metadata for Windows x64 and macOS Apple Silicon
 - ✓ interface language support and workspace-local language packs
 
 Legend: ✓ implemented, ◐ partially implemented or still rough, ○ planned.
@@ -68,8 +68,8 @@ The public alpha currently opens into the focused workspace. The earlier casual 
 - Some file operations and history controls need more polish.
 - Creating concept-level links from selected text still needs a friendlier UI.
 - Block-link target highlighting can still be unreliable in the desktop editor.
-- The updater UI exists, but public update delivery is inactive until GitHub release assets, updater endpoint, and signing key are configured.
-- Builds are not yet signed/notarized for broad public distribution.
+- GitHub Release update delivery is active for the current Windows x64 and macOS Apple Silicon alpha assets, but should keep being tested with non-essential workspaces before broader announcements.
+- Builds may still be unsigned or unnotarized for broad public distribution.
 - Static publishing is planned but not part of the first alpha.
 
 ## Install and Run from Source

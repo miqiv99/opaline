@@ -16,10 +16,10 @@ const updaterConfig = `{
     <h2>Current release</h2>
     <p>The current release is <a href="https://github.com/miqiv99/opaline/releases/tag/v0.1.2" rel="noreferrer">v0.1.2 on GitHub</a>. Do not guess asset names on the website; use the Release page as the source of truth.</p>
     <ul>
-      <li>Windows is the primary active development and validation target.</li>
-      <li>macOS packages should be built and tested on macOS.</li>
+      <li>Windows and macOS Apple Silicon assets are available for v0.1.2.</li>
+      <li>Windows remains the primary active development target; macOS packages are built and tested on macOS.</li>
       <li>Linux support is future-facing until explicitly tested and documented.</li>
-      <li>Unsigned packages may trigger platform warnings.</li>
+      <li>Unsigned or unnotarized packages may trigger platform warnings.</li>
       <li>Back up your workspace before testing with important notes.</li>
     </ul>
   </section>
@@ -39,13 +39,13 @@ const updaterConfig = `{
     <pre><code>npm install
 npm run tauri:dev
 npm run tauri:build</code></pre>
-    <p>Tauri bundle outputs are written under <code>src-tauri/target/release/bundle/</code>.</p>
+    <p>Tauri bundle outputs are written under the target-specific release bundle directory, such as <code>src-tauri/target/release/bundle/</code> or <code>src-tauri/target/aarch64-apple-darwin/release/bundle/</code>.</p>
   </section>
 
   <section>
     <h2>Manual updater status</h2>
     <p>Settings includes a manual "check for updates" flow. Opaline checks only when the user clicks the update button, and installing an available update requires a second explicit confirmation.</p>
-    <p>The active updater configuration is intentionally inert until GitHub Release assets, <code>latest.json</code>, and the Tauri updater signing key are configured.</p>
+    <p>The active updater configuration points at GitHub Releases. Current signed update metadata for v0.1.2 is tracked in the repository under <code>release-assets/v0.1.2/latest.json</code>.</p>
     <p>Keep <code>plugins.updater</code> as an object. Do not set it to <code>null</code>:</p>
     <pre><code>{updaterConfig}</code></pre>
   </section>
@@ -54,7 +54,7 @@ npm run tauri:build</code></pre>
     <h2>Before enabling public updates</h2>
     <ul>
       <li>Generate and protect the private Tauri updater signing key outside the repository.</li>
-      <li>Upload the installer, matching <code>.sig</code>, and a real <code>latest.json</code> that points at an existing asset.</li>
+      <li>Upload the installer or app archive, matching <code>.sig</code>, and a real <code>latest.json</code> that points at existing assets.</li>
       <li>Test update installation with a non-essential workspace before announcing an update.</li>
       <li>Do not enable automatic background installation during public alpha.</li>
     </ul>

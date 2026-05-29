@@ -1,5 +1,4 @@
-This directory is reserved for a future Opaline alpha updater manifest.
+This directory is reserved for a future site-hosted Opaline alpha updater manifest.
 
-Do not publish a fake latest.json here. Tauri updater support requires a real
-signing key, a matching signed release asset, and a manifest that points to an
-existing installer.
+The current public alpha uses GitHub Releases for updater metadata. The
+repository copy of the current manifest lives under release-assets/.

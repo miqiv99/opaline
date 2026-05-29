@@ -15,10 +15,11 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
-Tauri bundle outputs are written under:
+Tauri bundle outputs are written under the target-specific release bundle directory, for example:
 
 ```text
 src-tauri/target/release/bundle/
+src-tauri/target/aarch64-apple-darwin/release/bundle/
 ```
 
 ## Manual Updates
@@ -29,15 +30,15 @@ Current alpha behavior:
 
 - Opaline checks only when the user clicks the update button.
 - Installing an available update requires a second explicit confirmation.
-- The active updater configuration is intentionally inert until a real release channel exists.
+- The active updater configuration points at GitHub Releases and is used by the manual update check.
 - Do not set `plugins.updater` to `null`; Tauri expects an updater config object and the app can panic during startup if the plugin config is `null`.
-- Until GitHub release assets, `latest.json`, and the updater signing key are configured, update checks may report that the update source is not configured.
+- Current signed update metadata for v0.1.2 is tracked at `release-assets/v0.1.2/latest.json`.
 
 GitHub updater setup: [docs/updater-github.md](updater-github.md)
 
 ## Windows
 
-Windows is the primary active development target right now.
+Windows remains the primary active development target right now.
 
 Notes:
 
@@ -47,13 +48,14 @@ Notes:
 
 ## macOS
 
-macOS packages should be built and tested on macOS.
+macOS Apple Silicon packages are built and tested on macOS.
 
 Notes:
 
+- The current macOS release asset is for Apple Silicon (`darwin-aarch64`).
 - Unsigned or unnotarized builds may be blocked by Gatekeeper.
 - Public distribution usually needs Apple Developer signing and notarization.
-- Do not imply macOS is fully supported until a macOS build has been tested on a Mac.
+- Intel macOS builds should not be described as supported until they are explicitly built and tested.
 
 ## Linux
 
@@ -66,8 +68,7 @@ Before a stable public release, review:
 - `src-tauri/tauri.conf.json` app identifier.
 - Bundle icons.
 - Windows installer metadata.
-- Tauri updater signing key and endpoint.
-- GitHub Release assets and `latest.json`.
+- Broader updater install testing across Windows and macOS.
 - macOS signing and notarization.
 - Release notes and checksums.
 - Upgrade and migration behavior.
