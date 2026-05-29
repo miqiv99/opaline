@@ -1176,6 +1176,10 @@ export function App() {
   }, [t]);
 
   useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) {
+      return;
+    }
+
     let disposed = false;
     let unlisten: (() => void) | undefined;
     const appWindow = getCurrentWindow();

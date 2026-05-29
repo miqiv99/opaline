@@ -62,6 +62,8 @@ export const siteText = {
       shots: [
         ["/media/opaline-workspace.png", "工作台：文档树、最近文档和本地状态"],
         ["/media/opaline-editor.png", "编辑器：HTML 文档、样式工具和本篇关联"],
+        ["/media/opaline-en-slash-menu.png", "Slash 命令：标题、列表、表格、图片、公式和图表"],
+        ["/media/opaline-en-command-palette.png", "命令面板：搜索命令并查看快捷键提示"],
         ["/media/opaline-map.png", "关系图：文档与概念之间的连接"],
         ["/media/opaline-settings.png", "设置：AI、语言、扩展组件和更新入口"],
       ],
@@ -183,6 +185,8 @@ export const siteText = {
       shots: [
         ["/media/opaline-en-workspace.png", "Workbench: note tree, recent documents, and local status"],
         ["/media/opaline-en-editor.png", "Editor: HTML document, style tools, and links from this note"],
+        ["/media/opaline-en-slash-menu.png", "Slash commands: headings, lists, tables, images, formulas, and diagrams"],
+        ["/media/opaline-en-command-palette.png", "Command palette: search commands and see shortcut hints"],
         ["/media/opaline-en-map.png", "Relationship map: documents and concepts connected"],
         ["/media/opaline-en-settings.png", "Settings: AI, language, extensions, and updates"],
       ],
