@@ -51,6 +51,8 @@ The current alpha already includes:
 - ✓ editor command palette opened from the toolbar or with `Ctrl+Shift+P`
 - ◐ AI editor tool protocol with command descriptors, JSON schema validation, permissions, preview metadata, confirmation gates, history-snapshot hooks, risk metadata, and rollback hooks
 - ◐ SQLite-backed metadata, search direction, tags, headings, links from this note, mentions of this note, and broken-link detection
+- ✓ Workspace diagnostics for HTML profile issues, broken links, asset references, duplicate IDs, and SQLite index drift
+- ✓ Explicit SQLite index rebuild that refreshes derived metadata without modifying HTML note files
 - ✓ Relationship map with file, heading, block, and concept-level relationships
 - ✓ local note history snapshots
 - ✓ AI settings for provider, base URL, model, API key, model test, and model fetching

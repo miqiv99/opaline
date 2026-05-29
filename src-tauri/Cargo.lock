@@ -2334,6 +2334,7 @@ name = "opaline"
 version = "0.1.2"
 dependencies = [
  "chrono",
+ "dom_query",
  "reqwest",
  "rusqlite",
  "serde",

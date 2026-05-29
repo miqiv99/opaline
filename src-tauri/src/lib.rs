@@ -1,7 +1,9 @@
+pub mod html_profile;
+
 use chrono::{Datelike, TimeZone, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -33,6 +35,21 @@ struct LinkInfo {
     target_heading: Option<String>,
     target_block_id: Option<String>,
     concept: Option<String>,
+}
+
+impl From<html_profile::NoteLink> for LinkInfo {
+    fn from(link: html_profile::NoteLink) -> Self {
+        Self {
+            href: link.href,
+            label: link.label,
+            target_id: link.target_id,
+            is_broken: link.is_broken,
+            kind: link.kind,
+            target_heading: link.target_heading,
+            target_block_id: link.target_block_id,
+            concept: link.concept,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -113,6 +130,49 @@ struct GraphData {
     nodes: Vec<GraphNode>,
     edges: Vec<GraphEdge>,
     broken_links: Vec<LinkInfo>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDiagnostics {
+    summary: WorkspaceDiagnosticsSummary,
+    issues: Vec<WorkspaceDiagnosticIssue>,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDiagnosticsSummary {
+    html_note_count: usize,
+    parsed_note_count: usize,
+    parse_failure_count: usize,
+    error_count: usize,
+    warning_count: usize,
+    missing_id_count: usize,
+    duplicate_id_count: usize,
+    missing_title_count: usize,
+    missing_h1_count: usize,
+    missing_note_article_count: usize,
+    empty_body_count: usize,
+    unresolved_link_count: usize,
+    broken_href_count: usize,
+    missing_heading_target_count: usize,
+    missing_block_target_count: usize,
+    missing_asset_count: usize,
+    unreferenced_asset_count: usize,
+    sqlite_note_count: Option<usize>,
+    sqlite_relation_count: Option<usize>,
+    needs_rebuild: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDiagnosticIssue {
+    level: String,
+    code: String,
+    path: Option<String>,
+    related_paths: Vec<String>,
+    target: Option<String>,
+    message: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -662,7 +722,7 @@ fn graph_data(path: String) -> Result<GraphData, String> {
             let target_id: Option<String> = row.get(1)?;
             let href: String = row.get(2)?;
             let label: String = row.get(3)?;
-            let meta = link_metadata_from_parts(&href, None, None, None, None, &label);
+            let meta = html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
             let Some(target) =
                 target_id.or_else(|| meta.concept.as_ref().map(|c| concept_node_id(c)))
             else {
@@ -735,7 +795,7 @@ fn graph_data(path: String) -> Result<GraphData, String> {
             let href: String = row.get(0)?;
             let label: String = row.get(1)?;
             let target_id: Option<String> = row.get(2)?;
-            let meta = link_metadata_from_parts(&href, None, None, None, None, &label);
+            let meta = html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
             Ok(LinkInfo {
                 href,
                 label,
@@ -756,6 +816,19 @@ fn graph_data(path: String) -> Result<GraphData, String> {
         edges,
         broken_links,
     })
+}
+
+#[tauri::command]
+fn diagnose_workspace(path: String) -> Result<WorkspaceDiagnostics, String> {
+    let workspace = workspace_path(&path)?;
+    diagnose_workspace_inner(&workspace)
+}
+
+#[tauri::command]
+fn rebuild_workspace_index(path: String) -> Result<Vec<NoteSummary>, String> {
+    let workspace = workspace_path(&path)?;
+    ensure_workspace(path)?;
+    rebuild_index(&workspace)
 }
 
 #[tauri::command]
@@ -926,20 +999,8 @@ fn rename_note(path: String, note_id: String, new_title: String) -> Result<NoteS
     create_note_history_snapshot(&workspace, &note_id, &old_path, &html, true)?;
 
     let old_title = title_content(&html).unwrap_or_default();
-    html = html.replace(
-        &format!("<title>{old_title}</title>"),
-        &format!("<title>{}</title>", escape_text(&new_title)),
-    );
-
-    if let Some(ref old_h1) = first_heading_content(&html) {
-        if old_h1.trim() == old_title.trim() {
-            html = html.replacen(
-                &format!("<h1>{old_h1}</h1>"),
-                &format!("<h1>{}</h1>", escape_text(&new_title)),
-                1,
-            );
-        }
-    }
+    html = html_profile::replace_title_text(&html, &new_title);
+    html = html_profile::replace_first_h1_if_text_matches(&html, &old_title, &new_title);
 
     let directory = Path::new(&old_path).parent().unwrap_or(Path::new("notes"));
     let directory_str = directory.to_string_lossy().replace('\\', "/");
@@ -1356,6 +1417,8 @@ pub fn run() {
             search_notes,
             list_backlinks,
             graph_data,
+            diagnose_workspace,
+            rebuild_workspace_index,
             toggle_favorite,
             import_asset,
             read_settings,
@@ -1759,7 +1822,9 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
         upsert_note_index(&conn, summary, html)?;
     }
 
-    if !present_ids.is_empty() {
+    if present_ids.is_empty() {
+        conn.execute("delete from notes", []).map_err(to_error)?;
+    } else {
         let placeholders = present_ids
             .iter()
             .map(|_| "?")
@@ -1781,6 +1846,636 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
             .then_with(|| a.title.cmp(&b.title))
     });
     Ok(summaries)
+}
+
+#[derive(Clone)]
+struct DiagnosticNoteRecord {
+    path: String,
+    absolute_path: PathBuf,
+    inspection: html_profile::NoteHtmlInspection,
+}
+
+fn diagnose_workspace_inner(workspace: &Path) -> Result<WorkspaceDiagnostics, String> {
+    let mut summary = WorkspaceDiagnosticsSummary::default();
+    let mut issues = Vec::new();
+    let notes_dir = workspace.join("notes");
+    let assets_dir = workspace.join("assets");
+    let mut notes = Vec::new();
+    let mut paths = BTreeSet::new();
+    let mut id_paths: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut inventory_by_path: HashMap<String, html_profile::NoteTargetInventory> = HashMap::new();
+    let mut path_by_id: HashMap<String, String> = HashMap::new();
+
+    if !notes_dir.is_dir() {
+        summary.needs_rebuild = true;
+        push_diagnostic_issue(
+            &mut summary,
+            &mut issues,
+            "warning",
+            "notes_dir_missing",
+            Some("notes".to_string()),
+            Vec::new(),
+            None,
+            "Workspace has no notes directory.",
+        );
+    } else {
+        for entry in WalkDir::new(&notes_dir).into_iter().filter_map(Result::ok) {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let file_path = entry.path();
+            if file_path.extension().and_then(|ext| ext.to_str()) != Some("html") {
+                continue;
+            }
+
+            summary.html_note_count += 1;
+            let relative_path = relative_to_workspace(workspace, file_path)?;
+            paths.insert(relative_path.clone());
+            let html = match fs::read_to_string(file_path) {
+                Ok(html) => html,
+                Err(error) => {
+                    summary.parse_failure_count += 1;
+                    push_diagnostic_issue(
+                        &mut summary,
+                        &mut issues,
+                        "error",
+                        "read_failed",
+                        Some(relative_path),
+                        Vec::new(),
+                        None,
+                        &format!("Failed to read note HTML: {error}"),
+                    );
+                    continue;
+                }
+            };
+
+            let inspection = html_profile::inspect_note_html(&html);
+            summary.parsed_note_count += 1;
+
+            if !inspection.has_html || !inspection.has_body {
+                summary.parse_failure_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "warning",
+                    "malformed_html",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note is missing an explicit html or body element.",
+                );
+            }
+
+            if let Some(id) = inspection.metadata.id.clone() {
+                id_paths
+                    .entry(id.clone())
+                    .or_default()
+                    .push(relative_path.clone());
+                path_by_id.entry(id).or_insert_with(|| relative_path.clone());
+            } else {
+                summary.missing_id_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "warning",
+                    "missing_opaline_id",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note is missing meta name=\"opaline:id\".",
+                );
+            }
+
+            if inspection.metadata.title.is_none() {
+                summary.missing_title_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "warning",
+                    "missing_title",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note is missing a title element.",
+                );
+            }
+
+            if inspection.metadata.first_h1.is_none() {
+                summary.missing_h1_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "warning",
+                    "missing_h1",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note is missing a first h1 heading.",
+                );
+            }
+
+            if !inspection.has_note_article {
+                summary.missing_note_article_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "error",
+                    "missing_note_article",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note is missing article data-opaline-note.",
+                );
+            }
+
+            if note_body_is_near_empty(&inspection) {
+                summary.empty_body_count += 1;
+                push_diagnostic_issue(
+                    &mut summary,
+                    &mut issues,
+                    "warning",
+                    "empty_body",
+                    Some(relative_path.clone()),
+                    Vec::new(),
+                    None,
+                    "The note body is empty or nearly empty.",
+                );
+            }
+
+            inventory_by_path.insert(relative_path.clone(), inspection.target_inventory.clone());
+            notes.push(DiagnosticNoteRecord {
+                path: relative_path,
+                absolute_path: file_path.to_path_buf(),
+                inspection,
+            });
+        }
+    }
+
+    for (id, duplicate_paths) in &id_paths {
+        if duplicate_paths.len() <= 1 {
+            continue;
+        }
+        summary.duplicate_id_count += 1;
+        push_diagnostic_issue(
+            &mut summary,
+            &mut issues,
+            "error",
+            "duplicate_opaline_id",
+            None,
+            duplicate_paths.clone(),
+            Some(id.clone()),
+            "Multiple notes share the same opaline:id.",
+        );
+    }
+
+    diagnose_links(
+        &notes,
+        &inventory_by_path,
+        &path_by_id,
+        &mut summary,
+        &mut issues,
+    );
+    diagnose_assets(
+        workspace,
+        &assets_dir,
+        &notes,
+        &mut summary,
+        &mut issues,
+    )?;
+    diagnose_index_state(workspace, &paths, &mut summary, &mut issues);
+
+    summary.needs_rebuild = summary.needs_rebuild
+        || summary.parse_failure_count > 0
+        || summary.missing_id_count > 0
+        || summary.duplicate_id_count > 0
+        || summary.error_count > 0;
+
+    Ok(WorkspaceDiagnostics { summary, issues })
+}
+
+fn diagnose_links(
+    notes: &[DiagnosticNoteRecord],
+    inventory_by_path: &HashMap<String, html_profile::NoteTargetInventory>,
+    path_by_id: &HashMap<String, String>,
+    summary: &mut WorkspaceDiagnosticsSummary,
+    issues: &mut Vec<WorkspaceDiagnosticIssue>,
+) {
+    for note in notes {
+        let note_dir = Path::new(&note.path)
+            .parent()
+            .unwrap_or_else(|| Path::new(""));
+        for link in &note.inspection.links {
+            if link.unresolved {
+                summary.unresolved_link_count += 1;
+                push_diagnostic_issue(
+                    summary,
+                    issues,
+                    "warning",
+                    "unresolved_wikilink",
+                    Some(note.path.clone()),
+                    Vec::new(),
+                    Some(link.label.clone()),
+                    "The note contains an unresolved [[...]] shortcut.",
+                );
+                continue;
+            }
+
+            if html_profile::is_external_href(&link.href)
+                || link.href.starts_with('#')
+                || link.kind == "concept"
+                || link.href.starts_with("opaline://concept/")
+            {
+                if link.href.starts_with('#') {
+                    diagnose_fragment_target(
+                        &note.path,
+                        &note.path,
+                        link,
+                        inventory_by_path,
+                        summary,
+                        issues,
+                    );
+                }
+                continue;
+            }
+
+            if let Some(target_id) = &link.target_id {
+                if !path_by_id.contains_key(target_id) {
+                    summary.broken_href_count += 1;
+                    push_diagnostic_issue(
+                        summary,
+                        issues,
+                        "error",
+                        "missing_link_target_id",
+                        Some(note.path.clone()),
+                        Vec::new(),
+                        Some(target_id.clone()),
+                        "data-opaline-link points to a missing note id.",
+                    );
+                }
+            }
+
+            if html_profile::is_note_html_href(&link.href) {
+                let Some(target_path) = normalize_relative_note_path(note_dir, &link.href) else {
+                    continue;
+                };
+                if !inventory_by_path.contains_key(&target_path) {
+                    summary.broken_href_count += 1;
+                    push_diagnostic_issue(
+                        summary,
+                        issues,
+                        "error",
+                        "broken_href",
+                        Some(note.path.clone()),
+                        Vec::new(),
+                        Some(link.href.clone()),
+                        "The href points to an HTML file that does not exist in notes.",
+                    );
+                    continue;
+                }
+                diagnose_fragment_target(
+                    &note.path,
+                    &target_path,
+                    link,
+                    inventory_by_path,
+                    summary,
+                    issues,
+                );
+            }
+        }
+    }
+}
+
+fn diagnose_fragment_target(
+    source_path: &str,
+    target_path: &str,
+    link: &html_profile::NoteLink,
+    inventory_by_path: &HashMap<String, html_profile::NoteTargetInventory>,
+    summary: &mut WorkspaceDiagnosticsSummary,
+    issues: &mut Vec<WorkspaceDiagnosticIssue>,
+) {
+    let Some(inventory) = inventory_by_path.get(target_path) else {
+        return;
+    };
+
+    if link.kind == "block" {
+        let block_id = link
+            .target_block_id
+            .clone()
+            .or_else(|| link.fragment.as_deref().map(html_profile::normalize_block_fragment_value));
+        if let Some(block_id) = block_id {
+            let exists = contains_exact(&inventory.block_ids, &block_id)
+                || contains_exact(&inventory.element_ids, &block_id);
+            if !exists {
+                summary.missing_block_target_count += 1;
+                push_diagnostic_issue(
+                    summary,
+                    issues,
+                    "warning",
+                    "missing_block_target",
+                    Some(source_path.to_string()),
+                    vec![target_path.to_string()],
+                    Some(block_id),
+                    "The link points to a block id that does not exist in the target note.",
+                );
+            }
+        }
+        return;
+    }
+
+    if link.kind == "heading" {
+        let heading = link
+            .target_heading
+            .clone()
+            .or_else(|| link.fragment.as_deref().map(html_profile::normalize_heading_fragment_value));
+        if let Some(heading) = heading {
+            let raw_fragment = link.fragment.as_deref().unwrap_or("");
+            let exists = contains_case_insensitive(&inventory.headings, &heading)
+                || contains_exact(&inventory.heading_ids, raw_fragment)
+                || contains_exact(&inventory.element_ids, raw_fragment);
+            if !exists {
+                summary.missing_heading_target_count += 1;
+                push_diagnostic_issue(
+                    summary,
+                    issues,
+                    "warning",
+                    "missing_heading_target",
+                    Some(source_path.to_string()),
+                    vec![target_path.to_string()],
+                    Some(heading),
+                    "The link points to a heading that does not exist in the target note.",
+                );
+            }
+        }
+    }
+}
+
+fn diagnose_assets(
+    workspace: &Path,
+    assets_dir: &Path,
+    notes: &[DiagnosticNoteRecord],
+    summary: &mut WorkspaceDiagnosticsSummary,
+    issues: &mut Vec<WorkspaceDiagnosticIssue>,
+) -> Result<(), String> {
+    let mut referenced_assets = HashSet::new();
+
+    for note in notes {
+        let note_dir = note
+            .absolute_path
+            .parent()
+            .unwrap_or_else(|| workspace);
+        for reference in &note.inspection.asset_references {
+            let Some(target_path) = resolve_local_reference(workspace, note_dir, &reference.source) else {
+                continue;
+            };
+            if target_path.is_file() {
+                if let Ok(relative) = relative_to_workspace(workspace, &target_path) {
+                    referenced_assets.insert(relative);
+                }
+            } else {
+                summary.missing_asset_count += 1;
+                push_diagnostic_issue(
+                    summary,
+                    issues,
+                    "warning",
+                    "missing_asset",
+                    Some(note.path.clone()),
+                    Vec::new(),
+                    Some(reference.source.clone()),
+                    "The note references a local image or attachment that does not exist.",
+                );
+            }
+        }
+    }
+
+    if assets_dir.is_dir() {
+        for entry in WalkDir::new(assets_dir).into_iter().filter_map(Result::ok) {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let relative = relative_to_workspace(workspace, entry.path())?;
+            if !referenced_assets.contains(&relative) {
+                summary.unreferenced_asset_count += 1;
+                push_diagnostic_issue(
+                    summary,
+                    issues,
+                    "warning",
+                    "unreferenced_asset",
+                    Some(relative),
+                    Vec::new(),
+                    None,
+                    "The asset exists under assets but is not referenced by any note.",
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn diagnose_index_state(
+    workspace: &Path,
+    note_paths: &BTreeSet<String>,
+    summary: &mut WorkspaceDiagnosticsSummary,
+    issues: &mut Vec<WorkspaceDiagnosticIssue>,
+) {
+    let index_path = workspace.join(".opaline/index.sqlite");
+    if !index_path.is_file() {
+        summary.needs_rebuild = true;
+        push_diagnostic_issue(
+            summary,
+            issues,
+            "warning",
+            "index_missing",
+            Some(".opaline/index.sqlite".to_string()),
+            Vec::new(),
+            None,
+            "The SQLite index file is missing.",
+        );
+        return;
+    }
+
+    let conn = match Connection::open_with_flags(&index_path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+        Ok(conn) => conn,
+        Err(error) => {
+            summary.needs_rebuild = true;
+            push_diagnostic_issue(
+                summary,
+                issues,
+                "warning",
+                "index_read_failed",
+                Some(".opaline/index.sqlite".to_string()),
+                Vec::new(),
+                None,
+                &format!("Failed to open SQLite index read-only: {error}"),
+            );
+            return;
+        }
+    };
+
+    let indexed_paths = match read_indexed_note_paths(&conn) {
+        Ok(paths) => paths,
+        Err(error) => {
+            summary.needs_rebuild = true;
+            push_diagnostic_issue(
+                summary,
+                issues,
+                "warning",
+                "index_read_failed",
+                Some(".opaline/index.sqlite".to_string()),
+                Vec::new(),
+                None,
+                &format!("Failed to read SQLite note index: {error}"),
+            );
+            return;
+        }
+    };
+
+    summary.sqlite_note_count = Some(indexed_paths.len());
+    summary.sqlite_relation_count = count_index_rows(&conn, "note_links").ok();
+
+    if indexed_paths.len() != note_paths.len() {
+        summary.needs_rebuild = true;
+        push_diagnostic_issue(
+            summary,
+            issues,
+            "warning",
+            "index_count_mismatch",
+            Some(".opaline/index.sqlite".to_string()),
+            Vec::new(),
+            Some(format!("files={} sqlite={}", note_paths.len(), indexed_paths.len())),
+            "SQLite notes count does not match the number of HTML notes on disk.",
+        );
+    }
+
+    for path in note_paths {
+        if !indexed_paths.contains(path) {
+            summary.needs_rebuild = true;
+            push_diagnostic_issue(
+                summary,
+                issues,
+                "warning",
+                "index_missing_note",
+                Some(path.clone()),
+                Vec::new(),
+                None,
+                "The HTML note is missing from the SQLite index.",
+            );
+        }
+    }
+
+    for path in indexed_paths {
+        if !note_paths.contains(&path) {
+            summary.needs_rebuild = true;
+            push_diagnostic_issue(
+                summary,
+                issues,
+                "warning",
+                "index_stale_note",
+                Some(path),
+                Vec::new(),
+                None,
+                "The SQLite index contains a note path that no longer exists.",
+            );
+        }
+    }
+}
+
+fn read_indexed_note_paths(conn: &Connection) -> Result<BTreeSet<String>, String> {
+    let mut statement = conn.prepare("select path from notes").map_err(to_error)?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(to_error)?;
+    let mut paths = BTreeSet::new();
+    for row in rows {
+        paths.insert(row.map_err(to_error)?);
+    }
+    Ok(paths)
+}
+
+fn count_index_rows(conn: &Connection, table: &str) -> Result<usize, String> {
+    let sql = format!("select count(*) from {table}");
+    let count: i64 = conn.query_row(&sql, [], |row| row.get(0)).map_err(to_error)?;
+    Ok(count.max(0) as usize)
+}
+
+fn push_diagnostic_issue(
+    summary: &mut WorkspaceDiagnosticsSummary,
+    issues: &mut Vec<WorkspaceDiagnosticIssue>,
+    level: &str,
+    code: &str,
+    path: Option<String>,
+    related_paths: Vec<String>,
+    target: Option<String>,
+    message: &str,
+) {
+    if level == "error" {
+        summary.error_count += 1;
+    } else {
+        summary.warning_count += 1;
+    }
+    issues.push(WorkspaceDiagnosticIssue {
+        level: level.to_string(),
+        code: code.to_string(),
+        path,
+        related_paths,
+        target,
+        message: message.to_string(),
+    });
+}
+
+fn note_body_is_near_empty(inspection: &html_profile::NoteHtmlInspection) -> bool {
+    let mut text = inspection.article_text.trim();
+    if text.is_empty() {
+        return true;
+    }
+    if let Some(h1) = inspection.metadata.first_h1.as_deref() {
+        let h1 = h1.trim();
+        if text == h1 {
+            return true;
+        }
+        if let Some(rest) = text.strip_prefix(h1) {
+            text = rest.trim();
+        }
+    }
+    text.chars().filter(|ch| ch.is_alphanumeric()).count() < 3
+}
+
+fn resolve_local_reference(workspace: &Path, base_dir: &Path, source: &str) -> Option<PathBuf> {
+    let source = html_profile::href_path_without_suffix(source);
+    if source.is_empty() {
+        return None;
+    }
+    let raw = Path::new(source);
+    let joined = if raw.is_absolute() {
+        workspace.join(source.trim_start_matches(['/', '\\']))
+    } else {
+        base_dir.join(raw)
+    };
+    let normalized = normalize_path_lexically(&joined);
+    normalized.starts_with(workspace).then_some(normalized)
+}
+
+fn normalize_path_lexically(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Normal(value) => normalized.push(value),
+            Component::RootDir | Component::Prefix(_) => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
+}
+
+fn contains_case_insensitive(values: &[String], needle: &str) -> bool {
+    values.iter().any(|value| value.eq_ignore_ascii_case(needle))
+}
+
+fn contains_exact(values: &[String], needle: &str) -> bool {
+    values.iter().any(|value| value == needle)
 }
 
 fn create_note_at(
@@ -1886,10 +2581,15 @@ fn upsert_note_index(conn: &Connection, note: &NoteSummary, html: &str) -> Resul
         params![note.id],
     )
     .map_err(to_error)?;
+    let heading_details = html_profile::extract_note_heading_details(html);
     for (position, heading) in note.headings.iter().enumerate() {
+        let level = heading_details
+            .get(position)
+            .map(|detail| detail.level as i64)
+            .unwrap_or(1);
         conn.execute(
             "insert or ignore into note_headings (note_id, heading, level, position) values (?1, ?2, ?3, ?4)",
-            params![note.id, heading, 1, position as i64],
+            params![note.id, heading, level, position as i64],
         )
         .map_err(to_error)?;
     }
@@ -1926,14 +2626,28 @@ fn summary_from_html(
     html: &str,
 ) -> Result<NoteSummary, String> {
     let relative_path = relative_to_workspace(workspace, file_path)?;
-    let id = meta_content(html, "opaline:id").unwrap_or_else(|| Uuid::new_v4().to_string());
-    let title = title_content(html)
-        .or_else(|| first_heading_content(html))
+    let inspection = html_profile::inspect_note_html(html);
+    let id = inspection
+        .metadata
+        .id
+        .clone()
+        .unwrap_or_else(|| fallback_note_id(&relative_path));
+    let title = inspection
+        .metadata
+        .title
+        .clone()
+        .or_else(|| inspection.metadata.first_h1.clone())
         .unwrap_or_else(|| "未命名笔记".to_string());
-    let created_at =
-        meta_content(html, "opaline:created").unwrap_or_else(|| file_timestamp(file_path));
-    let updated_at =
-        meta_content(html, "opaline:updated").unwrap_or_else(|| file_timestamp(file_path));
+    let created_at = inspection
+        .metadata
+        .created_at
+        .clone()
+        .unwrap_or_else(|| file_timestamp(file_path));
+    let updated_at = inspection
+        .metadata
+        .updated_at
+        .clone()
+        .unwrap_or_else(|| file_timestamp(file_path));
 
     Ok(NoteSummary {
         favorite: favorite_for(conn, &id)?,
@@ -1942,9 +2656,13 @@ fn summary_from_html(
         title,
         created_at,
         updated_at,
-        tags: extract_tags(html),
-        headings: extract_headings(html),
-        outgoing_links: extract_links(html),
+        tags: inspection.tags,
+        headings: inspection
+            .headings
+            .into_iter()
+            .map(|heading| heading.text)
+            .collect(),
+        outgoing_links: inspection.links.into_iter().map(Into::into).collect(),
     })
 }
 
@@ -1959,7 +2677,11 @@ fn resolve_links(
         .unwrap_or_else(|| Path::new(""));
 
     for link in &mut note.outgoing_links {
-        if is_external_href(&link.href) || link.href.starts_with('#') {
+        if is_external_href(&link.href)
+            || link.href.starts_with('#')
+            || link.kind == "concept"
+            || link.href.starts_with("opaline://concept/")
+        {
             link.is_broken = false;
             continue;
         }
@@ -1984,10 +2706,7 @@ fn resolve_links(
 }
 
 fn is_external_href(href: &str) -> bool {
-    href.starts_with("http:")
-        || href.starts_with("https:")
-        || href.starts_with("mailto:")
-        || href.starts_with("tel:")
+    html_profile::is_external_href(href)
 }
 
 fn collect_search_results<P: rusqlite::Params>(
@@ -2298,6 +3017,10 @@ fn relative_to_workspace(workspace: &Path, file_path: &Path) -> Result<String, S
         .map(|path| path.to_string_lossy().replace('\\', "/"))
 }
 
+fn fallback_note_id(relative_path: &str) -> String {
+    format!("path:{relative_path}")
+}
+
 fn note_absolute_path(workspace: &Path, note_path: &str) -> Result<PathBuf, String> {
     let relative = PathBuf::from(note_path);
     if relative.is_absolute()
@@ -2420,10 +3143,10 @@ fn normalize_note_html(
     fallback_id: &str,
     fallback_title: &str,
 ) -> Result<String, String> {
-    if !html.to_lowercase().contains("<html") || !html.to_lowercase().contains("<body") {
+    if !html_profile::document_has_complete_html(html) {
         return Err("保存失败：笔记必须是完整 HTML 文档".to_string());
     }
-    if !html.contains("data-opaline-note") {
+    if !html_profile::document_has_note_article(html) {
         return Err("保存失败：笔记正文缺少 data-opaline-note".to_string());
     }
 
@@ -2431,15 +3154,7 @@ fn normalize_note_html(
     let now = Utc::now().to_rfc3339();
     normalized = upsert_meta_content(&normalized, "opaline:id", fallback_id);
     normalized = upsert_meta_content(&normalized, "opaline:updated", &now);
-    if title_content(&normalized).is_none() {
-        normalized = normalized.replace(
-            "</head>",
-            &format!(
-                "    <title>{}</title>\n  </head>",
-                escape_text(fallback_title)
-            ),
-        );
-    }
+    normalized = html_profile::ensure_title(&normalized, fallback_title);
     if !normalized.starts_with("<!doctype html>") {
         normalized = format!("<!doctype html>\n{normalized}");
     }
@@ -2451,56 +3166,7 @@ fn note_html_equivalent_for_save(left: &str, right: &str) -> bool {
 }
 
 fn normalize_updated_meta_for_compare(html: &str) -> String {
-    let mut normalized = String::with_capacity(html.len());
-    let mut remaining = html;
-
-    loop {
-        let Some(meta_start) = remaining.to_ascii_lowercase().find("<meta") else {
-            normalized.push_str(remaining);
-            break;
-        };
-        let (before_meta, from_meta) = remaining.split_at(meta_start);
-        normalized.push_str(before_meta);
-
-        let Some(meta_end) = from_meta.find('>') else {
-            normalized.push_str(from_meta);
-            break;
-        };
-
-        let (meta_tag, after_meta) = from_meta.split_at(meta_end + 1);
-        let lower_meta = meta_tag.to_ascii_lowercase();
-        if lower_meta.contains("name=\"opaline:updated\"")
-            || lower_meta.contains("name='opaline:updated'")
-        {
-            normalized.push_str(&normalize_meta_content_for_compare(meta_tag));
-        } else {
-            normalized.push_str(meta_tag);
-        }
-        remaining = after_meta;
-    }
-
-    normalized
-}
-
-fn normalize_meta_content_for_compare(meta_tag: &str) -> String {
-    let lower_meta = meta_tag.to_ascii_lowercase();
-    for marker in ["content=\"", "content='"] {
-        if let Some(content_start) = lower_meta.find(marker) {
-            let value_start = content_start + marker.len();
-            let quote = marker.chars().last().unwrap_or('"');
-            if let Some(relative_end) = meta_tag[value_start..].find(quote) {
-                let value_end = value_start + relative_end;
-                return format!(
-                    "{}{}{}",
-                    &meta_tag[..value_start],
-                    "__opaline_updated__",
-                    &meta_tag[value_end..]
-                );
-            }
-        }
-    }
-
-    meta_tag.to_string()
+    html_profile::normalize_updated_meta_for_compare(html)
 }
 
 fn write_file_atomically(path: &Path, contents: &str) -> Result<(), String> {
@@ -2551,228 +3217,12 @@ fn file_timestamp(file_path: &Path) -> String {
         .unwrap_or_else(|_| Utc::now().to_rfc3339())
 }
 
-fn extract_tags(html: &str) -> Vec<String> {
-    let mut tags = extract_attr_values(html, "data-opaline-tag");
-    for word in plain_text(html).split_whitespace() {
-        if let Some(tag) = word.strip_prefix('#') {
-            let tag = tag.trim_matches(|c: char| !c.is_alphanumeric()).to_string();
-            if !tag.is_empty() && !tags.contains(&tag) {
-                tags.push(tag);
-            }
-        }
-    }
-    tags
-}
-
-fn extract_headings(html: &str) -> Vec<String> {
-    let mut headings = Vec::new();
-    for tag in ["h1", "h2", "h3", "h4", "h5", "h6"] {
-        let mut rest = html;
-        let start_tag = format!("<{tag}");
-        let end_tag = format!("</{tag}>");
-        while let Some(start) = rest.to_lowercase().find(&start_tag) {
-            let after_start = &rest[start..];
-            let Some(content_start) = after_start.find('>') else {
-                break;
-            };
-            let content = &after_start[content_start + 1..];
-            let Some(end) = content.to_lowercase().find(&end_tag) else {
-                break;
-            };
-            let heading = unescape_text(&strip_tags(&content[..end]))
-                .trim()
-                .to_string();
-            if !heading.is_empty() {
-                headings.push(heading);
-            }
-            rest = &content[end + end_tag.len()..];
-        }
-    }
-    headings
-}
-
-fn extract_links(html: &str) -> Vec<LinkInfo> {
-    let mut links = Vec::new();
-    let mut rest = html;
-    while let Some(start) = rest.to_lowercase().find("<a ") {
-        let after_start = &rest[start..];
-        let Some(tag_end) = after_start.find('>') else {
-            break;
-        };
-        let tag = &after_start[..tag_end + 1];
-        let content = &after_start[tag_end + 1..];
-        let Some(close) = content.to_lowercase().find("</a>") else {
-            break;
-        };
-        let href = attr_value(tag, "href").unwrap_or_default();
-        if !href.is_empty() {
-            let label = unescape_text(&strip_tags(&content[..close]))
-                .trim()
-                .to_string();
-            let meta = link_metadata_from_parts(
-                &href,
-                attr_value(tag, "data-opaline-link-kind"),
-                attr_value(tag, "data-opaline-heading"),
-                attr_value(tag, "data-opaline-block-id")
-                    .or_else(|| attr_value(tag, "data-opaline-block-ref")),
-                attr_value(tag, "data-opaline-concept"),
-                &label,
-            );
-            links.push(LinkInfo {
-                href,
-                label,
-                target_id: attr_value(tag, "data-opaline-link"),
-                is_broken: false,
-                kind: meta.kind,
-                target_heading: meta.target_heading,
-                target_block_id: meta.target_block_id,
-                concept: meta.concept,
-            });
-        }
-        rest = &content[close + "</a>".len()..];
-    }
-
-    for unresolved in extract_attr_values(html, "data-opaline-unresolved") {
-        links.push(LinkInfo {
-            href: format!("[[{unresolved}]]"),
-            label: unresolved,
-            target_id: None,
-            is_broken: true,
-            kind: "note".to_string(),
-            target_heading: None,
-            target_block_id: None,
-            concept: None,
-        });
-    }
-
-    links
-}
-
-#[derive(Debug)]
-struct LinkMetadata {
-    kind: String,
-    target_heading: Option<String>,
-    target_block_id: Option<String>,
-    concept: Option<String>,
-}
-
-fn link_metadata_from_parts(
-    href: &str,
-    explicit_kind: Option<String>,
-    target_heading: Option<String>,
-    target_block_id: Option<String>,
-    concept: Option<String>,
-    label: &str,
-) -> LinkMetadata {
-    let kind = normalize_link_kind(explicit_kind.as_deref());
-    let fragment = href
-        .split_once('#')
-        .map(|(_, fragment)| fragment.trim())
-        .filter(|fragment| !fragment.is_empty());
-    let concept_from_href = href
-        .strip_prefix("opaline://concept/")
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    let concept = concept.or(concept_from_href);
-
-    if kind.as_deref() == Some("concept") || concept.is_some() {
-        let concept = concept.or_else(|| {
-            let trimmed = label.trim().trim_start_matches('#').trim();
-            (!trimmed.is_empty()).then(|| trimmed.to_string())
-        });
-        return LinkMetadata {
-            kind: "concept".to_string(),
-            target_heading: None,
-            target_block_id: None,
-            concept,
-        };
-    }
-
-    if kind.as_deref() == Some("block")
-        || target_block_id.is_some()
-        || fragment.is_some_and(is_block_fragment)
-    {
-        let block = target_block_id.or_else(|| fragment.map(normalize_fragment_value));
-        return LinkMetadata {
-            kind: "block".to_string(),
-            target_heading: None,
-            target_block_id: block,
-            concept: None,
-        };
-    }
-
-    if kind.as_deref() == Some("heading") || target_heading.is_some() || fragment.is_some() {
-        let heading = target_heading.or_else(|| fragment.map(normalize_fragment_value));
-        return LinkMetadata {
-            kind: "heading".to_string(),
-            target_heading: heading,
-            target_block_id: None,
-            concept: None,
-        };
-    }
-
-    LinkMetadata {
-        kind: "note".to_string(),
-        target_heading: None,
-        target_block_id: None,
-        concept: None,
-    }
-}
-
-fn normalize_link_kind(kind: Option<&str>) -> Option<String> {
-    match kind.map(|value| value.trim().to_lowercase()).as_deref() {
-        Some("note" | "file") => Some("note".to_string()),
-        Some("heading") => Some("heading".to_string()),
-        Some("block") => Some("block".to_string()),
-        Some("concept") => Some("concept".to_string()),
-        _ => None,
-    }
-}
-
-fn is_block_fragment(fragment: &str) -> bool {
-    fragment.starts_with('^')
-        || fragment.starts_with("b-")
-        || fragment.starts_with("block-")
-        || fragment.starts_with("opaline-block-")
-}
-
-fn normalize_fragment_value(fragment: &str) -> String {
-    fragment.trim_start_matches('^').replace('-', " ")
-}
-
 fn concept_node_id(concept: &str) -> String {
     format!("concept:{}", concept.trim().to_lowercase())
 }
 
-fn extract_attr_values(html: &str, attr_name: &str) -> Vec<String> {
-    let mut values = Vec::new();
-    let patterns = [format!("{attr_name}=\""), format!("{attr_name}='")];
-    for pattern in patterns {
-        let quote = if pattern.ends_with('"') { '"' } else { '\'' };
-        let mut rest = html;
-        while let Some(start) = rest.find(&pattern) {
-            let value_start = start + pattern.len();
-            let after_start = &rest[value_start..];
-            if let Some(end) = after_start.find(quote) {
-                let value = unescape_text(&after_start[..end]).trim().to_string();
-                if !value.is_empty() && !values.contains(&value) {
-                    values.push(value);
-                }
-                rest = &after_start[end + 1..];
-            } else {
-                break;
-            }
-        }
-    }
-    values
-}
-
-fn attr_value(tag: &str, attr_name: &str) -> Option<String> {
-    extract_attr_values(tag, attr_name).into_iter().next()
-}
-
 fn normalize_relative_note_path(base_dir: &Path, href: &str) -> Option<String> {
-    let href = href.split('#').next().unwrap_or(href);
+    let href = html_profile::href_path_without_suffix(href);
     if href.is_empty() || !href.ends_with(".html") {
         return None;
     }
@@ -2800,86 +3250,23 @@ fn normalize_relative_note_path(base_dir: &Path, href: &str) -> Option<String> {
 }
 
 fn plain_text(html: &str) -> String {
-    unescape_text(&strip_tags(html))
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    html_profile::plain_text_from_html(html)
 }
 
 fn upsert_meta_content(html: &str, name: &str, content: &str) -> String {
-    let marker = format!(r#"name="{name}""#);
-    let Some(start) = html.find(&marker) else {
-        return html.replace(
-            "</head>",
-            &format!(
-                "    <meta name=\"{}\" content=\"{}\">\n  </head>",
-                escape_attr(name),
-                escape_attr(content)
-            ),
-        );
-    };
-    let rest = &html[start..];
-    let Some(content_attr_start) = rest.find(r#"content=""#) else {
-        return html.to_string();
-    };
-    let absolute_content_start = start + content_attr_start + r#"content=""#.len();
-    let Some(content_end) = html[absolute_content_start..].find('"') else {
-        return html.to_string();
-    };
-    let absolute_content_end = absolute_content_start + content_end;
-    format!(
-        "{}{}{}",
-        &html[..absolute_content_start],
-        escape_attr(content),
-        &html[absolute_content_end..]
-    )
+    html_profile::upsert_meta_content(html, name, content)
 }
 
 fn meta_content(html: &str, name: &str) -> Option<String> {
-    let mut rest = html;
-    loop {
-        let lower = rest.to_lowercase();
-        let start = lower.find("<meta")?;
-        let after_start = &rest[start..];
-        let tag_end = after_start.find('>')?;
-        let tag = &after_start[..tag_end + 1];
-        if attr_value(tag, "name").as_deref() == Some(name) {
-            return attr_value(tag, "content").map(|value| unescape_text(&value));
-        }
-        rest = &after_start[tag_end + 1..];
-    }
+    html_profile::meta_content(html, name)
 }
 
 fn title_content(html: &str) -> Option<String> {
-    between_case_insensitive(html, "<title>", "</title>").map(unescape_text)
+    html_profile::title_content(html)
 }
 
 fn first_heading_content(html: &str) -> Option<String> {
-    extract_headings(html).into_iter().next()
-}
-
-fn between_case_insensitive<'a>(html: &'a str, start: &str, end: &str) -> Option<&'a str> {
-    let lower = html.to_lowercase();
-    let start_index = lower.find(start)? + start.len();
-    let end_index = lower[start_index..].find(end)? + start_index;
-    Some(&html[start_index..end_index])
-}
-
-fn strip_tags(value: &str) -> String {
-    let mut output = String::new();
-    let mut in_tag = false;
-    for character in value.chars() {
-        match character {
-            '<' => in_tag = true,
-            '>' => {
-                in_tag = false;
-                output.push(' ');
-            }
-            _ if !in_tag => output.push(character),
-            _ => {}
-        }
-    }
-    output
+    html_profile::first_heading_content(html)
 }
 
 fn escape_text(value: &str) -> String {
@@ -2891,14 +3278,6 @@ fn escape_text(value: &str) -> String {
 
 fn escape_attr(value: &str) -> String {
     escape_text(value).replace('"', "&quot;")
-}
-
-fn unescape_text(value: &str) -> String {
-    value
-        .replace("&quot;", "\"")
-        .replace("&gt;", ">")
-        .replace("&lt;", "<")
-        .replace("&amp;", "&")
 }
 
 fn to_error(error: impl std::fmt::Display) -> String {
@@ -3151,11 +3530,11 @@ mod tests {
         );
         assert_eq!(title_content(html).as_deref(), Some("测试 & 标题"));
         assert_eq!(first_heading_content(html).as_deref(), Some("测试 & 标题"));
-        assert!(extract_tags(html).contains(&"research".to_string()));
-        assert!(extract_headings(html).contains(&"研究问题".to_string()));
+        assert!(html_profile::extract_note_tags(html).contains(&"research".to_string()));
+        assert!(html_profile::extract_note_headings(html).contains(&"研究问题".to_string()));
         assert!(plain_text(html).contains("HTML 笔记"));
 
-        let links = extract_links(html);
+        let links = html_profile::extract_note_links(html);
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].href, "related.html#b-intro");
         assert_eq!(links[0].target_id.as_deref(), Some("note-2"));
@@ -3303,5 +3682,134 @@ mod tests {
         );
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn workspace_diagnostics_report_profile_links_and_assets() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+        fs::create_dir_all(workspace.join("assets/images")).expect("assets dir");
+        fs::write(workspace.join("assets/images/used.png"), "used").expect("used asset");
+        fs::write(workspace.join("assets/images/unused.png"), "unused").expect("unused asset");
+
+        write_test_note(
+            &workspace,
+            "notes/target.html",
+            r#"<!doctype html>
+<html><head><title>Target</title><meta name="opaline:id" content="target"></head>
+<body><article data-opaline-note><h1>Target</h1><h2 id="existing-heading">Existing Heading</h2><p id="b-existing" data-opaline-block>enough body text</p></article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/source.html",
+            r#"<!doctype html>
+<html><head><title>Source</title><meta name="opaline:id" content="source"></head>
+<body><article data-opaline-note><h1>Source</h1><p>source body text</p>
+<a href="missing.html">Missing file</a>
+<a href="target.html#Missing-Heading" data-opaline-link-kind="heading">Missing heading</a>
+<a href="target.html#b-missing" data-opaline-link-kind="block">Missing block</a>
+<span data-opaline-unresolved="No Such Note">[[No Such Note]]</span>
+<img src="../assets/images/missing.png"><img src="../assets/images/used.png">
+</article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/no-id.html",
+            r#"<!doctype html><html><head><title>No ID</title></head><body><article data-opaline-note><h1>No ID</h1><p>body text</p></article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/duplicate-a.html",
+            r#"<!doctype html><html><head><title>Dup A</title><meta name="opaline:id" content="dup"></head><body><article data-opaline-note><h1>Dup A</h1><p>body text</p></article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/duplicate-b.html",
+            r#"<!doctype html><html><head><title>Dup B</title><meta name="opaline:id" content="dup"></head><body><article data-opaline-note><h1>Dup B</h1><p>body text</p></article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/no-article.html",
+            r#"<!doctype html><html><head><title>No Article</title><meta name="opaline:id" content="no-article"></head><body><h1>No Article</h1><p>body text</p></body></html>"#,
+        );
+
+        let diagnostics = diagnose_workspace(workspace_string).expect("diagnostics run");
+
+        assert_eq!(diagnostics.summary.html_note_count, 6);
+        assert_eq!(diagnostics.summary.missing_id_count, 1);
+        assert_eq!(diagnostics.summary.duplicate_id_count, 1);
+        assert_eq!(diagnostics.summary.missing_note_article_count, 1);
+        assert!(diagnostics.summary.unresolved_link_count >= 1);
+        assert!(diagnostics.summary.broken_href_count >= 1);
+        assert!(diagnostics.summary.missing_heading_target_count >= 1);
+        assert!(diagnostics.summary.missing_block_target_count >= 1);
+        assert!(diagnostics.summary.missing_asset_count >= 1);
+        assert!(diagnostics.summary.unreferenced_asset_count >= 1);
+        assert!(has_issue(&diagnostics, "missing_opaline_id"));
+        assert!(has_issue(&diagnostics, "duplicate_opaline_id"));
+        assert!(has_issue(&diagnostics, "missing_note_article"));
+        assert!(has_issue(&diagnostics, "broken_href"));
+        assert!(has_issue(&diagnostics, "missing_asset"));
+        assert!(has_issue(&diagnostics, "unreferenced_asset"));
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn rebuild_workspace_index_matches_notes_and_relations() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+
+        write_test_note(
+            &workspace,
+            "notes/target.html",
+            r#"<!doctype html>
+<html><head><title>Target</title><meta name="opaline:id" content="target"><meta name="opaline:created" content="2026-05-14T00:00:00Z"><meta name="opaline:updated" content="2026-05-14T00:00:00Z"></head>
+<body><article data-opaline-note><h1>Target</h1><p id="b-target" data-opaline-block>target body text</p></article></body></html>"#,
+        );
+        write_test_note(
+            &workspace,
+            "notes/source.html",
+            r#"<!doctype html>
+<html><head><title>Source</title><meta name="opaline:id" content="source"><meta name="opaline:created" content="2026-05-14T00:00:00Z"><meta name="opaline:updated" content="2026-05-14T00:00:00Z"></head>
+<body><article data-opaline-note><h1>Source</h1><p>source body text <a href="target.html" data-opaline-link="target">Target</a></p></article></body></html>"#,
+        );
+
+        let before = diagnose_workspace(workspace_string.clone()).expect("diagnostics before rebuild");
+        assert!(before.summary.needs_rebuild);
+
+        let notes = rebuild_workspace_index(workspace_string.clone()).expect("index rebuilt");
+        assert_eq!(notes.len(), 2);
+
+        let conn = open_index(&workspace).expect("index opens");
+        let note_count: i64 = conn
+            .query_row("select count(*) from notes", [], |row| row.get(0))
+            .expect("note count");
+        let relation_count: i64 = conn
+            .query_row("select count(*) from note_links", [], |row| row.get(0))
+            .expect("link count");
+        assert_eq!(note_count, 2);
+        assert_eq!(relation_count, 1);
+
+        let after = diagnose_workspace(workspace_string).expect("diagnostics after rebuild");
+        assert_eq!(after.summary.sqlite_note_count, Some(2));
+        assert_eq!(after.summary.sqlite_relation_count, Some(1));
+        assert!(!after.summary.needs_rebuild);
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    fn write_test_note(workspace: &Path, relative: &str, html: &str) {
+        let path = workspace.join(relative);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("note parent");
+        }
+        fs::write(path, html).expect("write note");
+    }
+
+    fn has_issue(diagnostics: &WorkspaceDiagnostics, code: &str) -> bool {
+        diagnostics.issues.iter().any(|issue| issue.code == code)
     }
 }

@@ -1,4 +1,4 @@
-import type { AssetImport, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary } from "../domain/note";
+import type { AssetImport, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, WorkspaceDiagnostics } from "../domain/note";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
 
 const demoWorkspacePath = "demo://workspace";
@@ -213,6 +213,14 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
     };
   },
 
+  async diagnoseWorkspace() {
+    return demoDiagnostics();
+  },
+
+  async rebuildWorkspaceIndex() {
+    return notes.map(toSummary);
+  },
+
   async toggleFavorite(_path: string, noteId: string) {
     let favorite = false;
     notes = notes.map((note) => {
@@ -314,6 +322,32 @@ export const demoWorkspaceAdapter: WorkspaceAdapter = {
 
   async writeExportFile(_filePath: string, _content: string) {},
 };
+
+const demoDiagnostics = (): WorkspaceDiagnostics => ({
+  summary: {
+    htmlNoteCount: notes.length,
+    parsedNoteCount: notes.length,
+    parseFailureCount: 0,
+    errorCount: 0,
+    warningCount: 0,
+    missingIdCount: 0,
+    duplicateIdCount: 0,
+    missingTitleCount: 0,
+    missingH1Count: 0,
+    missingNoteArticleCount: 0,
+    emptyBodyCount: 0,
+    unresolvedLinkCount: notes.flatMap((note) => note.outgoingLinks).filter((link) => link.isBroken).length,
+    brokenHrefCount: notes.flatMap((note) => note.outgoingLinks).filter((link) => link.isBroken).length,
+    missingHeadingTargetCount: 0,
+    missingBlockTargetCount: 0,
+    missingAssetCount: 0,
+    unreferencedAssetCount: 0,
+    sqliteNoteCount: notes.length,
+    sqliteRelationCount: notes.flatMap((note) => note.outgoingLinks).length,
+    needsRebuild: false,
+  },
+  issues: [],
+});
 
 const createDemoNote = (input: NewNoteInput) => {
   const title = input.title.trim() || "未命名笔记";

@@ -7,6 +7,7 @@ import type {
   NoteHistoryEntry,
   NoteSummary,
   SearchResult,
+  WorkspaceDiagnostics,
 } from "../domain/note";
 import type { InstalledPlugin } from "../editor/pluginRegistry";
 import type { LoadedLanguagePack } from "../i18n";
@@ -27,6 +28,8 @@ export interface WorkspaceAdapter {
   searchNotes(path: string, query: string): Promise<SearchResult[]>;
   listBacklinks(path: string, noteId: string): Promise<SearchResult[]>;
   graphData(path: string): Promise<GraphData>;
+  diagnoseWorkspace(path: string): Promise<WorkspaceDiagnostics>;
+  rebuildWorkspaceIndex(path: string): Promise<NoteSummary[]>;
   toggleFavorite(path: string, noteId: string): Promise<boolean>;
   importAsset(path: string, input: AssetImport): Promise<ImportedAsset>;
   importMarkdown?(path: string, markdown: string, title: string): Promise<NoteDocument>;

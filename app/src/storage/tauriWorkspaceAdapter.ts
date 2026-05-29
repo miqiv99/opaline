@@ -9,6 +9,7 @@ import type {
   NoteHistoryEntry,
   NoteSummary,
   SearchResult,
+  WorkspaceDiagnostics,
 } from "../domain/note";
 import { saveInstalledPluginsToCache, type InstalledPlugin } from "../editor/pluginRegistry";
 import type { WorkspaceAdapter } from "./workspaceAdapter";
@@ -78,6 +79,14 @@ export const tauriWorkspaceAdapter: WorkspaceAdapter = {
 
   async graphData(path: string) {
     return invoke<GraphData>("graph_data", { path });
+  },
+
+  async diagnoseWorkspace(path: string) {
+    return invoke<WorkspaceDiagnostics>("diagnose_workspace", { path });
+  },
+
+  async rebuildWorkspaceIndex(path: string) {
+    return invoke<NoteSummary[]>("rebuild_workspace_index", { path });
   },
 
   async toggleFavorite(path: string, noteId: string) {

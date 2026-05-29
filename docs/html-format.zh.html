@@ -140,6 +140,11 @@ This is English.
   &lt;/body&gt;
 &lt;/html&gt;</code></pre>
 
+        <h2>解析器与诊断</h2>
+        <p>Opaline 维护独立的 HTML Profile 解析层，用于提取笔记元数据、标题、链接、标签、正文文本、块目标和附件引用。索引、搜索、反链、关系图和诊断都使用这一层，避免各处散落临时字符串扫描规则。</p>
+        <p>工作区诊断是只读的。它会报告缺失 <code>opaline:id</code>、重复 ID、缺失 <code>&lt;title&gt;</code> 或 <code>&lt;h1&gt;</code>、缺失 <code>article data-opaline-note</code>、正文接近为空、断开的笔记链接、未解析 <code>[[...]]</code> 快捷链接、缺失的标题或块目标、缺失附件、未引用附件和 SQLite 索引漂移。</p>
+        <p>重建工作区索引只会根据当前 HTML 文件刷新 SQLite 元数据、搜索行、标签、标题和链接关系，不会改写用户的 HTML 笔记。</p>
+
         <h2>链接、标签和块</h2>
         <pre><code>&lt;a href="../projects/opaline.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;Opaline&lt;/a&gt;
 &lt;a href="../projects/opaline.html#b-introduction" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-introduction"&gt;引言块&lt;/a&gt;

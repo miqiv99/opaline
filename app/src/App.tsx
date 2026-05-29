@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronsDown,
   Clock3,
+  DatabaseZap,
   DownloadCloud,
   FilePlus2,
   FileText,
@@ -21,6 +22,7 @@ import {
   Keyboard,
   Lightbulb,
   Link2,
+  ListChecks,
   Loader2,
   MessageCircle,
   Network,
@@ -74,7 +76,7 @@ import {
   type InstalledPlugin,
 } from "./editor/pluginRegistry";
 import { markdownTitle } from "./editor/markdownImport";
-import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, SearchResult, WorkspaceState } from "./domain/note";
+import type { GraphData, ImportedAsset, LinkKind, NewNoteInput, NoteDocument, NoteHistoryEntry, NoteSummary, SearchResult, WorkspaceDiagnosticIssue, WorkspaceDiagnostics, WorkspaceState } from "./domain/note";
 import leafLogo from "./assets/opaline-leaf-mark.svg";
 import { workspaceAdapter } from "./storage/adapter";
 import { WorkspaceMigrationDialog } from "./components/WorkspaceMigrationDialog";
@@ -98,7 +100,7 @@ const MIN_AUTO_SAVE_DELAY_MS = 2000;
 const MAX_AUTO_SAVE_DELAY_MS = 300000;
 const AUTO_HISTORY_SNAPSHOT_INTERVAL_MS = 10 * 60 * 1000;
 const AUTO_HISTORY_CONTENT_DELTA_CHARS = 2000;
-type SettingsPanelId = "files" | "shortcuts" | "stats" | "plugins" | "ai" | "language" | "updates";
+type SettingsPanelId = "files" | "shortcuts" | "stats" | "diagnostics" | "plugins" | "ai" | "language" | "updates";
 type SaveStatus = "saved" | "dirty" | "saving" | "error";
 type FileLinkSettings = {
   defaultOpenFile: "last" | "none";
@@ -1562,6 +1564,12 @@ export function App() {
             onFileLinkSettingsChange={updateFileLinkSettings}
             onEditorShortcutSettingsChange={updateEditorShortcutSettings}
             onStatsSettingsChange={updateStatsSettings}
+            onWorkspaceIndexRebuilt={async (notes) => {
+              setWorkspace((current) => ({ ...current, notes }));
+              if (workspace.path) {
+                setGraph(await workspaceAdapter.graphData(workspace.path));
+              }
+            }}
             onChangeWorkspace={async () => {
               if (!(await ensureCurrentNoteSafe())) return;
               const newPath = await workspaceAdapter.chooseWorkspace();
@@ -2621,6 +2629,7 @@ function SettingsView({
   onFileLinkSettingsChange,
   onEditorShortcutSettingsChange,
   onStatsSettingsChange,
+  onWorkspaceIndexRebuilt,
   onChangeWorkspace,
 }: {
   workspacePath: string | null;
@@ -2635,6 +2644,7 @@ function SettingsView({
   onFileLinkSettingsChange: (patch: Partial<FileLinkSettings>) => void;
   onEditorShortcutSettingsChange: (settings: EditorShortcutSettings) => void;
   onStatsSettingsChange: (patch: Partial<StatsSettings>) => void;
+  onWorkspaceIndexRebuilt: (notes: NoteSummary[]) => void | Promise<void>;
   onChangeWorkspace: () => void | Promise<void>;
 }) {
   const { t } = useI18n();
@@ -2688,6 +2698,14 @@ function SettingsView({
       top: 62,
     },
     {
+      id: "diagnostics",
+      title: t("settings.diagnostics"),
+      description: t("settings.diagnosticsDesc"),
+      icon: <ListChecks size={19} />,
+      left: 22,
+      top: 66,
+    },
+    {
       id: "plugins",
       title: t("settings.plugins"),
       description: t("plugin.marketDesc"),
@@ -2717,6 +2735,11 @@ function SettingsView({
       <StatsSettingsPanel
         settings={statsSettings}
         onChange={onStatsSettingsChange}
+      />
+    ) : activePanel === "diagnostics" ? (
+      <WorkspaceDiagnosticsPanel
+        workspacePath={workspacePath}
+        onIndexRebuilt={onWorkspaceIndexRebuilt}
       />
     ) : activePanel === "shortcuts" ? (
       <ShortcutSettingsPanel
@@ -2864,6 +2887,194 @@ function FileLinksSettingsPanel({
     </section>
   );
 }
+
+function WorkspaceDiagnosticsPanel({
+  workspacePath,
+  onIndexRebuilt,
+}: {
+  workspacePath: string | null;
+  onIndexRebuilt: (notes: NoteSummary[]) => void | Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [diagnostics, setDiagnostics] = useState<WorkspaceDiagnostics | null>(null);
+  const [status, setStatus] = useState("");
+  const [running, setRunning] = useState<"diagnose" | "rebuild" | null>(null);
+
+  const runDiagnostics = useCallback(async () => {
+    if (!workspacePath) {
+      setStatus(t("settings.workspaceNotReady"));
+      return null;
+    }
+    setRunning("diagnose");
+    setStatus(t("diagnostics.running"));
+    try {
+      const result = await workspaceAdapter.diagnoseWorkspace(workspacePath);
+      setDiagnostics(result);
+      setStatus(t("diagnostics.complete", {
+        errors: result.summary.errorCount,
+        warnings: result.summary.warningCount,
+      }));
+      return result;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("diagnostics.failed"));
+      return null;
+    } finally {
+      setRunning(null);
+    }
+  }, [t, workspacePath]);
+
+  const rebuildIndex = useCallback(async () => {
+    if (!workspacePath) {
+      setStatus(t("settings.workspaceNotReady"));
+      return;
+    }
+    setRunning("rebuild");
+    setStatus(t("diagnostics.rebuildRunning"));
+    try {
+      const notes = await workspaceAdapter.rebuildWorkspaceIndex(workspacePath);
+      await onIndexRebuilt(notes);
+      const result = await workspaceAdapter.diagnoseWorkspace(workspacePath);
+      setDiagnostics(result);
+      setStatus(t("diagnostics.rebuildComplete", { count: notes.length }));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("diagnostics.rebuildFailed"));
+    } finally {
+      setRunning(null);
+    }
+  }, [onIndexRebuilt, t, workspacePath]);
+
+  const errors = diagnostics?.issues.filter((issue) => issue.level === "error") ?? [];
+  const warnings = diagnostics?.issues.filter((issue) => issue.level !== "error") ?? [];
+  const summaryItems = diagnostics ? diagnosticSummaryItems(diagnostics, t) : [];
+
+  return (
+    <section className="settings-row-list diagnostics-panel">
+      <div className="settings-choice-row diagnostics-action-row">
+        <div>
+          <strong>{t("diagnostics.title")}</strong>
+          <small>{t("diagnostics.desc")}</small>
+        </div>
+        <div className="diagnostics-actions">
+          <button type="button" className="secondary-action-button" onClick={() => void runDiagnostics()} disabled={running !== null || !workspacePath}>
+            {running === "diagnose" ? <Loader2 size={15} className="spinner" /> : <RefreshCw size={15} />}
+            <span>{running === "diagnose" ? t("diagnostics.runningShort") : t("diagnostics.run")}</span>
+          </button>
+          <button type="button" className="secondary-action-button" onClick={() => void rebuildIndex()} disabled={running !== null || !workspacePath}>
+            {running === "rebuild" ? <Loader2 size={15} className="spinner" /> : <DatabaseZap size={15} />}
+            <span>{running === "rebuild" ? t("diagnostics.rebuildingShort") : t("diagnostics.rebuild")}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="diagnostics-safety-note">
+        <ShieldCheck size={16} />
+        <span>{t("diagnostics.rebuildSafety")}</span>
+      </div>
+
+      {diagnostics ? (
+        <>
+          <div className="diagnostics-summary-grid">
+            {summaryItems.map((item) => (
+              <div className={item.emphasis ? "diagnostics-metric is-emphasis" : "diagnostics-metric"} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className={diagnostics.summary.needsRebuild ? "diagnostics-index-state needs-rebuild" : "diagnostics-index-state"}>
+            {diagnostics.summary.needsRebuild ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+            <span>{diagnostics.summary.needsRebuild ? t("diagnostics.needsRebuild") : t("diagnostics.indexHealthy")}</span>
+          </div>
+
+          <DiagnosticIssueGroup title={t("diagnostics.errors")} emptyLabel={t("diagnostics.noErrors")} issues={errors} />
+          <DiagnosticIssueGroup title={t("diagnostics.warnings")} emptyLabel={t("diagnostics.noWarnings")} issues={warnings} />
+        </>
+      ) : (
+        <div className="diagnostics-empty">
+          <ListChecks size={20} />
+          <strong>{t("diagnostics.emptyTitle")}</strong>
+          <small>{t("diagnostics.emptyDesc")}</small>
+        </div>
+      )}
+
+      {status ? <p className="plugin-status-text">{status}</p> : null}
+    </section>
+  );
+}
+
+function DiagnosticIssueGroup({
+  title,
+  emptyLabel,
+  issues,
+}: {
+  title: string;
+  emptyLabel: string;
+  issues: WorkspaceDiagnosticIssue[];
+}) {
+  const { t } = useI18n();
+  return (
+    <details className="diagnostics-group" open={issues.length > 0}>
+      <summary>
+        <span>{title}</span>
+        <strong>{issues.length}</strong>
+      </summary>
+      {issues.length ? (
+        <div className="diagnostics-issue-list">
+          {issues.map((issue, index) => (
+            <details className="diagnostics-issue" key={`${issue.code}-${issue.path ?? "workspace"}-${issue.target ?? ""}-${index}`}>
+              <summary>
+                <span>{diagnosticIssueTitle(issue, t)}</span>
+                {issue.path ? <code>{issue.path}</code> : null}
+              </summary>
+              <p>{diagnosticIssueDescription(issue, t)}</p>
+              <div className="diagnostics-issue-meta">
+                <span>{t("diagnostics.issueType")}: <code>{issue.code}</code></span>
+                {issue.target ? <span>{t("diagnostics.target")}: <code>{issue.target}</code></span> : null}
+              </div>
+              {issue.relatedPaths.length ? (
+                <div className="diagnostics-related-paths">
+                  <span>{t("diagnostics.relatedPaths")}</span>
+                  {issue.relatedPaths.map((path) => <code key={path}>{path}</code>)}
+                </div>
+              ) : null}
+            </details>
+          ))}
+        </div>
+      ) : (
+        <div className="diagnostics-group-empty">{emptyLabel}</div>
+      )}
+    </details>
+  );
+}
+
+const diagnosticSummaryItems = (diagnostics: WorkspaceDiagnostics, t: ReturnType<typeof useI18n>["t"]) => {
+  const summary = diagnostics.summary;
+  return [
+    { label: t("diagnostics.metricHtmlNotes"), value: summary.htmlNoteCount },
+    { label: t("diagnostics.metricParsed"), value: summary.parsedNoteCount },
+    { label: t("diagnostics.metricErrors"), value: summary.errorCount, emphasis: summary.errorCount > 0 },
+    { label: t("diagnostics.metricWarnings"), value: summary.warningCount, emphasis: summary.warningCount > 0 },
+    { label: t("diagnostics.metricMissingIds"), value: summary.missingIdCount, emphasis: summary.missingIdCount > 0 },
+    { label: t("diagnostics.metricDuplicateIds"), value: summary.duplicateIdCount, emphasis: summary.duplicateIdCount > 0 },
+    { label: t("diagnostics.metricBrokenLinks"), value: summary.brokenHrefCount + summary.unresolvedLinkCount, emphasis: summary.brokenHrefCount + summary.unresolvedLinkCount > 0 },
+    { label: t("diagnostics.metricAssets"), value: summary.missingAssetCount + summary.unreferencedAssetCount, emphasis: summary.missingAssetCount + summary.unreferencedAssetCount > 0 },
+    { label: t("diagnostics.metricSqliteNotes"), value: summary.sqliteNoteCount ?? t("diagnostics.notAvailable") },
+    { label: t("diagnostics.metricSqliteRelations"), value: summary.sqliteRelationCount ?? t("diagnostics.notAvailable") },
+  ];
+};
+
+const diagnosticIssueTitle = (issue: WorkspaceDiagnosticIssue, t: ReturnType<typeof useI18n>["t"]) => {
+  const key = `diagnostics.issue.${issue.code}.title`;
+  const translated = t(key);
+  return translated === key ? t("diagnostics.issue.unknown.title", { code: issue.code }) : translated;
+};
+
+const diagnosticIssueDescription = (issue: WorkspaceDiagnosticIssue, t: ReturnType<typeof useI18n>["t"]) => {
+  const key = `diagnostics.issue.${issue.code}.desc`;
+  const translated = t(key);
+  return translated === key ? t("diagnostics.issue.unknown.desc") : translated;
+};
 
 function ShortcutSettingsPanel({
   settings,

@@ -20,6 +20,10 @@ Documents/
 
 HTML files are the source of truth. SQLite metadata should be rebuildable from notes whenever possible.
 
+Workspace diagnostics are read-only: they inspect HTML notes, local asset references, and SQLite index state without rewriting notes or secretly updating the database.
+
+The explicit index rebuild command only refreshes derived SQLite metadata such as note rows, full-text search content, tags, headings, and link relations. It does not modify HTML note files.
+
 ## Network Behavior
 
 Opaline does not need a cloud account for local note editing.

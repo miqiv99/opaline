@@ -56,6 +56,10 @@
           <p>HTML files are canonical. SQLite is useful, fast, and rebuildable.</p>
         </blockquote>
 
+        <h2>Diagnostics and Index Maintenance</h2>
+        <p>The workspace diagnostics command scans HTML notes, local asset references, and the existing SQLite index without modifying user-authored files or writing hidden database changes. Its job is to make trust visible: users can see malformed notes, missing metadata, duplicate IDs, unresolved shortcuts, broken hrefs, missing block or heading targets, missing assets, unreferenced assets, and index drift before taking action.</p>
+        <p>The rebuild index command is explicit and limited to derived data. It recreates SQLite note metadata, full-text search rows, tags, headings, and link relations from the HTML files under <code>notes/</code>. It never migrates, reformats, or silently rewrites the durable HTML notes.</p>
+
         <h2>Local History</h2>
         <p>Opaline has built-in local history for basic recovery from mistaken edits, deletes, renames, and moves. This is not Git, and users do not need Git installed. Snapshots live under <code>.opaline/history/</code> so they do not pollute <code>notes/</code> or become user-authored documents.</p>
         <pre><code>.opaline/

@@ -145,6 +145,11 @@ We chose PostgreSQL.         &lt;!-- no way to link here directly --&gt;
   &lt;/body&gt;
 &lt;/html&gt;</code></pre>
 
+        <h2>Parser and Diagnostics</h2>
+        <p>Opaline maintains a dedicated HTML Profile parser layer for note metadata, headings, links, tags, text extraction, block targets, and asset references. Indexing, search, backlinks, relationship maps, and diagnostics use this shared layer instead of ad hoc string scanning.</p>
+        <p>Workspace diagnostics are read-only. They report missing <code>opaline:id</code> metadata, duplicate IDs, missing <code>&lt;title&gt;</code> or <code>&lt;h1&gt;</code>, missing <code>article data-opaline-note</code>, near-empty bodies, broken note links, unresolved <code>[[...]]</code> shortcuts, missing heading or block targets, missing assets, unreferenced assets, and SQLite index drift.</p>
+        <p>Rebuilding the workspace index refreshes SQLite metadata, search rows, tags, headings, and link relations from the current HTML files. It does not rewrite user HTML notes.</p>
+
         <h2>Links, Tags, and Blocks</h2>
         <pre><code>&lt;a href="../projects/opaline.html" data-opaline-link="note-id" data-opaline-link-kind="note"&gt;Opaline&lt;/a&gt;
 &lt;a href="../projects/opaline.html#b-introduction" data-opaline-link="note-id" data-opaline-link-kind="block" data-opaline-block-id="b-introduction"&gt;introduction block&lt;/a&gt;

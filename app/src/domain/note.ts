@@ -83,6 +83,45 @@ export type GraphData = {
   brokenLinks: LinkInfo[];
 };
 
+export type WorkspaceDiagnosticLevel = "error" | "warning";
+
+export type WorkspaceDiagnosticIssue = {
+  level: WorkspaceDiagnosticLevel;
+  code: string;
+  path?: string | null;
+  relatedPaths: string[];
+  target?: string | null;
+  message: string;
+};
+
+export type WorkspaceDiagnosticsSummary = {
+  htmlNoteCount: number;
+  parsedNoteCount: number;
+  parseFailureCount: number;
+  errorCount: number;
+  warningCount: number;
+  missingIdCount: number;
+  duplicateIdCount: number;
+  missingTitleCount: number;
+  missingH1Count: number;
+  missingNoteArticleCount: number;
+  emptyBodyCount: number;
+  unresolvedLinkCount: number;
+  brokenHrefCount: number;
+  missingHeadingTargetCount: number;
+  missingBlockTargetCount: number;
+  missingAssetCount: number;
+  unreferencedAssetCount: number;
+  sqliteNoteCount?: number | null;
+  sqliteRelationCount?: number | null;
+  needsRebuild: boolean;
+};
+
+export type WorkspaceDiagnostics = {
+  summary: WorkspaceDiagnosticsSummary;
+  issues: WorkspaceDiagnosticIssue[];
+};
+
 export type AssetImport = {
   sourcePath: string;
   kind: "image" | "file";
