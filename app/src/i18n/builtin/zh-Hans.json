@@ -266,6 +266,7 @@
   "diagnostics.noErrors": "没有发现错误。",
   "diagnostics.noWarnings": "没有发现警告。",
   "diagnostics.issueType": "问题类型",
+  "diagnostics.issueDetail": "详细信息",
   "diagnostics.target": "目标",
   "diagnostics.relatedPaths": "相关路径",
   "diagnostics.notAvailable": "不可用",

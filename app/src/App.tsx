@@ -3028,6 +3028,12 @@ function DiagnosticIssueGroup({
                 {issue.path ? <code>{issue.path}</code> : null}
               </summary>
               <p>{diagnosticIssueDescription(issue, t)}</p>
+              {issue.message ? (
+                <div className="diagnostics-issue-detail">
+                  <span>{t("diagnostics.issueDetail")}</span>
+                  <code>{issue.message}</code>
+                </div>
+              ) : null}
               <div className="diagnostics-issue-meta">
                 <span>{t("diagnostics.issueType")}: <code>{issue.code}</code></span>
                 {issue.target ? <span>{t("diagnostics.target")}: <code>{issue.target}</code></span> : null}

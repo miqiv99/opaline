@@ -266,6 +266,7 @@
   "diagnostics.noErrors": "No errors found.",
   "diagnostics.noWarnings": "No warnings found.",
   "diagnostics.issueType": "Issue type",
+  "diagnostics.issueDetail": "Detail",
   "diagnostics.target": "Target",
   "diagnostics.relatedPaths": "Related paths",
   "diagnostics.notAvailable": "N/A",

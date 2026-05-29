@@ -3728,6 +3728,19 @@ textarea:focus-visible,
   line-height: 1.5;
 }
 
+.diagnostics-issue-detail {
+  display: grid;
+  gap: 4px;
+  color: var(--xz-text-secondary);
+  padding: 10px 12px 0;
+}
+
+.diagnostics-issue-detail span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--xz-text-primary);
+}
+
 .diagnostics-issue-meta,
 .diagnostics-related-paths {
   display: flex;

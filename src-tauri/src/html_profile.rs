@@ -196,18 +196,27 @@ pub fn ensure_title(html: &str, fallback_title: &str) -> String {
 }
 
 pub fn replace_title_text(html: &str, title: &str) -> String {
-    replace_first_element_inner(html, "title", &escape_text(title))
-        .unwrap_or_else(|| insert_into_head(html, &format!("    <title>{}</title>\n", escape_text(title))))
+    replace_first_element_inner(html, "title", &escape_text(title)).unwrap_or_else(|| {
+        insert_into_head(
+            html,
+            &format!("    <title>{}</title>\n", escape_text(title)),
+        )
+    })
 }
 
-pub fn replace_first_h1_if_text_matches(html: &str, expected_text: &str, replacement: &str) -> String {
+pub fn replace_first_h1_if_text_matches(
+    html: &str,
+    expected_text: &str,
+    replacement: &str,
+) -> String {
     let Some(current_h1) = first_heading_content(html) else {
         return html.to_string();
     };
     if current_h1.trim() != expected_text.trim() {
         return html.to_string();
     }
-    replace_first_element_inner(html, "h1", &escape_text(replacement)).unwrap_or_else(|| html.to_string())
+    replace_first_element_inner(html, "h1", &escape_text(replacement))
+        .unwrap_or_else(|| html.to_string())
 }
 
 pub fn link_metadata_from_parts(
@@ -243,7 +252,8 @@ pub fn link_metadata_from_parts(
         || target_block_id.is_some()
         || fragment.as_deref().is_some_and(is_block_fragment)
     {
-        let block = target_block_id.or_else(|| fragment.as_deref().map(normalize_block_fragment_value));
+        let block =
+            target_block_id.or_else(|| fragment.as_deref().map(normalize_block_fragment_value));
         return LinkMetadata {
             kind: "block".to_string(),
             target_heading: None,
@@ -253,7 +263,8 @@ pub fn link_metadata_from_parts(
     }
 
     if kind.as_deref() == Some("heading") || target_heading.is_some() || fragment.is_some() {
-        let heading = target_heading.or_else(|| fragment.as_deref().map(normalize_heading_fragment_value));
+        let heading =
+            target_heading.or_else(|| fragment.as_deref().map(normalize_heading_fragment_value));
         return LinkMetadata {
             kind: "heading".to_string(),
             target_heading: heading,
@@ -341,7 +352,10 @@ fn extract_heading_details_from_document(document: &Document) -> Vec<NoteHeading
         headings.push(NoteHeading {
             level,
             text,
-            id: node.attr("id").map(clean_attr_value).filter(|value| !value.is_empty()),
+            id: node
+                .attr("id")
+                .map(clean_attr_value)
+                .filter(|value| !value.is_empty()),
         });
     }
     headings
@@ -390,7 +404,11 @@ fn extract_links_from_document(document: &Document) -> Vec<NoteLink> {
         let unresolved = node
             .attr("data-opaline-unresolved")
             .map(clean_attr_value)
-            .unwrap_or_else(|| collapse_whitespace(&node.text()).trim_matches(['[', ']']).to_string());
+            .unwrap_or_else(|| {
+                collapse_whitespace(&node.text())
+                    .trim_matches(['[', ']'])
+                    .to_string()
+            });
         if unresolved.is_empty() {
             continue;
         }
@@ -449,11 +467,7 @@ fn extract_asset_references_from_document(document: &Document) -> Vec<NoteAssetR
             if !is_local_asset_reference(&source) {
                 continue;
             }
-            let element = selector
-                .split('[')
-                .next()
-                .unwrap_or("element")
-                .to_string();
+            let element = selector.split('[').next().unwrap_or("element").to_string();
             refs.push(NoteAssetReference {
                 source,
                 element,
@@ -464,27 +478,42 @@ fn extract_asset_references_from_document(document: &Document) -> Vec<NoteAssetR
     refs
 }
 
-fn target_inventory_from_document(document: &Document, headings: &[NoteHeading]) -> NoteTargetInventory {
+fn target_inventory_from_document(
+    document: &Document,
+    headings: &[NoteHeading],
+) -> NoteTargetInventory {
     let mut inventory = NoteTargetInventory {
-        headings: headings.iter().map(|heading| heading.text.clone()).collect(),
-        heading_ids: headings.iter().filter_map(|heading| heading.id.clone()).collect(),
+        headings: headings
+            .iter()
+            .map(|heading| heading.text.clone())
+            .collect(),
+        heading_ids: headings
+            .iter()
+            .filter_map(|heading| heading.id.clone())
+            .collect(),
         block_ids: Vec::new(),
         element_ids: Vec::new(),
     };
 
     for node in document.select("[id]").iter() {
-        if let Some(id) = node.attr("id").map(clean_attr_value).filter(|value| !value.is_empty()) {
+        if let Some(id) = node
+            .attr("id")
+            .map(clean_attr_value)
+            .filter(|value| !value.is_empty())
+        {
             push_unique(&mut inventory.element_ids, id.clone());
             if node.has_attr("data-opaline-block") || is_block_fragment(&id) {
                 push_unique(&mut inventory.block_ids, id);
             }
         }
     }
-    for node in document.select("[data-opaline-block-id], [data-opaline-block-ref]").iter() {
-        for attr in ["data-opaline-block-id", "data-opaline-block-ref"] {
-            if let Some(id) = node.attr(attr).map(clean_attr_value).filter(|value| !value.is_empty()) {
-                push_unique(&mut inventory.block_ids, id);
-            }
+    for node in document.select("[data-opaline-block-id]").iter() {
+        if let Some(id) = node
+            .attr("data-opaline-block-id")
+            .map(clean_attr_value)
+            .filter(|value| !value.is_empty())
+        {
+            push_unique(&mut inventory.block_ids, id);
         }
     }
 
@@ -505,8 +534,10 @@ fn meta_content_from_document(document: &Document, name: &str) -> Option<String>
 
 fn text_for_first(document: &Document, selector: &str) -> Option<String> {
     document
-        .try_select(selector)
-        .map(|selection| collapse_whitespace(&selection.text()))
+        .select(selector)
+        .iter()
+        .next()
+        .map(|node| collapse_whitespace(&node.text()))
         .filter(|value| !value.is_empty())
 }
 
@@ -607,7 +638,11 @@ where
         };
         let start = index + relative;
         let name_start = start + 1;
-        if name_start >= bytes.len() || bytes[name_start] == b'/' || bytes[name_start] == b'!' || bytes[name_start] == b'?' {
+        if name_start >= bytes.len()
+            || bytes[name_start] == b'/'
+            || bytes[name_start] == b'!'
+            || bytes[name_start] == b'?'
+        {
             index = name_start;
             continue;
         }
@@ -643,7 +678,10 @@ fn find_close_tag(html: &str, tag_name: &str, from: usize) -> Option<usize> {
         let start = from + offset + relative;
         let after_name = start + needle.len();
         if after_name < html.len()
-            && matches!(html.as_bytes()[after_name], b' ' | b'\t' | b'\n' | b'\r' | b'>')
+            && matches!(
+                html.as_bytes()[after_name],
+                b' ' | b'\t' | b'\n' | b'\r' | b'>'
+            )
         {
             return Some(start);
         }
@@ -673,8 +711,7 @@ fn parse_tag_attributes(tag: &str, absolute_start: usize) -> Vec<ParsedAttr> {
     let mut attrs = Vec::new();
     let mut index = 1;
 
-    while index < bytes.len()
-        && !matches!(bytes[index], b' ' | b'\t' | b'\n' | b'\r' | b'/' | b'>')
+    while index < bytes.len() && !matches!(bytes[index], b' ' | b'\t' | b'\n' | b'\r' | b'/' | b'>')
     {
         index += 1;
     }
@@ -688,7 +725,10 @@ fn parse_tag_attributes(tag: &str, absolute_start: usize) -> Vec<ParsedAttr> {
         }
         let name_start = index;
         while index < bytes.len()
-            && !matches!(bytes[index], b' ' | b'\t' | b'\n' | b'\r' | b'=' | b'/' | b'>')
+            && !matches!(
+                bytes[index],
+                b' ' | b'\t' | b'\n' | b'\r' | b'=' | b'/' | b'>'
+            )
         {
             index += 1;
         }
@@ -882,20 +922,77 @@ mod tests {
         assert!(inspection.tags.contains(&"HTML".to_string()));
         assert!(inspection.body_text.contains("Intro block & notes"));
 
-        let block = inspection.links.iter().find(|link| link.kind == "block").unwrap();
+        let block = inspection
+            .links
+            .iter()
+            .find(|link| link.kind == "block")
+            .unwrap();
         assert_eq!(block.href, "target.html#b-intro");
         assert_eq!(block.target_id.as_deref(), Some("note-2"));
         assert_eq!(block.target_block_id.as_deref(), Some("b-intro"));
 
-        let heading = inspection.links.iter().find(|link| link.kind == "heading").unwrap();
+        let heading = inspection
+            .links
+            .iter()
+            .find(|link| link.kind == "heading")
+            .unwrap();
         assert_eq!(heading.target_heading.as_deref(), Some("Research Question"));
 
-        let concept = inspection.links.iter().find(|link| link.kind == "concept").unwrap();
+        let concept = inspection
+            .links
+            .iter()
+            .find(|link| link.kind == "concept")
+            .unwrap();
         assert_eq!(concept.concept.as_deref(), Some("RAG"));
 
-        let unresolved = inspection.links.iter().find(|link| link.unresolved).unwrap();
+        let unresolved = inspection
+            .links
+            .iter()
+            .find(|link| link.unresolved)
+            .unwrap();
         assert!(unresolved.is_broken);
         assert_eq!(unresolved.label, "Missing Note");
+    }
+
+    #[test]
+    fn first_heading_content_uses_first_matching_h1_only() {
+        let html = r#"<!doctype html>
+<html><head><title>Title</title></head>
+<body><article data-opaline-note>
+<h1>First <em>Heading</em></h1>
+<h1>Second Heading</h1>
+</article></body></html>"#;
+
+        assert_eq!(
+            first_heading_content(html).as_deref(),
+            Some("First Heading")
+        );
+    }
+
+    #[test]
+    fn target_inventory_does_not_treat_block_ref_as_a_target() {
+        let html = r#"<!doctype html>
+<html><head><title>Blocks</title></head>
+<body><article data-opaline-note>
+<p data-opaline-block-ref="referenced-elsewhere">Link-side reference metadata</p>
+<p data-opaline-block-id="real-block">Real block target</p>
+<section id="section-block" data-opaline-block>Section block target</section>
+</article></body></html>"#;
+
+        let inspection = inspect_note_html(html);
+
+        assert!(!inspection
+            .target_inventory
+            .block_ids
+            .contains(&"referenced-elsewhere".to_string()));
+        assert!(inspection
+            .target_inventory
+            .block_ids
+            .contains(&"real-block".to_string()));
+        assert!(inspection
+            .target_inventory
+            .block_ids
+            .contains(&"section-block".to_string()));
     }
 
     #[test]

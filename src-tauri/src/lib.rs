@@ -334,7 +334,11 @@ async fn http_get_text(url: String) -> Result<HttpTextResult, String> {
     let parsed = reqwest::Url::parse(url.trim()).map_err(to_error)?;
     match parsed.scheme() {
         "http" | "https" => {}
-        _ => return Err("Only http:// and https:// URLs are allowed for live components.".to_string()),
+        _ => {
+            return Err(
+                "Only http:// and https:// URLs are allowed for live components.".to_string(),
+            )
+        }
     }
 
     let started = Instant::now();
@@ -374,7 +378,13 @@ fn plugin_ping(host: String, timeout_ms: Option<u64>) -> Result<PluginPingResult
     #[cfg(target_os = "windows")]
     let (command, args) = (
         "ping".to_string(),
-        vec!["-n".to_string(), "1".to_string(), "-w".to_string(), timeout.to_string(), host.clone()],
+        vec![
+            "-n".to_string(),
+            "1".to_string(),
+            "-w".to_string(),
+            timeout.to_string(),
+            host.clone(),
+        ],
     );
     #[cfg(not(target_os = "windows"))]
     let (command, args) = (
@@ -400,7 +410,11 @@ fn plugin_ping(host: String, timeout_ms: Option<u64>) -> Result<PluginPingResult
 }
 
 #[tauri::command]
-fn plugin_tcp_connect(host: String, port: u16, timeout_ms: Option<u64>) -> Result<PluginTcpResult, String> {
+fn plugin_tcp_connect(
+    host: String,
+    port: u16,
+    timeout_ms: Option<u64>,
+) -> Result<PluginTcpResult, String> {
     let host = host.trim().to_string();
     if host.is_empty() {
         return Err("tcp host cannot be empty".to_string());
@@ -722,7 +736,8 @@ fn graph_data(path: String) -> Result<GraphData, String> {
             let target_id: Option<String> = row.get(1)?;
             let href: String = row.get(2)?;
             let label: String = row.get(3)?;
-            let meta = html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
+            let meta =
+                html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
             let Some(target) =
                 target_id.or_else(|| meta.concept.as_ref().map(|c| concept_node_id(c)))
             else {
@@ -795,7 +810,8 @@ fn graph_data(path: String) -> Result<GraphData, String> {
             let href: String = row.get(0)?;
             let label: String = row.get(1)?;
             let target_id: Option<String> = row.get(2)?;
-            let meta = html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
+            let meta =
+                html_profile::link_metadata_from_parts(&href, None, None, None, None, &label);
             Ok(LinkInfo {
                 href,
                 label,
@@ -959,7 +975,8 @@ fn restore_note_history(
         )?;
     }
 
-    let restored_to_write = upsert_meta_content(&snapshot_html, "opaline:updated", &Utc::now().to_rfc3339());
+    let restored_to_write =
+        upsert_meta_content(&snapshot_html, "opaline:updated", &Utc::now().to_rfc3339());
     write_file_atomically(&absolute, &restored_to_write)?;
     let restored_html = fs::read_to_string(&absolute).map_err(to_error)?;
     let summary = summary_from_html(&conn, &workspace, &absolute, &restored_html)?;
@@ -1205,11 +1222,13 @@ fn list_language_packs(path: String) -> Result<Vec<LoadedLanguagePack>, String> 
         }
 
         let manifest_raw = fs::read_to_string(&manifest_path).map_err(to_error)?;
-        let manifest: LanguagePackManifest = serde_json::from_str(&manifest_raw).map_err(to_error)?;
+        let manifest: LanguagePackManifest =
+            serde_json::from_str(&manifest_raw).map_err(to_error)?;
         validate_language_pack_manifest(&manifest)?;
 
         let messages_raw = fs::read_to_string(&messages_path).map_err(to_error)?;
-        let messages_value: serde_json::Value = serde_json::from_str(&messages_raw).map_err(to_error)?;
+        let messages_value: serde_json::Value =
+            serde_json::from_str(&messages_raw).map_err(to_error)?;
         let object = messages_value
             .as_object()
             .ok_or_else(|| "messages.json must be a JSON object".to_string())?;
@@ -1303,7 +1322,10 @@ fn plugin_fs_list_dir(path: String, directory: String) -> Result<Vec<PluginFsEnt
 }
 
 #[tauri::command]
-fn plugin_storage_get(path: String, input: PluginStorageInput) -> Result<Option<serde_json::Value>, String> {
+fn plugin_storage_get(
+    path: String,
+    input: PluginStorageInput,
+) -> Result<Option<serde_json::Value>, String> {
     let storage = read_plugin_storage(&workspace_path(&path)?, &input.plugin_id)?;
     Ok(storage.get(input.key.trim()).cloned())
 }
@@ -1312,7 +1334,10 @@ fn plugin_storage_get(path: String, input: PluginStorageInput) -> Result<Option<
 fn plugin_storage_set(path: String, input: PluginStorageInput) -> Result<(), String> {
     let workspace = workspace_path(&path)?;
     let mut storage = read_plugin_storage(&workspace, &input.plugin_id)?;
-    storage.insert(input.key.trim().to_string(), input.value.unwrap_or(serde_json::Value::Null));
+    storage.insert(
+        input.key.trim().to_string(),
+        input.value.unwrap_or(serde_json::Value::Null),
+    );
     write_plugin_storage(&workspace, &input.plugin_id, &storage)
 }
 
@@ -1330,7 +1355,11 @@ fn plugin_system_open_external(target: String, app: tauri::AppHandle) -> Result<
 }
 
 #[tauri::command]
-fn plugin_system_open_path(path: String, target: String, app: tauri::AppHandle) -> Result<(), String> {
+fn plugin_system_open_path(
+    path: String,
+    target: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
     let workspace = workspace_path(&path)?;
     let target = resolve_plugin_path(&workspace, &target);
     open_target_with_system(&app, &target.to_string_lossy())
@@ -1344,7 +1373,12 @@ fn plugin_shell_exec(input: PluginShellExecInput) -> Result<PluginShellExecResul
     }
     let args = input.args.unwrap_or_default();
     let cwd = input.cwd.as_deref().map(PathBuf::from);
-    run_command_capture(command, &args, cwd.as_deref(), input.timeout_ms.unwrap_or(10_000).clamp(500, 120_000))
+    run_command_capture(
+        command,
+        &args,
+        cwd.as_deref(),
+        input.timeout_ms.unwrap_or(10_000).clamp(500, 120_000),
+    )
 }
 
 #[tauri::command]
@@ -1520,9 +1554,14 @@ fn plugin_data_dir(workspace: &Path, plugin_id: &str) -> Result<PathBuf, String>
         .chars()
         .any(|ch| !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.'))
     {
-        return Err("plugin id can only contain letters, numbers, dash, underscore, and dot".to_string());
+        return Err(
+            "plugin id can only contain letters, numbers, dash, underscore, and dot".to_string(),
+        );
     }
-    Ok(workspace.join(".opaline").join("plugin-data").join(plugin_id))
+    Ok(workspace
+        .join(".opaline")
+        .join("plugin-data")
+        .join(plugin_id))
 }
 
 fn resolve_plugin_path(workspace: &Path, value: &str) -> PathBuf {
@@ -1542,8 +1581,8 @@ fn read_plugin_storage(
     if !path.is_file() {
         return Ok(serde_json::Map::new());
     }
-    let value: serde_json::Value = serde_json::from_str(&fs::read_to_string(path).map_err(to_error)?)
-        .map_err(to_error)?;
+    let value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(path).map_err(to_error)?).map_err(to_error)?;
     Ok(value.as_object().cloned().unwrap_or_default())
 }
 
@@ -1780,19 +1819,10 @@ fn migrate_index(conn: &Connection) -> Result<(), String> {
 }
 
 fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
-    let conn = open_index(workspace)?;
+    let mut conn = open_index(workspace)?;
     migrate_index(&conn)?;
 
     let favorite_by_id = load_favorites(&conn)?;
-    conn.execute("delete from note_tags", [])
-        .map_err(to_error)?;
-    conn.execute("delete from note_headings", [])
-        .map_err(to_error)?;
-    conn.execute("delete from note_links", [])
-        .map_err(to_error)?;
-    conn.execute("delete from notes_fts", [])
-        .map_err(to_error)?;
-
     let notes_dir = workspace.join("notes");
     let mut notes = Vec::new();
     let mut present_ids = BTreeSet::new();
@@ -1817,22 +1847,36 @@ fn rebuild_index(workspace: &Path) -> Result<Vec<NoteSummary>, String> {
         notes.push((summary, html));
     }
 
-    for (summary, html) in &mut notes {
+    for (summary, _) in &mut notes {
         resolve_links(summary, &present_ids, &id_by_path, &id_by_title);
-        upsert_note_index(&conn, summary, html)?;
     }
 
-    if present_ids.is_empty() {
-        conn.execute("delete from notes", []).map_err(to_error)?;
-    } else {
-        let placeholders = present_ids
-            .iter()
-            .map(|_| "?")
-            .collect::<Vec<_>>()
-            .join(",");
-        let sql = format!("delete from notes where id not in ({placeholders})");
-        let params = rusqlite::params_from_iter(present_ids.iter());
-        conn.execute(&sql, params).map_err(to_error)?;
+    {
+        let tx = conn.transaction().map_err(to_error)?;
+        tx.execute("delete from note_tags", []).map_err(to_error)?;
+        tx.execute("delete from note_headings", [])
+            .map_err(to_error)?;
+        tx.execute("delete from note_links", []).map_err(to_error)?;
+        tx.execute("delete from notes_fts", []).map_err(to_error)?;
+
+        for (summary, html) in &notes {
+            upsert_note_index(&tx, summary, html)?;
+        }
+
+        if present_ids.is_empty() {
+            tx.execute("delete from notes", []).map_err(to_error)?;
+        } else {
+            let placeholders = present_ids
+                .iter()
+                .map(|_| "?")
+                .collect::<Vec<_>>()
+                .join(",");
+            let sql = format!("delete from notes where id not in ({placeholders})");
+            let params = rusqlite::params_from_iter(present_ids.iter());
+            tx.execute(&sql, params).map_err(to_error)?;
+        }
+
+        tx.commit().map_err(to_error)?;
     }
 
     let mut summaries = notes
@@ -1867,7 +1911,6 @@ fn diagnose_workspace_inner(workspace: &Path) -> Result<WorkspaceDiagnostics, St
     let mut path_by_id: HashMap<String, String> = HashMap::new();
 
     if !notes_dir.is_dir() {
-        summary.needs_rebuild = true;
         push_diagnostic_issue(
             &mut summary,
             &mut issues,
@@ -1931,7 +1974,9 @@ fn diagnose_workspace_inner(workspace: &Path) -> Result<WorkspaceDiagnostics, St
                     .entry(id.clone())
                     .or_default()
                     .push(relative_path.clone());
-                path_by_id.entry(id).or_insert_with(|| relative_path.clone());
+                path_by_id
+                    .entry(id)
+                    .or_insert_with(|| relative_path.clone());
             } else {
                 summary.missing_id_count += 1;
                 push_diagnostic_issue(
@@ -2035,20 +2080,8 @@ fn diagnose_workspace_inner(workspace: &Path) -> Result<WorkspaceDiagnostics, St
         &mut summary,
         &mut issues,
     );
-    diagnose_assets(
-        workspace,
-        &assets_dir,
-        &notes,
-        &mut summary,
-        &mut issues,
-    )?;
+    diagnose_assets(workspace, &assets_dir, &notes, &mut summary, &mut issues)?;
     diagnose_index_state(workspace, &paths, &mut summary, &mut issues);
-
-    summary.needs_rebuild = summary.needs_rebuild
-        || summary.parse_failure_count > 0
-        || summary.missing_id_count > 0
-        || summary.duplicate_id_count > 0
-        || summary.error_count > 0;
 
     Ok(WorkspaceDiagnostics { summary, issues })
 }
@@ -2158,10 +2191,11 @@ fn diagnose_fragment_target(
     };
 
     if link.kind == "block" {
-        let block_id = link
-            .target_block_id
-            .clone()
-            .or_else(|| link.fragment.as_deref().map(html_profile::normalize_block_fragment_value));
+        let block_id = link.target_block_id.clone().or_else(|| {
+            link.fragment
+                .as_deref()
+                .map(html_profile::normalize_block_fragment_value)
+        });
         if let Some(block_id) = block_id {
             let exists = contains_exact(&inventory.block_ids, &block_id)
                 || contains_exact(&inventory.element_ids, &block_id);
@@ -2183,10 +2217,11 @@ fn diagnose_fragment_target(
     }
 
     if link.kind == "heading" {
-        let heading = link
-            .target_heading
-            .clone()
-            .or_else(|| link.fragment.as_deref().map(html_profile::normalize_heading_fragment_value));
+        let heading = link.target_heading.clone().or_else(|| {
+            link.fragment
+                .as_deref()
+                .map(html_profile::normalize_heading_fragment_value)
+        });
         if let Some(heading) = heading {
             let raw_fragment = link.fragment.as_deref().unwrap_or("");
             let exists = contains_case_insensitive(&inventory.headings, &heading)
@@ -2219,12 +2254,10 @@ fn diagnose_assets(
     let mut referenced_assets = HashSet::new();
 
     for note in notes {
-        let note_dir = note
-            .absolute_path
-            .parent()
-            .unwrap_or_else(|| workspace);
+        let note_dir = note.absolute_path.parent().unwrap_or_else(|| workspace);
         for reference in &note.inspection.asset_references {
-            let Some(target_path) = resolve_local_reference(workspace, note_dir, &reference.source) else {
+            let Some(target_path) = resolve_local_reference(workspace, note_dir, &reference.source)
+            else {
                 continue;
             };
             if target_path.is_file() {
@@ -2342,7 +2375,11 @@ fn diagnose_index_state(
             "index_count_mismatch",
             Some(".opaline/index.sqlite".to_string()),
             Vec::new(),
-            Some(format!("files={} sqlite={}", note_paths.len(), indexed_paths.len())),
+            Some(format!(
+                "files={} sqlite={}",
+                note_paths.len(),
+                indexed_paths.len()
+            )),
             "SQLite notes count does not match the number of HTML notes on disk.",
         );
     }
@@ -2394,7 +2431,9 @@ fn read_indexed_note_paths(conn: &Connection) -> Result<BTreeSet<String>, String
 
 fn count_index_rows(conn: &Connection, table: &str) -> Result<usize, String> {
     let sql = format!("select count(*) from {table}");
-    let count: i64 = conn.query_row(&sql, [], |row| row.get(0)).map_err(to_error)?;
+    let count: i64 = conn
+        .query_row(&sql, [], |row| row.get(0))
+        .map_err(to_error)?;
     Ok(count.max(0) as usize)
 }
 
@@ -2471,7 +2510,9 @@ fn normalize_path_lexically(path: &Path) -> PathBuf {
 }
 
 fn contains_case_insensitive(values: &[String], needle: &str) -> bool {
-    values.iter().any(|value| value.eq_ignore_ascii_case(needle))
+    values
+        .iter()
+        .any(|value| value.eq_ignore_ascii_case(needle))
 }
 
 fn contains_exact(values: &[String], needle: &str) -> bool {
@@ -2881,7 +2922,9 @@ fn latest_note_history_entry(
     workspace: &Path,
     note_id: &str,
 ) -> Result<Option<NoteHistoryEntry>, String> {
-    Ok(list_note_history_entries(workspace, note_id)?.into_iter().next())
+    Ok(list_note_history_entries(workspace, note_id)?
+        .into_iter()
+        .next())
 }
 
 fn list_note_history_entries(
@@ -2981,9 +3024,9 @@ fn clean_snapshot_id(snapshot_id: &str) -> Result<String, String> {
         || id.contains('/')
         || id.contains('\\')
         || id.contains("..")
-        || !id
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_')
+        || !id.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        })
     {
         return Err("历史版本 ID 无效".to_string());
     }
@@ -3404,12 +3447,9 @@ mod tests {
         )
         .expect("note is created");
 
-        let initial_history = list_note_history(
-            workspace_string.clone(),
-            note.path.clone(),
-            note.id.clone(),
-        )
-        .expect("initial history is listed");
+        let initial_history =
+            list_note_history(workspace_string.clone(), note.path.clone(), note.id.clone())
+                .expect("initial history is listed");
         assert_eq!(initial_history.len(), 1);
 
         let changed = save_note(
@@ -3466,8 +3506,8 @@ mod tests {
         .expect("history is restored");
         assert!(!restored.html.contains("changed content"));
 
-        let post_restore_history =
-            list_note_history(workspace_string, restored.path, restored.id).expect("history remains");
+        let post_restore_history = list_note_history(workspace_string, restored.path, restored.id)
+            .expect("history remains");
         assert!(post_restore_history.len() >= 3);
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
@@ -3480,7 +3520,8 @@ mod tests {
         let note_path = workspace.join("note.html");
 
         write_file_atomically(&note_path, "<p>first</p>").expect("initial write");
-        write_file_atomically(&note_path, &"<p>second</p>".repeat(2048)).expect("replacement write");
+        write_file_atomically(&note_path, &"<p>second</p>".repeat(2048))
+            .expect("replacement write");
 
         let saved = fs::read_to_string(&note_path).expect("saved file");
         assert!(saved.starts_with("<p>second</p>"));
@@ -3488,12 +3529,7 @@ mod tests {
         let leftovers = fs::read_dir(&workspace)
             .expect("read workspace")
             .filter_map(Result::ok)
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .contains("note.html.")
-            })
+            .filter(|entry| entry.file_name().to_string_lossy().contains("note.html."))
             .count();
         assert_eq!(leftovers, 0);
 
@@ -3757,6 +3793,31 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_profile_issue_does_not_request_index_rebuild() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+
+        write_test_note(
+            &workspace,
+            "notes/no-article.html",
+            r#"<!doctype html>
+<html><head><title>No Article</title><meta name="opaline:id" content="no-article"></head>
+<body><h1>No Article</h1><p>body text</p></body></html>"#,
+        );
+
+        rebuild_workspace_index(workspace_string.clone()).expect("index rebuilt");
+        let diagnostics = diagnose_workspace(workspace_string).expect("diagnostics run");
+
+        assert!(has_issue(&diagnostics, "missing_note_article"));
+        assert!(diagnostics.summary.error_count > 0);
+        assert_eq!(diagnostics.summary.sqlite_note_count, Some(1));
+        assert!(!diagnostics.summary.needs_rebuild);
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
     fn rebuild_workspace_index_matches_notes_and_relations() {
         let workspace = test_workspace();
         let workspace_string = workspace.to_string_lossy().to_string();
@@ -3777,7 +3838,8 @@ mod tests {
 <body><article data-opaline-note><h1>Source</h1><p>source body text <a href="target.html" data-opaline-link="target">Target</a></p></article></body></html>"#,
         );
 
-        let before = diagnose_workspace(workspace_string.clone()).expect("diagnostics before rebuild");
+        let before =
+            diagnose_workspace(workspace_string.clone()).expect("diagnostics before rebuild");
         assert!(before.summary.needs_rebuild);
 
         let notes = rebuild_workspace_index(workspace_string.clone()).expect("index rebuilt");
@@ -3797,6 +3859,50 @@ mod tests {
         assert_eq!(after.summary.sqlite_note_count, Some(2));
         assert_eq!(after.summary.sqlite_relation_count, Some(1));
         assert!(!after.summary.needs_rebuild);
+
+        fs::remove_dir_all(workspace).expect("test workspace cleaned up");
+    }
+
+    #[test]
+    fn rebuild_workspace_index_preserves_existing_index_on_scan_failure() {
+        let workspace = test_workspace();
+        let workspace_string = workspace.to_string_lossy().to_string();
+        ensure_workspace(workspace_string.clone()).expect("workspace is created");
+
+        write_test_note(
+            &workspace,
+            "notes/stable.html",
+            r#"<!doctype html>
+<html><head><title>Stable</title><meta name="opaline:id" content="stable"></head>
+<body><article data-opaline-note><h1>Stable</h1><p><span data-opaline-tag="keep">#keep</span> stable body text</p></article></body></html>"#,
+        );
+        rebuild_workspace_index(workspace_string.clone()).expect("initial index rebuilt");
+
+        fs::write(workspace.join("notes/invalid.html"), [0xff, 0xfe, 0xfd])
+            .expect("invalid utf8 note");
+        let error =
+            rebuild_workspace_index(workspace_string).expect_err("invalid utf8 aborts rebuild");
+        assert!(!error.is_empty());
+
+        let conn = open_index(&workspace).expect("index opens");
+        let note_count: i64 = conn
+            .query_row("select count(*) from notes", [], |row| row.get(0))
+            .expect("note count");
+        let fts_count: i64 = conn
+            .query_row("select count(*) from notes_fts", [], |row| row.get(0))
+            .expect("fts count");
+        let tag_count: i64 = conn
+            .query_row("select count(*) from note_tags", [], |row| row.get(0))
+            .expect("tag count");
+        let stable_title: String = conn
+            .query_row("select title from notes where id = 'stable'", [], |row| {
+                row.get(0)
+            })
+            .expect("stable title");
+        assert_eq!(note_count, 1);
+        assert_eq!(fts_count, 1);
+        assert_eq!(tag_count, 1);
+        assert_eq!(stable_title, "Stable");
 
         fs::remove_dir_all(workspace).expect("test workspace cleaned up");
     }
